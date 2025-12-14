@@ -1,16 +1,7 @@
 {
   "ExpandedNodes": [
-    "",
-    "\\sia-backend-main",
-    "\\sia-backend-main\\Controllers",
-    "\\sia-backend-main\\DTOs",
-    "\\sia-backend-main\\DTOs\\CutiAkademik",
-    "\\sia-backend-main\\DTOs\\DropOut",
-    "\\sia-backend-main\\DTOs\\Institusi",
-    "\\sia-backend-main\\Models",
-    "\\sia-backend-main\\Repositories",
-    "\\sia-backend-main\\Repositories\\Implementations"
+    ""
   ],
-  "SelectedNode": "\\sia-backend-main\\Repositories\\Implementations\\CutiAkademikRepository.cs",
+  "SelectedNode": "\\astratech-apps-backend.sln",
   "PreviewInSolutionExplorer": false
 }
