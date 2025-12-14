@@ -1,0 +1,211 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Repositories\\Implementations\\CutiAkademikRepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\Repositories\\Implementations\\CutiAkademikRepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Repositories\\Implementations\\DropOutRepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\Repositories\\Implementations\\DropOutRepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Models\\DropOut.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\Models\\DropOut.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Models\\CutiAkademik.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\Models\\CutiAkademik.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\Institusi\\CreateInstitusiRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\DTOs\\Institusi\\CreateInstitusiRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\UpdateDropOutRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\DTOs\\DropOut\\UpdateDropOutRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\DropOutResponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\DTOs\\DropOut\\DropOutResponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\CreateDropOutRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\DTOs\\DropOut\\CreateDropOutRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\UpdateCutiAkademikRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\DTOs\\CutiAkademik\\UpdateCutiAkademikRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\CutiAkademikResponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\DTOs\\CutiAkademik\\CutiAkademikResponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\CreateCutiAkademikRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:sia-backend-main\\DTOs\\CutiAkademik\\CreateCutiAkademikRequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{b1e99781-ab81-11d0-b683-00aa00a3ee26}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "CutiAkademikRepository.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Repositories\\Implementations\\CutiAkademikRepository.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\Repositories\\Implementations\\CutiAkademikRepository.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Repositories\\Implementations\\CutiAkademikRepository.cs",
+              "RelativeToolTip": "sia-backend-main\\Repositories\\Implementations\\CutiAkademikRepository.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:56.688Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "DropOutRepository.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Repositories\\Implementations\\DropOutRepository.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\Repositories\\Implementations\\DropOutRepository.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Repositories\\Implementations\\DropOutRepository.cs",
+              "RelativeToolTip": "sia-backend-main\\Repositories\\Implementations\\DropOutRepository.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:55.583Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "DropOut.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Models\\DropOut.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\Models\\DropOut.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Models\\DropOut.cs",
+              "RelativeToolTip": "sia-backend-main\\Models\\DropOut.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:48.988Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "CutiAkademik.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Models\\CutiAkademik.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\Models\\CutiAkademik.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\Models\\CutiAkademik.cs",
+              "RelativeToolTip": "sia-backend-main\\Models\\CutiAkademik.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:46.381Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "CreateInstitusiRequest.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\Institusi\\CreateInstitusiRequest.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\DTOs\\Institusi\\CreateInstitusiRequest.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\Institusi\\CreateInstitusiRequest.cs",
+              "RelativeToolTip": "sia-backend-main\\DTOs\\Institusi\\CreateInstitusiRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:41.646Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "UpdateDropOutRequest.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\UpdateDropOutRequest.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\DTOs\\DropOut\\UpdateDropOutRequest.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\UpdateDropOutRequest.cs",
+              "RelativeToolTip": "sia-backend-main\\DTOs\\DropOut\\UpdateDropOutRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:38.351Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "DropOutResponse.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\DropOutResponse.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\DTOs\\DropOut\\DropOutResponse.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\DropOutResponse.cs",
+              "RelativeToolTip": "sia-backend-main\\DTOs\\DropOut\\DropOutResponse.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:37.48Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "CreateDropOutRequest.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\CreateDropOutRequest.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\DTOs\\DropOut\\CreateDropOutRequest.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\DropOut\\CreateDropOutRequest.cs",
+              "RelativeToolTip": "sia-backend-main\\DTOs\\DropOut\\CreateDropOutRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:36.62Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "UpdateCutiAkademikRequest.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\UpdateCutiAkademikRequest.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\DTOs\\CutiAkademik\\UpdateCutiAkademikRequest.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\UpdateCutiAkademikRequest.cs",
+              "RelativeToolTip": "sia-backend-main\\DTOs\\CutiAkademik\\UpdateCutiAkademikRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:33.656Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "CutiAkademikResponse.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\CutiAkademikResponse.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\DTOs\\CutiAkademik\\CutiAkademikResponse.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\CutiAkademikResponse.cs",
+              "RelativeToolTip": "sia-backend-main\\DTOs\\CutiAkademik\\CutiAkademikResponse.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:32.681Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "CreateCutiAkademikRequest.cs",
+              "DocumentMoniker": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\CreateCutiAkademikRequest.cs",
+              "RelativeDocumentMoniker": "sia-backend-main\\DTOs\\CutiAkademik\\CreateCutiAkademikRequest.cs",
+              "ToolTip": "E:\\TUGAS MATA KULIAH\\SEMESTER 3\\PROJEK\\PROJEK BARU\\sia-backend-main(1)\\sia-backend-main\\DTOs\\CutiAkademik\\CreateCutiAkademikRequest.cs",
+              "RelativeToolTip": "sia-backend-main\\DTOs\\CutiAkademik\\CreateCutiAkademikRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-25T10:12:31.467Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
