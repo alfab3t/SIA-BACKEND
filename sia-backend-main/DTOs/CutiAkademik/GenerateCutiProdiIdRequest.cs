@@ -4,5 +4,6 @@
     {
         public string DraftId { get; set; } = "";
         public string ModifiedBy { get; set; } = "";
+        public string ProdiId { get; set; } = "";  // kalau diperlukan SP
     }
 }
