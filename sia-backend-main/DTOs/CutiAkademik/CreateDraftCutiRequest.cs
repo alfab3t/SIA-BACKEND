@@ -8,4 +8,4 @@
         public string LampiranSuratPengajuan { get; set; } = "";
         public string Lampiran { get; set; } = "";
     }
-}
+}//ihirrrr
