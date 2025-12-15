@@ -101,10 +101,9 @@ namespace astratech_apps_backend
                 options.AddPolicy("AllowSpecificOrigin",
                     builderCors =>
                     {
-                        builderCors.WithOrigins(corsOrigin!)      // Wajib domain spesifik
-                                   .AllowAnyHeader()
-                                   .AllowAnyMethod()
-                                   .AllowCredentials();           // WAJIB untuk fetch(credentials: "include")
+                        builderCors.WithOrigins(corsOrigin!)
+                               .AllowAnyHeader()
+                               .AllowAnyMethod();
                     });
             });
 

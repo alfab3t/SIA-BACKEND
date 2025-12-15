@@ -1,11 +1,13 @@
-﻿namespace astratech_apps_backend.DTOs.CutiAkademik
+﻿using Microsoft.AspNetCore.Http;
+
+public class UpdateCutiAkademikRequest
 {
-    public class UpdateCutiAkademikRequest
-    {
-        public string TahunAjaran { get; set; } = "";
-        public string Semester { get; set; } = "";
-        public string LampiranSuratPengajuan { get; set; } = "";
-        public string Lampiran { get; set; } = "";
-        public string ModifiedBy { get; set; } = "";
-    }
+    public string Id { get; set; } = string.Empty;
+    public string TahunAjaran { get; set; } = string.Empty;
+    public string Semester { get; set; } = string.Empty;
+
+    public IFormFile? LampiranSuratPengajuan { get; set; }
+    public IFormFile? Lampiran { get; set; }
+
+    public string ModifiedBy { get; set; } = string.Empty;
 }
