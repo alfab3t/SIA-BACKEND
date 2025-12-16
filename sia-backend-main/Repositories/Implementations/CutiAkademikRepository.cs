@@ -382,38 +382,85 @@ namespace astratech_apps_backend.Repositories.Implementations
             var result = new List<CutiAkademikListResponse>();
 
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataRiwayatCutiAkademik", conn)
+            
+            // If status is empty, get all records with a direct query
+            if (string.IsNullOrEmpty(status))
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                var sql = @"
+                    SELECT a.cak_id,
+                           (case when CHARINDEX('PMA',a.cak_id) > 0 then a.cak_id else 'DRAFT' end) as id,
+                           a.mhs_id,
+                           a.cak_tahunajaran,
+                           a.cak_semester,
+                           a.cak_approval_prodi as approve_prodi,
+                           a.cak_approval_dir1 as approve_dir1,
+                           CONVERT(VARCHAR(11),a.cak_created_date,106) AS tanggal,
+                           a.srt_no,
+                           a.cak_status as status
+                    FROM sia_mscutiakademik a
+                    WHERE a.cak_status != 'Dihapus'
+                      AND (@search = '' OR a.mhs_id LIKE '%' + @search + '%' OR a.cak_id LIKE '%' + @search + '%')
+                    ORDER BY a.cak_created_date DESC";
 
-            cmd.Parameters.AddWithValue("@p1", userId);
-            cmd.Parameters.AddWithValue("@p2", status);
-            cmd.Parameters.AddWithValue("@p3", "");
-            cmd.Parameters.AddWithValue("@p4", search);
+                await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@search", search ?? "");
 
-            // sisanya p5 sampai p50 kosongi
-            for (int i = 5; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                await conn.OpenAsync();
+                await using var reader = await cmd.ExecuteReaderAsync();
 
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                result.Add(new CutiAkademikListResponse
+                while (await reader.ReadAsync())
                 {
-                    Id = reader["cak_id"].ToString(),
-                    IdDisplay = reader["id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                    TahunAjaran = reader["cak_tahunajaran"].ToString(),
-                    Semester = reader["cak_semester"].ToString(),
-                    ApproveProdi = reader["approve_prodi"].ToString(),
-                    ApproveDir1 = reader["approve_dir1"].ToString(),
-                    Tanggal = reader["tanggal"].ToString(),
-                    SuratNo = reader["srt_no"].ToString(),
-                    Status = reader["status"].ToString()
-                });
+                    result.Add(new CutiAkademikListResponse
+                    {
+                        Id = reader["cak_id"].ToString(),
+                        IdDisplay = reader["id"].ToString(),
+                        MhsId = reader["mhs_id"].ToString(),
+                        TahunAjaran = reader["cak_tahunajaran"].ToString(),
+                        Semester = reader["cak_semester"].ToString(),
+                        ApproveProdi = reader["approve_prodi"].ToString(),
+                        ApproveDir1 = reader["approve_dir1"].ToString(),
+                        Tanggal = reader["tanggal"].ToString(),
+                        SuratNo = reader["srt_no"].ToString(),
+                        Status = reader["status"].ToString()
+                    });
+                }
+            }
+            else
+            {
+                // Use the riwayat SP when status is specified
+                await using var cmd = new SqlCommand("sia_getDataRiwayatCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@p1", userId);
+                cmd.Parameters.AddWithValue("@p2", status);
+                cmd.Parameters.AddWithValue("@p3", "");
+                cmd.Parameters.AddWithValue("@p4", search);
+
+                // sisanya p5 sampai p50 kosongi
+                for (int i = 5; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                await conn.OpenAsync();
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new CutiAkademikListResponse
+                    {
+                        Id = reader["cak_id"].ToString(),
+                        IdDisplay = reader["id"].ToString(),
+                        MhsId = reader["mhs_id"].ToString(),
+                        TahunAjaran = reader["cak_tahunajaran"].ToString(),
+                        Semester = reader["cak_semester"].ToString(),
+                        ApproveProdi = reader["approve_prodi"].ToString(),
+                        ApproveDir1 = reader["approve_dir1"].ToString(),
+                        Tanggal = reader["tanggal"].ToString(),
+                        SuratNo = reader["srt_no"].ToString(),
+                        Status = reader["status"].ToString()
+                    });
+                }
             }
 
             return result;

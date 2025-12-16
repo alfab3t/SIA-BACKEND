@@ -39,7 +39,21 @@ namespace astratech_apps_backend
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
-                options.SwaggerDoc("v1", new OpenApiInfo { Title = "ASTRATECH API", Version = "v1" });
+                options.SwaggerDoc("v1", new OpenApiInfo 
+                { 
+                    Title = "ASTRATECH API", 
+                    Version = "v1",
+                    Description = "API untuk sistem informasi akademik ASTRATECH"
+                });
+                
+                // Include XML comments for better documentation
+                var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                if (File.Exists(xmlPath))
+                {
+                    options.IncludeXmlComments(xmlPath);
+                }
+                
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,

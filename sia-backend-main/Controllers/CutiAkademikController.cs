@@ -1,6 +1,7 @@
 ﻿using astratech_apps_backend.DTOs.CutiAkademik;
 using astratech_apps_backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace astratech_apps_backend.Controllers
 {
@@ -67,10 +68,24 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // GET ALL CUTI
         // ============================================
+        /// <summary>
+        /// Mendapatkan semua data cuti akademik dengan filter
+        /// </summary>
+        /// <param name="mhsId">ID Mahasiswa untuk filter (default: % untuk semua)</param>
+        /// <param name="status">Status cuti untuk filter. Contoh: 'disetujui', 'belum disetujui prodi'</param>
+        /// <param name="userId">ID User untuk filter berdasarkan role</param>
+        /// <param name="role">Role user untuk menentukan akses data</param>
+        /// <param name="search">Kata kunci pencarian</param>
+        /// <returns>List data cuti akademik</returns>
+        /// <response code="200">Berhasil mendapatkan data</response>
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
         public async Task<IActionResult> GetAll(
-            string mhsId = "%", string status = "",
-            string userId = "", string role = "", string search = "")
+            [FromQuery] string mhsId = "%", 
+            [FromQuery] string status = "",
+            [FromQuery] string userId = "", 
+            [FromQuery] string role = "", 
+            [FromQuery] string search = "")
         {
             var result = await _service.GetAllAsync(mhsId, status, userId, role, search);
             return Ok(result);
@@ -124,16 +139,36 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // RIWAYAT CUTI
         // ============================================
+        /// <summary>
+        /// Mendapatkan riwayat data cuti akademik
+        /// </summary>
+        /// <param name="userId">ID User untuk filter berdasarkan role (opsional)</param>
+        /// <param name="status">Status cuti akademik untuk filter (opsional). Contoh: 'disetujui', 'belum disetujui prodi', 'menunggu upload sk'</param>
+        /// <param name="search">Kata kunci pencarian berdasarkan NIM atau ID cuti (opsional)</param>
+        /// <returns>List riwayat cuti akademik</returns>
+        /// <response code="200">Berhasil mendapatkan data riwayat</response>
+        /// <response code="500">Terjadi kesalahan server</response>
         [HttpGet("riwayat")]
+        [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> GetRiwayat(
-            string userId = "", string status = "", string search = "")
+            [FromQuery] string userId = "", 
+            [FromQuery] string status = "", 
+            [FromQuery] string search = "")
         {
             var result = await _service.GetRiwayatAsync(userId, status, search);
             return Ok(result);
         }
 
+        /// <summary>
+        /// Mendapatkan data riwayat cuti akademik dalam format Excel
+        /// </summary>
+        /// <param name="userId">ID User untuk filter data (opsional)</param>
+        /// <returns>Data riwayat dalam format yang siap untuk export Excel</returns>
+        /// <response code="200">Berhasil mendapatkan data untuk Excel</response>
         [HttpGet("riwayat/excel")]
-        public async Task<IActionResult> GetRiwayatExcel(string userId = "")
+        [ProducesResponseType(typeof(IEnumerable<CutiAkademikRiwayatExcelResponse>), 200)]
+        public async Task<IActionResult> GetRiwayatExcel([FromQuery] string userId = "")
         {
             var data = await _service.GetRiwayatExcelAsync(userId);
             return Ok(data);
