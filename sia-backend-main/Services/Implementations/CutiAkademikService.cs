@@ -24,8 +24,8 @@ namespace astratech_apps_backend.Services.Implementations
         public async Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto)
             => await _repo.GenerateIdByProdiAsync(dto);
 
-        public Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(string m, string s, string u, string r)
-            => _repo.GetAllAsync(m, s, u, r);
+        public Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(string m, string s, string u, string r, string search = "")
+            => _repo.GetAllAsync(m, s, u, r, search);
 
         public Task<CutiAkademikDetailResponse?> GetDetailAsync(string id)
             => _repo.GetDetailAsync(id);

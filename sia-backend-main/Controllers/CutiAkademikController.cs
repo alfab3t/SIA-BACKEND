@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace astratech_apps_backend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]")] 
     public class CutiAkademikController : ControllerBase
     {
         private readonly ICutiAkademikService _service;
@@ -70,9 +70,9 @@ namespace astratech_apps_backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(
             string mhsId = "%", string status = "",
-            string userId = "", string role = "")
+            string userId = "", string role = "", string search = "")
         {
-            var result = await _service.GetAllAsync(mhsId, status, userId, role);
+            var result = await _service.GetAllAsync(mhsId, status, userId, role, search);
             return Ok(result);
         }
 

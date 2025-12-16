@@ -125,7 +125,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         // SP: sia_getDataCutiAkademik
         // ============================================================
         public async Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(
-            string mhsId, string status, string userId, string role)
+            string mhsId, string status, string userId, string role, string search = "")
         {
             var result = new List<CutiAkademikListResponse>();
 
@@ -138,8 +138,9 @@ namespace astratech_apps_backend.Repositories.Implementations
             cmd.Parameters.AddWithValue("@p1", mhsId);
             cmd.Parameters.AddWithValue("@p2", status);
             cmd.Parameters.AddWithValue("@p3", userId);
+            cmd.Parameters.AddWithValue("@p4", search ?? "");
 
-            for (int i = 4; i <= 50; i++)
+            for (int i = 5; i <= 50; i++)
                 cmd.Parameters.AddWithValue($"@p{i}", "");
 
             await conn.OpenAsync();

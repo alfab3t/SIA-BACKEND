@@ -6,7 +6,7 @@ namespace astratech_apps_backend.Services.Interfaces
     {
         Task<string?> CreateDraftAsync(CreateDraftCutiRequest dto);
         Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto);
-        Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(string mhsId, string status, string userId, string role);
+        Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(string mhsId, string status, string userId, string role, string search = "");
         Task<CutiAkademikDetailResponse?> GetDetailAsync(string id);
         Task<bool> UpdateAsync(string id, UpdateCutiAkademikRequest dto);
         Task<bool> DeleteAsync(string id, string modifiedBy);
