@@ -99,9 +99,9 @@ namespace astratech_apps_backend.Controllers
         {
             var success = await _service.UpdateAsync(id, dto);
 
-            if (!success)
-
+            if (success)
                 return Ok(new { message = "Cuti Akademik berhasil diupdate." });
+            
             return BadRequest(new { message = "Gagal mengupdate Cuti Akademik." });
         }
 
