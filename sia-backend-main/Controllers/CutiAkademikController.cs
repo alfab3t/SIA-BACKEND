@@ -45,24 +45,75 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // CREATE DRAFT (Prodi)
         // ============================================
+        /// <summary>
+        /// Create draft cuti akademik oleh prodi
+        /// </summary>
+        /// <param name="dto">Data draft cuti akademik</param>
+        /// <returns>Draft ID yang dibuat</returns>
         [HttpPost("prodi/draft")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
         public async Task<IActionResult> CreateDraftByProdi([FromForm] CreateCutiProdiRequest dto)
         {
-            var id = await _service.CreateDraftByProdiAsync(dto);
-            return Ok(new { draftId = id });
+            try
+            {
+                Console.WriteLine($"CreateDraftByProdi - MhsId: {dto.MhsId}, ApprovalProdi: {dto.ApprovalProdi}");
+                
+                var id = await _service.CreateDraftByProdiAsync(dto);
+                
+                if (string.IsNullOrEmpty(id))
+                {
+                    return BadRequest(new { message = "Gagal membuat draft cuti akademik." });
+                }
+                
+                Console.WriteLine($"Draft created successfully with ID: {id}");
+                return Ok(new { draftId = id });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in CreateDraftByProdi: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat membuat draft.", 
+                    error = ex.Message 
+                });
+            }
         }
 
         // ============================================
         // GENERATE FINAL ID (Prodi)
         // ============================================
+        /// <summary>
+        /// Generate final ID dari draft cuti akademik (prodi)
+        /// </summary>
+        /// <param name="dto">Data untuk generate final ID</param>
+        /// <returns>Final ID yang di-generate</returns>
         [HttpPut("prodi/generate-id")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
         public async Task<IActionResult> GenerateIdByProdi([FromBody] GenerateCutiProdiIdRequest dto)
         {
-            var id = await _service.GenerateIdByProdiAsync(dto);
-            if (id == null)
-                return BadRequest(new { message = "Gagal generate id final (prodi)." });
-
-            return Ok(new { finalId = id });
+            try
+            {
+                Console.WriteLine($"GenerateIdByProdi - DraftId: {dto.DraftId}, ModifiedBy: {dto.ModifiedBy}");
+                
+                var id = await _service.GenerateIdByProdiAsync(dto);
+                
+                if (string.IsNullOrEmpty(id))
+                {
+                    return BadRequest(new { message = "Gagal generate id final (prodi)." });
+                }
+                
+                Console.WriteLine($"Final ID generated successfully: {id}");
+                return Ok(new { finalId = id });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GenerateIdByProdi: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat generate final ID.", 
+                    error = ex.Message 
+                });
+            }
         }
 
         // ============================================
@@ -240,6 +291,147 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
+        /// <summary>
+        /// Debug endpoint - Check record status and test stored procedure
+        /// </summary>
+        [HttpGet("debug/check-record/{id}")]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> DebugCheckRecord(string id)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] === RECORD CHECK ===");
+                Console.WriteLine($"[DEBUG] ID: '{id}'");
+                
+                // Get connection string
+                var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
+                    HttpContext.RequestServices.GetRequiredService<IConfiguration>()
+                        .GetConnectionString("DefaultConnection")!,
+                    Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
+                );
+                
+                using var conn = new Microsoft.Data.SqlClient.SqlConnection(connString);
+                await conn.OpenAsync();
+                
+                // Check if record exists and get all relevant fields
+                var checkCmd = new Microsoft.Data.SqlClient.SqlCommand(@"
+                    SELECT cak_id, cak_status, mhs_id, cak_menimbang, cak_approval_prodi, 
+                           cak_app_prodi_date, cak_created_date, cak_created_by
+                    FROM sia_mscutiakademik 
+                    WHERE cak_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", id);
+                
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    return Ok(new { 
+                        exists = false,
+                        message = "Record tidak ditemukan di database",
+                        id = id
+                    });
+                }
+                
+                var record = new {
+                    cak_id = reader["cak_id"].ToString(),
+                    cak_status = reader["cak_status"].ToString(),
+                    mhs_id = reader["mhs_id"].ToString(),
+                    cak_menimbang = reader["cak_menimbang"].ToString(),
+                    cak_approval_prodi = reader["cak_approval_prodi"].ToString(),
+                    cak_app_prodi_date = reader["cak_app_prodi_date"].ToString(),
+                    cak_created_date = reader["cak_created_date"].ToString(),
+                    cak_created_by = reader["cak_created_by"].ToString()
+                };
+                reader.Close();
+                
+                Console.WriteLine($"[DEBUG] Record found - Status: {record.cak_status}");
+                
+                return Ok(new { 
+                    exists = true,
+                    record = record,
+                    message = $"Record ditemukan dengan status: {record.cak_status}",
+                    canBeApproved = !string.IsNullOrEmpty(record.cak_status) && 
+                                   record.cak_status != "Belum Disetujui Wadir 1" &&
+                                   record.cak_status != "Disetujui"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] Exception: {ex.Message}");
+                return Ok(new { 
+                    exists = false,
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint - Test stored procedure execution
+        /// </summary>
+        [HttpPost("debug/test-sp-approval")]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> DebugTestSpApproval([FromBody] ApproveProdiCutiRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] === SP APPROVAL TEST ===");
+                Console.WriteLine($"[DEBUG] ID: '{dto.Id}'");
+                Console.WriteLine($"[DEBUG] Menimbang: '{dto.Menimbang}' (Length: {dto.Menimbang?.Length ?? 0})");
+                Console.WriteLine($"[DEBUG] ApprovedBy: '{dto.ApprovedBy}'");
+                
+                // Get connection string
+                var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
+                    HttpContext.RequestServices.GetRequiredService<IConfiguration>()
+                        .GetConnectionString("DefaultConnection")!,
+                    Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
+                );
+                
+                using var conn = new Microsoft.Data.SqlClient.SqlConnection(connString);
+                await conn.OpenAsync();
+                
+                // Test the stored procedure directly
+                var cmd = new Microsoft.Data.SqlClient.SqlCommand("sia_setujuiCutiAkademikProdi", conn)
+                {
+                    CommandType = System.Data.CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@p1", dto.Id);
+                cmd.Parameters.AddWithValue("@p2", dto.Menimbang ?? "");
+                cmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
+
+                // p4-p50 kosong
+                for (int i = 4; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                Console.WriteLine($"[DEBUG] Executing SP with params: @p1='{dto.Id}', @p2='{dto.Menimbang}', @p3='{dto.ApprovedBy}'");
+                
+                var rowsAffected = await cmd.ExecuteNonQueryAsync();
+                
+                Console.WriteLine($"[DEBUG] SP executed - Rows affected: {rowsAffected}");
+                
+                return Ok(new { 
+                    success = rowsAffected > 0,
+                    rowsAffected = rowsAffected,
+                    message = rowsAffected > 0 ? "SP berhasil dieksekusi" : "SP tidak mengupdate record apapun",
+                    parameters = new {
+                        p1 = dto.Id,
+                        p2 = dto.Menimbang,
+                        p3 = dto.ApprovedBy
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] SP Exception: {ex.Message}");
+                return Ok(new { 
+                    success = false,
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
         // ============================================
         // DOWNLOAD FILE
         // ============================================
@@ -253,6 +445,179 @@ namespace astratech_apps_backend.Controllers
 
             var fileBytes = System.IO.File.ReadAllBytes(path);
             return File(fileBytes, "application/octet-stream", filename);
+        }
+
+        // ============================================
+        // APPROVAL & REJECTION ENDPOINTS
+        // ============================================
+        
+        /// <summary>
+        /// Menyetujui cuti akademik (untuk prodi/wadir1/finance)
+        /// </summary>
+        /// <param name="dto">Data approval</param>
+        /// <returns>Status approval</returns>
+        /// <remarks>
+        /// Role yang valid:
+        /// - "prodi" → Status menjadi "Belum Disetujui Wadir 1"
+        /// - "wadir1" → Status menjadi "Belum Disetujui Finance"
+        /// - "finance" → Status menjadi "Menunggu Upload SK" dan generate nomor surat
+        /// </remarks>
+        [HttpPut("approve")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> ApproveCuti([FromBody] ApproveCutiAkademikRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"Approve request - ID: {dto.Id}, Role: {dto.Role}, ApprovedBy: {dto.ApprovedBy}");
+                
+                var success = await _service.ApproveCutiAsync(dto);
+                
+                if (success)
+                {
+                    Console.WriteLine("Approval successful");
+                    return Ok(new { message = "Cuti akademik berhasil disetujui." });
+                }
+                
+                return BadRequest(new { message = "Gagal menyetujui cuti akademik." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in ApproveCuti: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
+                    error = ex.Message 
+                });
+            }
+        }
+
+        /// <summary>
+        /// Menyetujui cuti akademik oleh prodi
+        /// </summary>
+        /// <param name="dto">Data approval prodi (termasuk menimbang)</param>
+        /// <returns>Status approval</returns>
+        /// <remarks>
+        /// Contoh request body:
+        /// {
+        ///   "id": "033/PMA/CA/XIII/2025",
+        ///   "menimbang": "Mahasiswa memenuhi syarat untuk cuti akademik",
+        ///   "approvedBy": "prodi_user"
+        /// }
+        /// </remarks>
+        [HttpPut("approve/prodi")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> ApproveProdiCuti([FromBody] ApproveProdiCutiRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[Controller] Approve Prodi - ID: {dto.Id}, Menimbang: '{dto.Menimbang}', ApprovedBy: {dto.ApprovedBy}");
+                
+                // Validate input
+                if (string.IsNullOrEmpty(dto.Id))
+                {
+                    Console.WriteLine("[Controller] ERROR: ID is required");
+                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
+                }
+                
+                if (string.IsNullOrEmpty(dto.ApprovedBy))
+                {
+                    Console.WriteLine("[Controller] ERROR: ApprovedBy is required");
+                    return BadRequest(new { message = "ApprovedBy harus diisi." });
+                }
+                
+                if (string.IsNullOrWhiteSpace(dto.Menimbang))
+                {
+                    Console.WriteLine("[Controller] ERROR: Menimbang is required");
+                    return BadRequest(new { message = "Menimbang/pertimbangan harus diisi dan tidak boleh kosong." });
+                }
+                
+                Console.WriteLine("[Controller] Calling service...");
+                var success = await _service.ApproveProdiCutiAsync(dto);
+                Console.WriteLine($"[Controller] Service returned: {success}");
+                
+                if (success)
+                {
+                    Console.WriteLine("[Controller] Prodi approval successful");
+                    return Ok(new { message = "Cuti akademik berhasil disetujui oleh prodi." });
+                }
+                
+                Console.WriteLine("[Controller] Prodi approval failed - service returned false");
+                return BadRequest(new { message = "Gagal menyetujui cuti akademik. Periksa apakah ID valid dan data dapat diupdate." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Controller] ERROR in ApproveProdiCuti: {ex.Message}");
+                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Menolak cuti akademik dengan keterangan
+        /// </summary>
+        /// <param name="dto">Data penolakan</param>
+        /// <returns>Status penolakan</returns>
+        /// <remarks>
+        /// Status akan menjadi "Ditolak {role}"
+        /// Contoh: "Ditolak prodi", "Ditolak wadir1", "Ditolak finance"
+        /// 
+        /// Contoh request body:
+        /// {
+        ///   "id": "033/PMA/CA/XIII/2025",
+        ///   "role": "prodi",
+        ///   "keterangan": "Dokumen tidak lengkap"
+        /// }
+        /// </remarks>
+        [HttpPut("reject")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> RejectCuti([FromBody] RejectCutiAkademikRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[Controller] Reject request - ID: {dto.Id}, Role: {dto.Role}, Keterangan: {dto.Keterangan}");
+                
+                // Validate input
+                if (string.IsNullOrEmpty(dto.Id))
+                {
+                    Console.WriteLine("[Controller] ERROR: ID is required");
+                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
+                }
+                
+                if (string.IsNullOrEmpty(dto.Role))
+                {
+                    Console.WriteLine("[Controller] ERROR: Role is required");
+                    return BadRequest(new { message = "Role harus diisi." });
+                }
+                
+                Console.WriteLine("[Controller] Calling service...");
+                var success = await _service.RejectCutiAsync(dto);
+                Console.WriteLine($"[Controller] Service returned: {success}");
+                
+                if (success)
+                {
+                    Console.WriteLine("[Controller] Rejection successful");
+                    return Ok(new { message = "Cuti akademik berhasil ditolak." });
+                }
+                
+                Console.WriteLine("[Controller] Rejection failed - service returned false");
+                return BadRequest(new { message = "Gagal menolak cuti akademik. Periksa apakah ID valid dan data dapat diupdate." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Controller] ERROR in RejectCuti: {ex.Message}");
+                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat menolak cuti akademik.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
         }
     }
 }

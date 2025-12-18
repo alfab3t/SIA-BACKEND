@@ -14,6 +14,11 @@ namespace astratech_apps_backend.Services.Interfaces
         Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto);
         Task<IEnumerable<CutiAkademikListResponse>> GetRiwayatAsync(string userId, string status, string search);
         Task<IEnumerable<CutiAkademikRiwayatExcelResponse>> GetRiwayatExcelAsync(string userId);
+        
+        // APPROVAL & REJECTION
+        Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto);
+        Task<bool> ApproveProdiCutiAsync(ApproveProdiCutiRequest dto);
+        Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto);
 
     }
 }

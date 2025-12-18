@@ -51,6 +51,25 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.GetRiwayatExcelAsync(userId);
         }
 
+        // ============================================================
+        // APPROVAL & REJECTION METHODS
+        // ============================================================
+        
+        public async Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto)
+        {
+            return await _repo.ApproveCutiAsync(dto);
+        }
+
+        public async Task<bool> ApproveProdiCutiAsync(ApproveProdiCutiRequest dto)
+        {
+            return await _repo.ApproveProdiCutiAsync(dto);
+        }
+
+        public async Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto)
+        {
+            return await _repo.RejectCutiAsync(dto);
+        }
+
         /// <summary>
         /// Normalize status parameter to match stored procedure expectations
         /// </summary>

@@ -516,21 +516,74 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ---------------------------------------------------------
-        // STEP 1 — Create Draft by Prodi
+        // STEP 1 — Create Draft by Prodi (menggunakan SP khusus prodi)
         // ---------------------------------------------------------
         public async Task<string?> CreateDraftByProdiAsync(CreateCutiProdiRequest dto)
         {
-            using var conn = new SqlConnection(_conn);
+            await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
 
-            // =============================
+            try
+            {
+                // =============================
+                // Gunakan SP khusus untuk prodi: sia_createCutiAkademikByProdi
+                // =============================
+                var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@p1", "STEP1");
+                cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran ?? "");
+                cmd.Parameters.AddWithValue("@p3", dto.Semester ?? "");
+                cmd.Parameters.AddWithValue("@p4", dto.LampiranSuratPengajuan ?? "");
+                cmd.Parameters.AddWithValue("@p5", dto.Lampiran ?? "");
+                cmd.Parameters.AddWithValue("@p6", dto.MhsId ?? "");
+                cmd.Parameters.AddWithValue("@p7", dto.Menimbang ?? "");
+                cmd.Parameters.AddWithValue("@p8", dto.ApprovalProdi ?? "");
+
+                // p9–p50 kosong
+                for (int i = 9; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                await cmd.ExecuteNonQueryAsync();
+
+                // Ambil draft id terbaru yang dibuat oleh SP
+                var getDraftIdCmd = new SqlCommand(@"
+                    SELECT TOP 1 cak_id 
+                    FROM sia_mscutiakademik 
+                    WHERE cak_created_by = @approval_prodi 
+                      AND cak_status = 'Draft'
+                      AND cak_id NOT LIKE '%CA%'
+                    ORDER BY cak_created_date DESC", conn);
+                getDraftIdCmd.Parameters.AddWithValue("@approval_prodi", dto.ApprovalProdi ?? "");
+
+                var draftId = await getDraftIdCmd.ExecuteScalarAsync();
+                return draftId?.ToString();
+            }
+            catch (SqlException ex) when (ex.Number == 2627) // Primary key violation
+            {
+                // Jika ada collision, coba lagi dengan retry mechanism
+                Console.WriteLine($"Primary key collision in CreateDraftByProdiAsync: {ex.Message}");
+                
+                // Fallback: gunakan direct insert dengan unique ID
+                return await CreateDraftByProdiDirectAsync(dto, conn);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in CreateDraftByProdiAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        // ---------------------------------------------------------
+        // Fallback method untuk prodi jika SP gagal
+        // ---------------------------------------------------------
+        private async Task<string?> CreateDraftByProdiDirectAsync(CreateCutiProdiRequest dto, SqlConnection conn)
+        {
             // Generate unique draft ID
-            // =============================
             string newDraftId = await GenerateUniqueDraftIdAsync(conn);
 
-            // =============================
-            // Insert langsung ke tabel (bypass SP untuk draft)
-            // =============================
             var insertSql = @"
                 INSERT INTO sia_mscutiakademik (
                     cak_id, 
@@ -541,6 +594,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     cak_lampiran, 
                     cak_menimbang,
                     cak_approval_prodi,
+                    cak_app_prodi_date,
                     cak_status, 
                     cak_created_date, 
                     cak_created_by
@@ -553,6 +607,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     @lampiran, 
                     @menimbang,
                     @approval_prodi,
+                    GETDATE(),
                     'Draft', 
                     GETDATE(), 
                     @created_by
@@ -567,21 +622,10 @@ namespace astratech_apps_backend.Repositories.Implementations
             cmd.Parameters.AddWithValue("@lampiran", dto.Lampiran ?? "");
             cmd.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
             cmd.Parameters.AddWithValue("@approval_prodi", dto.ApprovalProdi ?? "");
-            cmd.Parameters.AddWithValue("@created_by", dto.MhsId ?? "");
+            cmd.Parameters.AddWithValue("@created_by", dto.ApprovalProdi ?? "");
 
-            try
-            {
-                await cmd.ExecuteNonQueryAsync();
-                return newDraftId;
-            }
-            catch (SqlException ex) when (ex.Number == 2627) // Primary key violation
-            {
-                // Jika masih ada collision, coba generate ID baru
-                newDraftId = await GenerateUniqueDraftIdAsync(conn);
-                cmd.Parameters["@cak_id"].Value = newDraftId;
-                await cmd.ExecuteNonQueryAsync();
-                return newDraftId;
-            }
+            await cmd.ExecuteNonQueryAsync();
+            return newDraftId;
         }
 
         // ---------------------------------------------------------
@@ -590,28 +634,40 @@ namespace astratech_apps_backend.Repositories.Implementations
         public async Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@p1", "STEP2");
-            cmd.Parameters.AddWithValue("@p2", dto.DraftId ?? "");
-            cmd.Parameters.AddWithValue("@p3", dto.ModifiedBy ?? "");
-            // p4..p50 kosong
-            for (int i = 4; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-
             await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
 
-            var cmd2 = new SqlCommand(
-                @"SELECT TOP 1 cak_id 
-                  FROM sia_mscutiakademik 
-                  WHERE cak_id LIKE '%CA%'
-                  ORDER BY cak_created_date DESC", conn);
+            try
+            {
+                // Gunakan SP khusus prodi untuk generate final ID
+                var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            return (string?)await cmd2.ExecuteScalarAsync();
+                cmd.Parameters.AddWithValue("@p1", "STEP2");
+                cmd.Parameters.AddWithValue("@p2", dto.DraftId ?? "");
+                cmd.Parameters.AddWithValue("@p3", dto.ModifiedBy ?? "");
+
+                // p4..p50 kosong
+                for (int i = 4; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                await cmd.ExecuteNonQueryAsync();
+
+                // SP akan return final ID di akhir
+                var cmd2 = new SqlCommand(
+                    @"SELECT TOP 1 cak_id 
+                      FROM sia_mscutiakademik 
+                      WHERE cak_id LIKE '%CA%'
+                      ORDER BY cak_modif_date DESC", conn);
+
+                return (string?)await cmd2.ExecuteScalarAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GenerateIdByProdiAsync: {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<IEnumerable<CutiAkademikListResponse>> GetRiwayatAsync(
@@ -759,6 +815,166 @@ namespace astratech_apps_backend.Repositories.Implementations
             return fileName;
         }
 
+        // ============================================================
+        // APPROVAL & REJECTION METHODS
+        // ============================================================
+        
+        /// <summary>
+        /// Menyetujui cuti akademik (prodi/wadir1/finance)
+        /// </summary>
+        public async Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@p1", dto.Id);
+            cmd.Parameters.AddWithValue("@p2", dto.Role.ToLower());
+            cmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
+
+            // p4-p50 kosong
+            for (int i = 4; i <= 50; i++)
+                cmd.Parameters.AddWithValue($"@p{i}", "");
+
+            await conn.OpenAsync();
+            var rows = await cmd.ExecuteNonQueryAsync();
+            return rows > 0;
+        }
+
+        /// <summary>
+        /// Menyetujui cuti akademik oleh prodi
+        /// </summary>
+        public async Task<bool> ApproveProdiCutiAsync(ApproveProdiCutiRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[ApproveProdiCutiAsync] Starting approval for ID: {dto.Id}");
+                Console.WriteLine($"[ApproveProdiCutiAsync] Menimbang: '{dto.Menimbang}' (Length: {dto.Menimbang?.Length ?? 0})");
+                Console.WriteLine($"[ApproveProdiCutiAsync] ApprovedBy: {dto.ApprovedBy}");
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                // First, check if record exists and get current status
+                var checkCmd = new SqlCommand(
+                    "SELECT cak_id, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", dto.Id);
+
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    Console.WriteLine($"[ApproveProdiCutiAsync] ERROR: Record not found for ID: {dto.Id}");
+                    return false;
+                }
+
+                var currentStatus = reader["cak_status"].ToString();
+                reader.Close();
+                
+                Console.WriteLine($"[ApproveProdiCutiAsync] Current status: {currentStatus}");
+
+                // Try stored procedure first
+                var spCmd = new SqlCommand("sia_setujuiCutiAkademikProdi", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                spCmd.Parameters.AddWithValue("@p1", dto.Id);
+                spCmd.Parameters.AddWithValue("@p2", dto.Menimbang ?? "");
+                spCmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
+
+                // p4-p50 kosong
+                for (int i = 4; i <= 50; i++)
+                    spCmd.Parameters.AddWithValue($"@p{i}", "");
+
+                Console.WriteLine($"[ApproveProdiCutiAsync] Trying stored procedure first...");
+                var spRows = await spCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[ApproveProdiCutiAsync] SP rows affected: {spRows}");
+
+                if (spRows > 0)
+                {
+                    Console.WriteLine($"[ApproveProdiCutiAsync] SP success!");
+                    return true;
+                }
+
+                // If SP failed, try direct SQL update as fallback
+                Console.WriteLine($"[ApproveProdiCutiAsync] SP failed, trying direct SQL update...");
+                
+                var directCmd = new SqlCommand(@"
+                    UPDATE sia_mscutiakademik 
+                    SET cak_menimbang = @menimbang,
+                        cak_approval_prodi = @approvedBy,
+                        cak_status = 'Belum Disetujui Wadir 1',
+                        cak_app_prodi_date = GETDATE()
+                    WHERE cak_id = @id", conn);
+
+                directCmd.Parameters.AddWithValue("@id", dto.Id);
+                directCmd.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
+                directCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
+
+                var directRows = await directCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[ApproveProdiCutiAsync] Direct SQL rows affected: {directRows}");
+
+                var success = directRows > 0;
+                Console.WriteLine($"[ApproveProdiCutiAsync] Final result: {success}");
+                
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ApproveProdiCutiAsync] ERROR: {ex.Message}");
+                Console.WriteLine($"[ApproveProdiCutiAsync] Stack trace: {ex.StackTrace}");
+                throw; // Re-throw to let controller handle it
+            }
+        }
+
+        /// <summary>
+        /// Menolak cuti akademik dengan keterangan
+        /// </summary>
+        public async Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[RejectCutiAsync] Starting rejection for ID: {dto.Id}");
+                Console.WriteLine($"[RejectCutiAsync] Role: {dto.Role}");
+                Console.WriteLine($"[RejectCutiAsync] Keterangan: {dto.Keterangan}");
+
+                await using var conn = new SqlConnection(_conn);
+                await using var cmd = new SqlCommand("sia_tolakCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@p1", dto.Id);
+                cmd.Parameters.AddWithValue("@p2", dto.Role);
+                cmd.Parameters.AddWithValue("@p3", dto.Keterangan ?? ""); // Gunakan keterangan dari DTO
+
+                // p4-p50 kosong
+                for (int i = 4; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                Console.WriteLine($"[RejectCutiAsync] Executing stored procedure: sia_tolakCutiAkademik");
+                Console.WriteLine($"[RejectCutiAsync] Parameters: @p1={dto.Id}, @p2={dto.Role}, @p3={dto.Keterangan ?? ""}");
+
+                await conn.OpenAsync();
+                var rows = await cmd.ExecuteNonQueryAsync();
+                
+                Console.WriteLine($"[RejectCutiAsync] Stored procedure executed. Rows affected: {rows}");
+                
+                var success = rows > 0;
+                Console.WriteLine($"[RejectCutiAsync] Result: {success}");
+                
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RejectCutiAsync] ERROR: {ex.Message}");
+                Console.WriteLine($"[RejectCutiAsync] Stack trace: {ex.StackTrace}");
+                throw; // Re-throw to let controller handle it
+            }
+        }
             
     }
 }
