@@ -72,12 +72,22 @@ namespace astratech_apps_backend.Controllers
         /// Mendapatkan semua data cuti akademik dengan filter
         /// </summary>
         /// <param name="mhsId">ID Mahasiswa untuk filter (default: % untuk semua)</param>
-        /// <param name="status">Status cuti untuk filter. Contoh: 'disetujui', 'belum disetujui prodi'</param>
+        /// <param name="status">Status cuti untuk filter. Kosongkan untuk menampilkan semua data. Contoh: 'disetujui', 'belum disetujui prodi'</param>
         /// <param name="userId">ID User untuk filter berdasarkan role</param>
         /// <param name="role">Role user untuk menentukan akses data</param>
         /// <param name="search">Kata kunci pencarian</param>
         /// <returns>List data cuti akademik</returns>
         /// <response code="200">Berhasil mendapatkan data</response>
+        /// <remarks>
+        /// Endpoint ini akan menampilkan SEMUA data cuti akademik secara default jika tidak ada parameter yang diisi.
+        /// 
+        /// Contoh penggunaan:
+        /// 
+        ///     GET /api/CutiAkademik (menampilkan semua data)
+        ///     GET /api/CutiAkademik?status=disetujui (filter status disetujui)
+        ///     GET /api/CutiAkademik?search=0420240032 (cari berdasarkan NIM)
+        /// 
+        /// </remarks>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
         public async Task<IActionResult> GetAll(
@@ -143,11 +153,29 @@ namespace astratech_apps_backend.Controllers
         /// Mendapatkan riwayat data cuti akademik
         /// </summary>
         /// <param name="userId">ID User untuk filter berdasarkan role (opsional)</param>
-        /// <param name="status">Status cuti akademik untuk filter (opsional). Contoh: 'disetujui', 'belum disetujui prodi', 'menunggu upload sk'</param>
+        /// <param name="status">Status cuti akademik untuk filter (opsional). Kosongkan untuk menampilkan semua data. Contoh: 'disetujui', 'belum disetujui prodi', 'menunggu upload sk'</param>
         /// <param name="search">Kata kunci pencarian berdasarkan NIM atau ID cuti (opsional)</param>
         /// <returns>List riwayat cuti akademik</returns>
         /// <response code="200">Berhasil mendapatkan data riwayat</response>
         /// <response code="500">Terjadi kesalahan server</response>
+        /// <remarks>
+        /// Endpoint ini akan menampilkan SEMUA riwayat cuti akademik secara default jika tidak ada parameter yang diisi.
+        /// 
+        /// Contoh penggunaan:
+        /// 
+        ///     GET /api/CutiAkademik/riwayat (menampilkan semua riwayat)
+        ///     GET /api/CutiAkademik/riwayat?status=disetujui (filter status disetujui)
+        ///     GET /api/CutiAkademik/riwayat?search=0420240032 (cari berdasarkan NIM)
+        ///     GET /api/CutiAkademik/riwayat?status=disetujui&amp;search=042024 (kombinasi filter)
+        /// 
+        /// Status yang tersedia:
+        /// - disetujui
+        /// - belum disetujui prodi  
+        /// - belum disetujui wadir 1
+        /// - menunggu upload sk
+        /// - belum disetujui finance
+        /// - draft
+        /// </remarks>
         [HttpGet("riwayat")]
         [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
         [ProducesResponseType(500)]
