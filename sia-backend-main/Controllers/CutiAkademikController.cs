@@ -119,15 +119,53 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // UPDATE CUTI (WITH FILE UPLOAD)
         // ============================================
+        /// <summary>
+        /// Update data cuti akademik (draft atau final)
+        /// </summary>
+        /// <param name="id">ID cuti akademik yang akan diupdate</param>
+        /// <param name="dto">Data update cuti akademik</param>
+        /// <returns>Status update</returns>
         [HttpPut("{id}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
         public async Task<IActionResult> UpdateDraft(string id, [FromForm] UpdateCutiAkademikRequest dto)
         {
-            var success = await _service.UpdateAsync(id, dto);
+            try
+            {
+                // Debug logging
+                Console.WriteLine($"Update request for ID: {id}");
+                Console.WriteLine($"TahunAjaran: {dto.TahunAjaran}");
+                Console.WriteLine($"Semester: {dto.Semester}");
+                Console.WriteLine($"ModifiedBy: {dto.ModifiedBy}");
 
-            if (success)
-                return Ok(new { message = "Cuti Akademik berhasil diupdate." });
-            
-            return BadRequest(new { message = "Gagal mengupdate Cuti Akademik." });
+                // Set ModifiedBy dari context jika tidak ada
+                if (string.IsNullOrEmpty(dto.ModifiedBy))
+                {
+                    dto.ModifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
+                    Console.WriteLine($"Auto-set ModifiedBy to: {dto.ModifiedBy}");
+                }
+
+                var success = await _service.UpdateAsync(id, dto);
+
+                if (success)
+                {
+                    Console.WriteLine("Update successful");
+                    return Ok(new { message = "Cuti Akademik berhasil diupdate." });
+                }
+                
+                Console.WriteLine("Update failed - no rows affected");
+                return BadRequest(new { message = "Gagal mengupdate Cuti Akademik. Data mungkin tidak ditemukan." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Update error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengupdate data.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
         }
 
         // ============================================

@@ -263,31 +263,46 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
         // ============================================================
-        // GET DETAIL (SP: sia_detailCutiAkademik)
+        // GET DETAIL (Hybrid: SP untuk final ID, Direct SQL untuk draft ID)
         // ============================================================
         public async Task<CutiAkademikDetailResponse?> GetDetailAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_detailCutiAkademik", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@p1", id);
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-
             await conn.OpenAsync();
-            var reader = await cmd.ExecuteReaderAsync();
 
-            if (!await reader.ReadAsync())
-                return null;
+            // Tentukan apakah ini draft ID atau final ID
+            bool isDraftId = !id.Contains("PMA") && !id.Contains("CA");
 
-            return new CutiAkademikDetailResponse
+            if (isDraftId)
             {
-                Id = reader["cak_id"].ToString(),
-                //IdFinal = reader["cak_finalid"] != DBNull.Value ? reader["cak_finalid"].ToString() : "",   // <==== DITAMBAHKAN
-                MhsId = reader["mhs_id"].ToString(),
+                // Untuk draft ID, gunakan direct SQL query
+                var sql = @"
+                    SELECT a.cak_id, a.mhs_id, b.mhs_nama, c.kon_nama, b.mhs_angkatan,
+                           c.kon_singkatan, a.cak_tahunajaran, a.cak_semester,
+                           a.cak_lampiran_suratpengajuan, a.cak_lampiran, a.cak_status,
+                           a.cak_created_by, CONVERT(VARCHAR(11),a.cak_created_date,106) as tgl,
+                           a.cak_sk, a.srt_no, d.pro_nama, '' as kaprod,
+                           CONVERT(VARCHAR(11),a.cak_app_prodi_date,106) as cak_app_prodi_date,
+                           a.cak_approval_prodi, CONVERT(VARCHAR(11),a.cak_app_dir1_date,106) as cak_app_dir1_date,
+                           a.cak_approval_dir1, b.mhs_alamat, a.cak_menimbang, '' as BulanCuti,
+                           '' as direktur, '' as wadir1, '' as wadir2, '' as wadir3, b.mhs_kodepos
+                    FROM sia_mscutiakademik a
+                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                    LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
+                    WHERE a.cak_id = @id";
+
+                var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@id", id);
+
+                var reader = await cmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                    return null;
+
+                return new CutiAkademikDetailResponse
+                {
+                    Id = reader["cak_id"].ToString(),
+                    MhsId = reader["mhs_id"].ToString(),
                 Mahasiswa = reader["mhs_nama"].ToString(),
                 Konsentrasi = reader["kon_nama"].ToString(),
                 Angkatan = reader["mhs_angkatan"].ToString(),
@@ -303,46 +318,111 @@ namespace astratech_apps_backend.Repositories.Implementations
                 SrtNo = reader["srt_no"].ToString(),
                 ProdiNama = reader["pro_nama"].ToString(),
                 Kaprodi = reader["kaprod"].ToString(),
-                AppProdiDate = reader["cak_app_prodi_date"].ToString(),
-                ApprovalProdi = reader["cak_approval_prodi"].ToString(),
-                AppDir1Date = reader["cak_app_dir1_date"].ToString(),
-                ApprovalDir1 = reader["cak_approval_dir1"].ToString(),
-                Alamat = reader["mhs_alamat"].ToString(),
-                Menimbang = reader["cak_menimbang"].ToString(),
-                BulanCuti = reader["BulanCuti"].ToString(),
-                Direktur = reader["direktur"].ToString(),
-                Wadir1 = reader["wadir1"].ToString(),
-                Wadir2 = reader["wadir2"].ToString(),
-                Wadir3 = reader["wadir3"].ToString(),
-                KodePos = reader["mhs_kodepos"].ToString(),
-            };
+                    AppProdiDate = reader["cak_app_prodi_date"].ToString(),
+                    ApprovalProdi = reader["cak_approval_prodi"].ToString(),
+                    AppDir1Date = reader["cak_app_dir1_date"].ToString(),
+                    ApprovalDir1 = reader["cak_approval_dir1"].ToString(),
+                    Alamat = reader["mhs_alamat"].ToString(),
+                    Menimbang = reader["cak_menimbang"].ToString(),
+                    BulanCuti = reader["BulanCuti"].ToString(),
+                    Direktur = reader["direktur"].ToString(),
+                    Wadir1 = reader["wadir1"].ToString(),
+                    Wadir2 = reader["wadir2"].ToString(),
+                    Wadir3 = reader["wadir3"].ToString(),
+                    KodePos = reader["mhs_kodepos"].ToString(),
+                };
+            }
+            else
+            {
+                // Untuk final ID, gunakan stored procedure
+                var cmd = new SqlCommand("sia_detailCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@p1", id);
+                for (int i = 2; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                var reader = await cmd.ExecuteReaderAsync();
+
+                if (!await reader.ReadAsync())
+                    return null;
+
+                return new CutiAkademikDetailResponse
+                {
+                    Id = reader["cak_id"].ToString(),
+                    MhsId = reader["mhs_id"].ToString(),
+                    Mahasiswa = reader["mhs_nama"].ToString(),
+                    Konsentrasi = reader["kon_nama"].ToString(),
+                    Angkatan = reader["mhs_angkatan"].ToString(),
+                    KonsentrasiSingkatan = reader["kon_singkatan"].ToString(),
+                    TahunAjaran = reader["cak_tahunajaran"].ToString(),
+                    Semester = reader["cak_semester"].ToString(),
+                    LampiranSP = reader["cak_lampiran_suratpengajuan"].ToString(),
+                    Lampiran = reader["cak_lampiran"].ToString(),
+                    Status = reader["cak_status"].ToString(),
+                    CreatedBy = reader["cak_created_by"].ToString(),
+                    TglPengajuan = reader["tgl"].ToString(),
+                    Sk = reader["cak_sk"].ToString(),
+                    SrtNo = reader["srt_no"].ToString(),
+                    ProdiNama = reader["pro_nama"].ToString(),
+                    Kaprodi = reader["kaprod"].ToString(),
+                    AppProdiDate = reader["cak_app_prodi_date"].ToString(),
+                    ApprovalProdi = reader["cak_approval_prodi"].ToString(),
+                    AppDir1Date = reader["cak_app_dir1_date"].ToString(),
+                    ApprovalDir1 = reader["cak_approval_dir1"].ToString(),
+                    Alamat = reader["mhs_alamat"].ToString(),
+                    Menimbang = reader["cak_menimbang"].ToString(),
+                    BulanCuti = reader["BulanCuti"].ToString(),
+                    Direktur = reader["direktur"].ToString(),
+                    Wadir1 = reader["wadir1"].ToString(),
+                    Wadir2 = reader["wadir2"].ToString(),
+                    Wadir3 = reader["wadir3"].ToString(),
+                    KodePos = reader["mhs_kodepos"].ToString(),
+                };
+            }
         }
 
 
         // ============================================================
-        // UPDATE / EDIT CUTI (SP: sia_editCutiAkademik)
+        // UPDATE / EDIT CUTI (Hybrid: SP untuk final ID, Direct SQL untuk draft ID)
         // ============================================================
         public async Task<bool> UpdateAsync(string id, UpdateCutiAkademikRequest dto)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_editCutiAkademik", conn)
+            await conn.OpenAsync();
+
+            // -----------------------------
+            // 1️⃣ Cek apakah data ada dan ambil info
+            // -----------------------------
+            var checkCmd = new SqlCommand(@"
+                SELECT cak_lampiran_suratpengajuan, cak_lampiran, cak_id 
+                FROM sia_mscutiakademik 
+                WHERE cak_id = @id", conn);
+            checkCmd.Parameters.AddWithValue("@id", id);
+
+            string? oldFileSP = null;
+            string? oldFileLampiran = null;
+            bool dataExists = false;
+
+            using var reader = await checkCmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                dataExists = true;
+                oldFileSP = reader["cak_lampiran_suratpengajuan"]?.ToString();
+                oldFileLampiran = reader["cak_lampiran"]?.ToString();
+            }
+            reader.Close();
+
+            if (!dataExists)
+                throw new Exception($"Data dengan ID {id} tidak ditemukan.");
 
             // -----------------------------
-            // 1️⃣ Ambil data lama
+            // 2️⃣ Handle file upload
             // -----------------------------
-            var old = await GetDetailAsync(id);
-
-            if (old == null)
-                throw new Exception("Data tidak ditemukan.");
-
-            // -----------------------------
-            // 2️⃣ Simpan file baru jika ada
-            // -----------------------------
-            string? fileSP = old.LampiranSP;      // default = file lama
-            string? fileLampiran = old.Lampiran; // default = file lama
+            string? fileSP = oldFileSP;
+            string? fileLampiran = oldFileLampiran;
 
             if (dto.LampiranSuratPengajuan != null)
                 fileSP = SaveFile(dto.LampiranSuratPengajuan);
@@ -351,27 +431,56 @@ namespace astratech_apps_backend.Repositories.Implementations
                 fileLampiran = SaveFile(dto.Lampiran);
 
             // -----------------------------
-            // 3️⃣ Set parameter ke SP
+            // 3️⃣ Tentukan apakah ini draft ID atau final ID
             // -----------------------------
-            cmd.Parameters.AddWithValue("@p1", id);
-            cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran);
-            cmd.Parameters.AddWithValue("@p3", dto.Semester);
+            bool isDraftId = !id.Contains("PMA") && !id.Contains("CA");
 
-            cmd.Parameters.AddWithValue("@p4", fileSP ?? "");
-            cmd.Parameters.AddWithValue("@p5", fileLampiran ?? "");
-            cmd.Parameters.AddWithValue("@p6", dto.ModifiedBy);
+            if (isDraftId)
+            {
+                // Untuk draft ID, gunakan direct SQL (lebih reliable)
+                var updateSql = @"
+                    UPDATE sia_mscutiakademik 
+                    SET cak_tahunajaran = @tahunajaran,
+                        cak_semester = @semester,
+                        cak_lampiran_suratpengajuan = @lampiran_sp,
+                        cak_lampiran = @lampiran,
+                        cak_modif_date = GETDATE(),
+                        cak_modif_by = @modified_by
+                    WHERE cak_id = @id";
 
-            // p7 – p50 kosong sesuai kebutuhan SP
-            for (int i = 7; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                var updateCmd = new SqlCommand(updateSql, conn);
+                updateCmd.Parameters.AddWithValue("@id", id);
+                updateCmd.Parameters.AddWithValue("@tahunajaran", dto.TahunAjaran ?? "");
+                updateCmd.Parameters.AddWithValue("@semester", dto.Semester ?? "");
+                updateCmd.Parameters.AddWithValue("@lampiran_sp", fileSP ?? "");
+                updateCmd.Parameters.AddWithValue("@lampiran", fileLampiran ?? "");
+                updateCmd.Parameters.AddWithValue("@modified_by", dto.ModifiedBy ?? "");
 
-            // -----------------------------
-            // 4️⃣ Execute update
-            // -----------------------------
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
+                var rows = await updateCmd.ExecuteNonQueryAsync();
+                return rows > 0;
+            }
+            else
+            {
+                // Untuk final ID, gunakan stored procedure
+                var cmd = new SqlCommand("sia_editCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            return rows > 0;
+                cmd.Parameters.AddWithValue("@p1", id);
+                cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran ?? "");
+                cmd.Parameters.AddWithValue("@p3", dto.Semester ?? "");
+                cmd.Parameters.AddWithValue("@p4", fileSP ?? "");
+                cmd.Parameters.AddWithValue("@p5", fileLampiran ?? "");
+                cmd.Parameters.AddWithValue("@p6", dto.ModifiedBy ?? "");
+
+                // p7 – p50 kosong sesuai kebutuhan SP
+                for (int i = 7; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                var rows = await cmd.ExecuteNonQueryAsync();
+                return rows > 0;
+            }
         }
 
 
