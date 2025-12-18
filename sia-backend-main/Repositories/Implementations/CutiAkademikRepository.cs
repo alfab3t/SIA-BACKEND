@@ -47,44 +47,91 @@ namespace astratech_apps_backend.Repositories.Implementations
             await conn.OpenAsync();
 
             // =============================
-            // FIX: hitung ID draft terbaru
+            // Generate unique draft ID dengan retry mechanism
             // =============================
-            int newDraftId = 1;
-
-            var getMaxCmd = new SqlCommand(@"
-        SELECT MAX(CAST(cak_id AS INT))
-        FROM sia_mscutiakademik
-        WHERE ISNUMERIC(cak_id) = 1
-    ", conn);
-
-            var result = await getMaxCmd.ExecuteScalarAsync();
-            if (result != DBNull.Value && result != null)
-                newDraftId = Convert.ToInt32(result) + 1;
+            string newDraftId = await GenerateUniqueDraftIdAsync(conn);
 
             // =============================
-            // Kirim ke SP STEP1
+            // Simpan file terlebih dahulu
             // =============================
-            var cmd = new SqlCommand("sia_createCutiAkademik", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
-
-            cmd.Parameters.AddWithValue("@p1", "STEP1");
-            cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran);
-            cmd.Parameters.AddWithValue("@p3", dto.Semester);
             var fileSP = SaveFile(dto.LampiranSuratPengajuan);
             var fileLampiran = SaveFile(dto.Lampiran);
 
-            cmd.Parameters.AddWithValue("@p4", fileSP ?? "");
-            cmd.Parameters.AddWithValue("@p5", fileLampiran ?? "");
+            // =============================
+            // Insert langsung ke tabel (bypass SP untuk draft)
+            // =============================
+            var insertSql = @"
+                INSERT INTO sia_mscutiakademik (
+                    cak_id, 
+                    mhs_id, 
+                    cak_tahunajaran, 
+                    cak_semester, 
+                    cak_lampiran_suratpengajuan, 
+                    cak_lampiran, 
+                    cak_status, 
+                    cak_created_date, 
+                    cak_created_by
+                ) VALUES (
+                    @cak_id, 
+                    @mhs_id, 
+                    @tahunajaran, 
+                    @semester, 
+                    @lampiran_sp, 
+                    @lampiran, 
+                    'Draft', 
+                    GETDATE(), 
+                    @created_by
+                )";
 
-            cmd.Parameters.AddWithValue("@p6", dto.MhsId);
+            var cmd = new SqlCommand(insertSql, conn);
+            cmd.Parameters.AddWithValue("@cak_id", newDraftId);
+            cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
+            cmd.Parameters.AddWithValue("@tahunajaran", dto.TahunAjaran ?? "");
+            cmd.Parameters.AddWithValue("@semester", dto.Semester ?? "");
+            cmd.Parameters.AddWithValue("@lampiran_sp", fileSP ?? "");
+            cmd.Parameters.AddWithValue("@lampiran", fileLampiran ?? "");
+            cmd.Parameters.AddWithValue("@created_by", dto.MhsId);
 
-            // p7 sampai p50 → empty
-            for (int i = 7; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                return newDraftId;
+            }
+            catch (SqlException ex) when (ex.Number == 2627) // Primary key violation
+            {
+                // Jika masih ada collision, coba generate ID baru
+                newDraftId = await GenerateUniqueDraftIdAsync(conn);
+                cmd.Parameters["@cak_id"].Value = newDraftId;
+                await cmd.ExecuteNonQueryAsync();
+                return newDraftId;
+            }
+        }
 
-            await cmd.ExecuteNonQueryAsync();
+        // =============================
+        // Helper method untuk generate unique draft ID
+        // =============================
+        private async Task<string> GenerateUniqueDraftIdAsync(SqlConnection conn)
+        {
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                // Generate ID berdasarkan timestamp + random untuk menghindari collision
+                var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
+                var random = new Random().Next(100, 999);
+                var candidateId = $"{timestamp}{random}";
 
-            return newDraftId.ToString();
+                // Cek apakah ID sudah ada
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", candidateId);
+
+                var count = (int)await checkCmd.ExecuteScalarAsync();
+                if (count == 0)
+                {
+                    return candidateId;
+                }
+            }
+
+            // Fallback: gunakan GUID jika semua attempt gagal
+            return Guid.NewGuid().ToString("N")[..10];
         }
 
 
@@ -364,35 +411,68 @@ namespace astratech_apps_backend.Repositories.Implementations
         // ---------------------------------------------------------
         public async Task<string?> CreateDraftByProdiAsync(CreateCutiProdiRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@p1", "STEP1");
-            cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran ?? "");
-            cmd.Parameters.AddWithValue("@p3", dto.Semester ?? "");
-            cmd.Parameters.AddWithValue("@p4", dto.LampiranSuratPengajuan ?? "");
-            cmd.Parameters.AddWithValue("@p5", dto.Lampiran ?? "");
-            cmd.Parameters.AddWithValue("@p6", dto.MhsId ?? "");
-            cmd.Parameters.AddWithValue("@p7", dto.Menimbang ?? "");
-            cmd.Parameters.AddWithValue("@p8", dto.ApprovalProdi ?? "");
-
-            // p9–p50 kosong
-            for (int i = 9; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-
+            using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
 
-            // Ambil draft id terbaru berdasarkan created_by (mhsId) — sama pola seperti STEP1 biasa
-            var cmd2 = new SqlCommand(
-                @"SELECT TOP 1 cak_id FROM sia_mscutiakademik 
-                  WHERE cak_created_by = @mhsId ORDER BY cak_created_date DESC", conn);
-            cmd2.Parameters.AddWithValue("@mhsId", dto.MhsId ?? "");
+            // =============================
+            // Generate unique draft ID
+            // =============================
+            string newDraftId = await GenerateUniqueDraftIdAsync(conn);
 
-            return (string?)await cmd2.ExecuteScalarAsync();
+            // =============================
+            // Insert langsung ke tabel (bypass SP untuk draft)
+            // =============================
+            var insertSql = @"
+                INSERT INTO sia_mscutiakademik (
+                    cak_id, 
+                    mhs_id, 
+                    cak_tahunajaran, 
+                    cak_semester, 
+                    cak_lampiran_suratpengajuan, 
+                    cak_lampiran, 
+                    cak_menimbang,
+                    cak_approval_prodi,
+                    cak_status, 
+                    cak_created_date, 
+                    cak_created_by
+                ) VALUES (
+                    @cak_id, 
+                    @mhs_id, 
+                    @tahunajaran, 
+                    @semester, 
+                    @lampiran_sp, 
+                    @lampiran, 
+                    @menimbang,
+                    @approval_prodi,
+                    'Draft', 
+                    GETDATE(), 
+                    @created_by
+                )";
+
+            var cmd = new SqlCommand(insertSql, conn);
+            cmd.Parameters.AddWithValue("@cak_id", newDraftId);
+            cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId ?? "");
+            cmd.Parameters.AddWithValue("@tahunajaran", dto.TahunAjaran ?? "");
+            cmd.Parameters.AddWithValue("@semester", dto.Semester ?? "");
+            cmd.Parameters.AddWithValue("@lampiran_sp", dto.LampiranSuratPengajuan ?? "");
+            cmd.Parameters.AddWithValue("@lampiran", dto.Lampiran ?? "");
+            cmd.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
+            cmd.Parameters.AddWithValue("@approval_prodi", dto.ApprovalProdi ?? "");
+            cmd.Parameters.AddWithValue("@created_by", dto.MhsId ?? "");
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                return newDraftId;
+            }
+            catch (SqlException ex) when (ex.Number == 2627) // Primary key violation
+            {
+                // Jika masih ada collision, coba generate ID baru
+                newDraftId = await GenerateUniqueDraftIdAsync(conn);
+                cmd.Parameters["@cak_id"].Value = newDraftId;
+                await cmd.ExecuteNonQueryAsync();
+                return newDraftId;
+            }
         }
 
         // ---------------------------------------------------------
