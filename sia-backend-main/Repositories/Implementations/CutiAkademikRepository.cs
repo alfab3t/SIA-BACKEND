@@ -939,32 +939,71 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 Console.WriteLine($"[RejectCutiAsync] Starting rejection for ID: {dto.Id}");
                 Console.WriteLine($"[RejectCutiAsync] Role: {dto.Role}");
-                Console.WriteLine($"[RejectCutiAsync] Keterangan: {dto.Keterangan}");
+                Console.WriteLine($"[RejectCutiAsync] Keterangan: '{dto.Keterangan}' (Length: {dto.Keterangan?.Length ?? 0})");
 
                 await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_tolakCutiAkademik", conn)
+                await conn.OpenAsync();
+
+                // First, check if record exists and get current status
+                var checkCmd = new SqlCommand(
+                    "SELECT cak_id, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", dto.Id);
+
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    Console.WriteLine($"[RejectCutiAsync] ERROR: Record not found for ID: {dto.Id}");
+                    return false;
+                }
+
+                var currentStatus = reader["cak_status"].ToString();
+                reader.Close();
+                
+                Console.WriteLine($"[RejectCutiAsync] Current status: {currentStatus}");
+
+                // Try stored procedure first
+                var spCmd = new SqlCommand("sia_tolakCutiAkademik", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                cmd.Parameters.AddWithValue("@p1", dto.Id);
-                cmd.Parameters.AddWithValue("@p2", dto.Role);
-                cmd.Parameters.AddWithValue("@p3", dto.Keterangan ?? ""); // Gunakan keterangan dari DTO
+                spCmd.Parameters.AddWithValue("@p1", dto.Id);
+                spCmd.Parameters.AddWithValue("@p2", dto.Role);
+                spCmd.Parameters.AddWithValue("@p3", dto.Keterangan ?? "");
 
                 // p4-p50 kosong
                 for (int i = 4; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                    spCmd.Parameters.AddWithValue($"@p{i}", "");
 
-                Console.WriteLine($"[RejectCutiAsync] Executing stored procedure: sia_tolakCutiAkademik");
-                Console.WriteLine($"[RejectCutiAsync] Parameters: @p1={dto.Id}, @p2={dto.Role}, @p3={dto.Keterangan ?? ""}");
+                Console.WriteLine($"[RejectCutiAsync] Trying stored procedure first...");
+                var spRows = await spCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[RejectCutiAsync] SP rows affected: {spRows}");
 
-                await conn.OpenAsync();
-                var rows = await cmd.ExecuteNonQueryAsync();
+                if (spRows > 0)
+                {
+                    Console.WriteLine($"[RejectCutiAsync] SP success!");
+                    return true;
+                }
+
+                // If SP failed, try direct SQL update as fallback
+                Console.WriteLine($"[RejectCutiAsync] SP failed, trying direct SQL update...");
                 
-                Console.WriteLine($"[RejectCutiAsync] Stored procedure executed. Rows affected: {rows}");
-                
-                var success = rows > 0;
-                Console.WriteLine($"[RejectCutiAsync] Result: {success}");
+                var directCmd = new SqlCommand(@"
+                    UPDATE sia_mscutiakademik 
+                    SET cak_keterangan = @keterangan,
+                        cak_status = @newStatus
+                    WHERE cak_id = @id", conn);
+
+                directCmd.Parameters.AddWithValue("@id", dto.Id);
+                directCmd.Parameters.AddWithValue("@keterangan", dto.Keterangan ?? "");
+                directCmd.Parameters.AddWithValue("@newStatus", $"Ditolak {dto.Role}");
+
+                var directRows = await directCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[RejectCutiAsync] Direct SQL rows affected: {directRows}");
+
+                var success = directRows > 0;
+                Console.WriteLine($"[RejectCutiAsync] Final result: {success}");
                 
                 return success;
             }

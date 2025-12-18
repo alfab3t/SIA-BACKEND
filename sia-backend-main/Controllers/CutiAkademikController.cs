@@ -595,6 +595,12 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "Role harus diisi." });
                 }
                 
+                if (string.IsNullOrWhiteSpace(dto.Keterangan))
+                {
+                    Console.WriteLine("[Controller] ERROR: Keterangan is required");
+                    return BadRequest(new { message = "Keterangan/alasan penolakan harus diisi dan tidak boleh kosong." });
+                }
+                
                 Console.WriteLine("[Controller] Calling service...");
                 var success = await _service.RejectCutiAsync(dto);
                 Console.WriteLine($"[Controller] Service returned: {success}");

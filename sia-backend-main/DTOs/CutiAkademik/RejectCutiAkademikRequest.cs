@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace astratech_apps_backend.DTOs.CutiAkademik
 {
     /// <summary>
@@ -8,16 +10,20 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         /// <summary>
         /// ID cuti akademik yang akan ditolak
         /// </summary>
+        [Required(ErrorMessage = "ID cuti akademik harus diisi")]
         public string Id { get; set; } = "";
         
         /// <summary>
         /// Role yang menolak: "prodi", "wadir1", "finance"
         /// </summary>
+        [Required(ErrorMessage = "Role harus diisi")]
         public string Role { get; set; } = "";
         
         /// <summary>
-        /// Keterangan/alasan penolakan
+        /// Keterangan/alasan penolakan (WAJIB diisi)
         /// </summary>
+        [Required(ErrorMessage = "Keterangan/alasan penolakan harus diisi")]
+        [MinLength(5, ErrorMessage = "Keterangan minimal 5 karakter")]
         public string Keterangan { get; set; } = "";
     }
 }

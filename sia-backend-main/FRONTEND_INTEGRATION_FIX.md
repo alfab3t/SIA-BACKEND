@@ -67,12 +67,16 @@ if (!menimbang || menimbang.trim().length < 10) {
 
 ### For Rejection (`/api/CutiAkademik/reject`)
 
-Similarly, the `Keterangan` field should be filled:
+**SAME ISSUE:** The `Keterangan` field is being sent as empty string:
 ```javascript
+// ❌ CURRENT (WRONG):
+Reject payload: {Id: '042/PMA/CA/XII/2025', Role: 'prodi', Keterangan: ''}
+
+// ✅ FIXED (CORRECT):
 Payload: {
-  "Id": "036/PMA/CA/XII/2025",
+  "Id": "042/PMA/CA/XII/2025",
   "Role": "prodi",
-  "Keterangan": "Dokumen tidak lengkap"  // ✅ FILLED
+  "Keterangan": "Dokumen tidak lengkap atau tidak memenuhi syarat"  // ✅ FILLED
 }
 ```
 
