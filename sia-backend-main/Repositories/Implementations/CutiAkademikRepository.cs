@@ -441,10 +441,19 @@ namespace astratech_apps_backend.Repositories.Implementations
                     SELECT a.cak_id, a.mhs_id, b.mhs_nama, c.kon_nama, b.mhs_angkatan,
                            c.kon_singkatan, a.cak_tahunajaran, a.cak_semester,
                            a.cak_lampiran_suratpengajuan, a.cak_lampiran, a.cak_status,
-                           a.cak_created_by, CONVERT(VARCHAR(11),a.cak_created_date,106) as tgl,
+                           a.cak_created_by, 
+                           a.cak_created_date,
+                           FORMAT(a.cak_created_date, 'dd MMMM yyyy', 'id-ID') as tgl,
                            a.cak_sk, a.srt_no, d.pro_nama, '' as kaprod,
-                           CONVERT(VARCHAR(11),a.cak_app_prodi_date,106) as cak_app_prodi_date,
-                           a.cak_approval_prodi, CONVERT(VARCHAR(11),a.cak_app_dir1_date,106) as cak_app_dir1_date,
+                           CASE 
+                               WHEN a.cak_app_prodi_date IS NOT NULL THEN FORMAT(a.cak_app_prodi_date, 'dd MMMM yyyy', 'id-ID')
+                               ELSE ''
+                           END as cak_app_prodi_date,
+                           a.cak_approval_prodi, 
+                           CASE 
+                               WHEN a.cak_app_dir1_date IS NOT NULL THEN FORMAT(a.cak_app_dir1_date, 'dd MMMM yyyy', 'id-ID')
+                               ELSE ''
+                           END as cak_app_dir1_date,
                            a.cak_approval_dir1, b.mhs_alamat, a.cak_menimbang, '' as BulanCuti,
                            '' as direktur, '' as wadir1, '' as wadir2, '' as wadir3, b.mhs_kodepos
                     FROM sia_mscutiakademik a
@@ -495,18 +504,37 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             else
             {
-                // Untuk final ID, gunakan stored procedure
-                var cmd = new SqlCommand("sia_detailCutiAkademik", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
+                // Untuk final ID, gunakan direct SQL query (sama seperti draft) 
+                // karena stored procedure mungkin return data yang salah
+                var sql = @"
+                    SELECT a.cak_id, a.mhs_id, b.mhs_nama, c.kon_nama, b.mhs_angkatan,
+                           c.kon_singkatan, a.cak_tahunajaran, a.cak_semester,
+                           a.cak_lampiran_suratpengajuan, a.cak_lampiran, a.cak_status,
+                           a.cak_created_by, 
+                           a.cak_created_date,
+                           FORMAT(a.cak_created_date, 'dd MMMM yyyy', 'id-ID') as tgl,
+                           a.cak_sk, a.srt_no, d.pro_nama, '' as kaprod,
+                           CASE 
+                               WHEN a.cak_app_prodi_date IS NOT NULL THEN FORMAT(a.cak_app_prodi_date, 'dd MMMM yyyy', 'id-ID')
+                               ELSE ''
+                           END as cak_app_prodi_date,
+                           a.cak_approval_prodi, 
+                           CASE 
+                               WHEN a.cak_app_dir1_date IS NOT NULL THEN FORMAT(a.cak_app_dir1_date, 'dd MMMM yyyy', 'id-ID')
+                               ELSE ''
+                           END as cak_app_dir1_date,
+                           a.cak_approval_dir1, b.mhs_alamat, a.cak_menimbang, '' as BulanCuti,
+                           '' as direktur, '' as wadir1, '' as wadir2, '' as wadir3, b.mhs_kodepos
+                    FROM sia_mscutiakademik a
+                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                    LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
+                    WHERE a.cak_id = @id";
 
-                cmd.Parameters.AddWithValue("@p1", id);
-                for (int i = 2; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@id", id);
 
                 var reader = await cmd.ExecuteReaderAsync();
-
                 if (!await reader.ReadAsync())
                     return null;
 

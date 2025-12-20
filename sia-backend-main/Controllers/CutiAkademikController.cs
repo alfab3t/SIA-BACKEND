@@ -252,7 +252,9 @@ namespace astratech_apps_backend.Controllers
                 
                 var checkCmd = new Microsoft.Data.SqlClient.SqlCommand(@"
                     SELECT cak_id, cak_status, mhs_id, cak_menimbang, cak_approval_prodi, 
-                           cak_app_prodi_date, cak_created_date, cak_created_by
+                           cak_app_prodi_date, cak_created_date, cak_created_by,
+                           CONVERT(VARCHAR(50), cak_created_date, 120) as created_date_raw,
+                           CONVERT(VARCHAR(50), cak_app_prodi_date, 120) as app_prodi_date_raw
                     FROM sia_mscutiakademik 
                     WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", id);
@@ -276,19 +278,28 @@ namespace astratech_apps_backend.Controllers
                     cak_approval_prodi = reader["cak_approval_prodi"].ToString(),
                     cak_app_prodi_date = reader["cak_app_prodi_date"].ToString(),
                     cak_created_date = reader["cak_created_date"].ToString(),
-                    cak_created_by = reader["cak_created_by"].ToString()
+                    cak_created_by = reader["cak_created_by"].ToString(),
+                    created_date_raw = reader["created_date_raw"].ToString(),
+                    app_prodi_date_raw = reader["app_prodi_date_raw"].ToString()
                 };
                 reader.Close();
                 
                 Console.WriteLine($"[DEBUG] Record found - Status: {record.cak_status}");
+                Console.WriteLine($"[DEBUG] Created Date Raw: {record.created_date_raw}");
+                Console.WriteLine($"[DEBUG] Created By: {record.cak_created_by}");
                 
                 return Ok(new { 
                     exists = true,
                     record = record,
                     message = $"Record ditemukan dengan status: {record.cak_status}",
-                    canBeApproved = !string.IsNullOrEmpty(record.cak_status) && 
-                                   record.cak_status != "Belum Disetujui Wadir 1" &&
-                                   record.cak_status != "Disetujui"
+                    analysis = new {
+                        created_date_looks_like_user_id = record.created_date_raw == record.cak_created_by,
+                        created_date_is_valid = DateTime.TryParse(record.created_date_raw, out _),
+                        app_prodi_date_is_valid = DateTime.TryParse(record.app_prodi_date_raw, out _),
+                        problem_description = record.created_date_raw == record.cak_created_by ? 
+                            "PROBLEM: cak_created_date contains user ID instead of actual date!" : 
+                            "Date field looks normal"
+                    }
                 });
             }
             catch (Exception ex)
