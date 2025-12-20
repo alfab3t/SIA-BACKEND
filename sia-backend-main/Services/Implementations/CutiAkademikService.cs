@@ -70,6 +70,16 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.RejectCutiAsync(dto);
         }
 
+        public async Task<string?> CreateSKAsync(CreateSKRequest dto)
+        {
+            return await _repo.CreateSKAsync(dto);
+        }
+
+        public async Task<bool> UploadSKAsync(UploadSKRequest dto)
+        {
+            return await _repo.UploadSKAsync(dto);
+        }
+
         /// <summary>
         /// Normalize status parameter to match stored procedure expectations
         /// </summary>

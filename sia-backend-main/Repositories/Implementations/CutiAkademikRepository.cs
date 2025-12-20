@@ -1014,6 +1014,267 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw; // Re-throw to let controller handle it
             }
         }
+
+        /// <summary>
+        /// Create SK Cuti Akademik - Using stored procedure sia_createSKCutiAkademik
+        /// </summary>
+        public async Task<string?> CreateSKAsync(CreateSKRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[CreateSKAsync] Starting SK creation for ID: {dto.Id}");
+                Console.WriteLine($"[CreateSKAsync] NoSK: {dto.NoSK}, CreatedBy: {dto.CreatedBy}");
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                // Check if record exists and has correct status
+                var checkCmd = new SqlCommand(@"
+                    SELECT cak_id, cak_status, srt_no 
+                    FROM sia_mscutiakademik 
+                    WHERE cak_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", dto.Id);
+
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    Console.WriteLine($"[CreateSKAsync] ERROR: Record not found for ID: {dto.Id}");
+                    return null;
+                }
+
+                var currentStatus = reader["cak_status"].ToString();
+                var existingSrtNo = reader["srt_no"].ToString();
+                reader.Close();
+                
+                Console.WriteLine($"[CreateSKAsync] Current status: {currentStatus}");
+                Console.WriteLine($"[CreateSKAsync] Existing srt_no: {existingSrtNo}");
+
+                // Validate status - harus sudah disetujui finance untuk bisa create SK
+                if (currentStatus != "Belum Disetujui Finance" && currentStatus != "Menunggu Upload SK")
+                {
+                    Console.WriteLine($"[CreateSKAsync] ERROR: Invalid status for SK creation: {currentStatus}");
+                    Console.WriteLine($"[CreateSKAsync] Expected status: 'Belum Disetujui Finance' or 'Menunggu Upload SK'");
+                    return null;
+                }
+
+                // Generate nomor SK jika tidak disediakan
+                string noSK = dto.NoSK ?? existingSrtNo;
+                
+                if (string.IsNullOrEmpty(noSK))
+                {
+                    // Generate nomor SK otomatis
+                    var year = DateTime.Now.Year;
+                    var month = DateTime.Now.Month;
+                    
+                    // Get last SK number for this month
+                    var getLastNoCmd = new SqlCommand(@"
+                        SELECT TOP 1 srt_no 
+                        FROM sia_mscutiakademik 
+                        WHERE srt_no LIKE @pattern 
+                        ORDER BY srt_no DESC", conn);
+                    getLastNoCmd.Parameters.AddWithValue("@pattern", $"%/SK-CA/{month:D2}/{year}");
+                    
+                    var lastNo = await getLastNoCmd.ExecuteScalarAsync();
+                    int sequence = 1;
+                    
+                    if (lastNo != null)
+                    {
+                        var lastNoStr = lastNo.ToString();
+                        var parts = lastNoStr?.Split('/');
+                        if (parts != null && parts.Length > 0 && int.TryParse(parts[0], out int lastSeq))
+                        {
+                            sequence = lastSeq + 1;
+                        }
+                    }
+                    
+                    noSK = $"{sequence:D3}/SK-CA/{month:D2}/{year}";
+                    Console.WriteLine($"[CreateSKAsync] Generated SK number: {noSK}");
+                }
+
+                // Use stored procedure sia_createSKCutiAkademik to finalize SK
+                try
+                {
+                    var spCmd = new SqlCommand("sia_createSKCutiAkademik", conn)
+                    {
+                        CommandType = CommandType.StoredProcedure
+                    };
+
+                    spCmd.Parameters.AddWithValue("@p1", dto.Id);        // cak_id
+                    spCmd.Parameters.AddWithValue("@p2", noSK);          // cak_sk (nomor SK)
+                    spCmd.Parameters.AddWithValue("@p3", dto.CreatedBy); // cak_modif_by
+
+                    // p4-p50 kosong
+                    for (int i = 4; i <= 50; i++)
+                        spCmd.Parameters.AddWithValue($"@p{i}", "");
+
+                    Console.WriteLine($"[CreateSKAsync] Executing stored procedure with SK: {noSK}");
+                    var spRows = await spCmd.ExecuteNonQueryAsync();
+                    Console.WriteLine($"[CreateSKAsync] SP rows affected: {spRows}");
+
+                    if (spRows > 0)
+                    {
+                        Console.WriteLine($"[CreateSKAsync] SK created successfully using SP: {noSK}");
+                        return noSK;
+                    }
+                }
+                catch (Exception spEx)
+                {
+                    Console.WriteLine($"[CreateSKAsync] SP failed: {spEx.Message}");
+                }
+
+                // Fallback: Update record dengan nomor SK dan ubah status ke "Menunggu Upload SK"
+                Console.WriteLine($"[CreateSKAsync] SP failed, using fallback direct SQL...");
+                var updateCmd = new SqlCommand(@"
+                    UPDATE sia_mscutiakademik 
+                    SET srt_no = @noSK,
+                        cak_status = 'Menunggu Upload SK',
+                        cak_modif_date = GETDATE(),
+                        cak_modif_by = @createdBy
+                    WHERE cak_id = @id", conn);
+
+                updateCmd.Parameters.AddWithValue("@id", dto.Id);
+                updateCmd.Parameters.AddWithValue("@noSK", noSK);
+                updateCmd.Parameters.AddWithValue("@createdBy", dto.CreatedBy);
+
+                Console.WriteLine($"[CreateSKAsync] Executing fallback update with SK number: {noSK}");
+                var rows = await updateCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[CreateSKAsync] Fallback rows affected: {rows}");
+
+                if (rows > 0)
+                {
+                    Console.WriteLine($"[CreateSKAsync] SK created successfully with fallback: {noSK}");
+                    return noSK;
+                }
+                
+                Console.WriteLine($"[CreateSKAsync] Failed to create SK");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CreateSKAsync] ERROR: {ex.Message}");
+                Console.WriteLine($"[CreateSKAsync] Stack trace: {ex.StackTrace}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Upload SK Cuti Akademik (untuk admin) - Using stored procedure sia_createSKCutiAkademik
+        /// </summary>
+        public async Task<bool> UploadSKAsync(UploadSKRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[UploadSKAsync] Starting SK upload for ID: {dto.Id}");
+                Console.WriteLine($"[UploadSKAsync] File: {dto.FileSK?.FileName}");
+                Console.WriteLine($"[UploadSKAsync] UploadBy: {dto.UploadBy}");
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                // First, check if record exists and has correct status
+                var checkCmd = new SqlCommand(
+                    "SELECT cak_id, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", dto.Id);
+
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    Console.WriteLine($"[UploadSKAsync] ERROR: Record not found for ID: {dto.Id}");
+                    return false;
+                }
+
+                var currentStatus = reader["cak_status"].ToString();
+                reader.Close();
+                
+                Console.WriteLine($"[UploadSKAsync] Current status: {currentStatus}");
+
+                if (currentStatus != "Menunggu Upload SK")
+                {
+                    Console.WriteLine($"[UploadSKAsync] ERROR: Invalid status for SK upload: {currentStatus}");
+                    return false;
+                }
+
+                // Save file
+                var fileName = SaveFile(dto.FileSK);
+                if (string.IsNullOrEmpty(fileName))
+                {
+                    Console.WriteLine($"[UploadSKAsync] ERROR: Failed to save file");
+                    return false;
+                }
+
+                Console.WriteLine($"[UploadSKAsync] File saved as: {fileName}");
+
+                // Try stored procedure first (hybrid approach)
+                try
+                {
+                    var spCmd = new SqlCommand("sia_createSKCutiAkademik", conn)
+                    {
+                        CommandType = CommandType.StoredProcedure
+                    };
+
+                    spCmd.Parameters.AddWithValue("@p1", dto.Id);        // cak_id
+                    spCmd.Parameters.AddWithValue("@p2", fileName);      // cak_sk (filename)
+                    spCmd.Parameters.AddWithValue("@p3", dto.UploadBy);  // cak_modif_by
+
+                    // p4-p50 kosong
+                    for (int i = 4; i <= 50; i++)
+                        spCmd.Parameters.AddWithValue($"@p{i}", "");
+
+                    Console.WriteLine($"[UploadSKAsync] Trying stored procedure first...");
+                    var spRows = await spCmd.ExecuteNonQueryAsync();
+                    Console.WriteLine($"[UploadSKAsync] SP rows affected: {spRows}");
+
+                    if (spRows > 0)
+                    {
+                        Console.WriteLine($"[UploadSKAsync] SP success!");
+                        return true;
+                    }
+                }
+                catch (Exception spEx)
+                {
+                    Console.WriteLine($"[UploadSKAsync] SP failed: {spEx.Message}");
+                }
+
+                // If SP failed, use direct SQL with all required fields (fallback)
+                Console.WriteLine($"[UploadSKAsync] SP failed, trying direct SQL update...");
+                
+                var directCmd = new SqlCommand(@"
+                    UPDATE sia_mscutiakademik 
+                    SET cak_sk = @fileName,
+                        cak_status = 'Disetujui',
+                        cak_status_cuti = 'Cuti',
+                        cak_approval_dakap = GETDATE(),
+                        cak_modif_date = GETDATE(),
+                        cak_modif_by = @uploadBy
+                    WHERE cak_id = @id 
+                      AND cak_status = 'Menunggu Upload SK';
+                    
+                    -- Also update mahasiswa status
+                    UPDATE sia_msmahasiswa 
+                    SET mhs_status_kuliah = 'Cuti' 
+                    WHERE mhs_id = (SELECT mhs_id FROM sia_mscutiakademik WHERE cak_id = @id);", conn);
+
+                directCmd.Parameters.AddWithValue("@id", dto.Id);
+                directCmd.Parameters.AddWithValue("@fileName", fileName);
+                directCmd.Parameters.AddWithValue("@uploadBy", dto.UploadBy);
+
+                var directRows = await directCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[UploadSKAsync] Direct SQL rows affected: {directRows}");
+
+                var success = directRows > 0;
+                Console.WriteLine($"[UploadSKAsync] Final result: {success}");
+                
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UploadSKAsync] ERROR: {ex.Message}");
+                Console.WriteLine($"[UploadSKAsync] Stack trace: {ex.StackTrace}");
+                throw; // Re-throw to let controller handle it
+            }
+        }
             
     }
 }

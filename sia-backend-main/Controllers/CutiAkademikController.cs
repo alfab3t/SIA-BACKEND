@@ -45,11 +45,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // CREATE DRAFT (Prodi)
         // ============================================
-        /// <summary>
-        /// Create draft cuti akademik oleh prodi
-        /// </summary>
-        /// <param name="dto">Data draft cuti akademik</param>
-        /// <returns>Draft ID yang dibuat</returns>
+        
         [HttpPost("prodi/draft")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
@@ -82,11 +78,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // GENERATE FINAL ID (Prodi)
         // ============================================
-        /// <summary>
-        /// Generate final ID dari draft cuti akademik (prodi)
-        /// </summary>
-        /// <param name="dto">Data untuk generate final ID</param>
-        /// <returns>Final ID yang di-generate</returns>
+        
         [HttpPut("prodi/generate-id")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
@@ -119,26 +111,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // GET ALL CUTI
         // ============================================
-        /// <summary>
-        /// Mendapatkan semua data cuti akademik dengan filter
-        /// </summary>
-        /// <param name="mhsId">ID Mahasiswa untuk filter (default: % untuk semua)</param>
-        /// <param name="status">Status cuti untuk filter. Kosongkan untuk menampilkan semua data. Contoh: 'disetujui', 'belum disetujui prodi'</param>
-        /// <param name="userId">ID User untuk filter berdasarkan role</param>
-        /// <param name="role">Role user untuk menentukan akses data</param>
-        /// <param name="search">Kata kunci pencarian</param>
-        /// <returns>List data cuti akademik</returns>
-        /// <response code="200">Berhasil mendapatkan data</response>
-        /// <remarks>
-        /// Endpoint ini akan menampilkan SEMUA data cuti akademik secara default jika tidak ada parameter yang diisi.
-        /// 
-        /// Contoh penggunaan:
-        /// 
-        ///     GET /api/CutiAkademik (menampilkan semua data)
-        ///     GET /api/CutiAkademik?status=disetujui (filter status disetujui)
-        ///     GET /api/CutiAkademik?search=0420240032 (cari berdasarkan NIM)
-        /// 
-        /// </remarks>
+        
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
         public async Task<IActionResult> GetAll(
@@ -170,12 +143,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // UPDATE CUTI (WITH FILE UPLOAD)
         // ============================================
-        /// <summary>
-        /// Update data cuti akademik (draft atau final)
-        /// </summary>
-        /// <param name="id">ID cuti akademik yang akan diupdate</param>
-        /// <param name="dto">Data update cuti akademik</param>
-        /// <returns>Status update</returns>
+        
         [HttpPut("{id}")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
@@ -238,33 +206,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // RIWAYAT CUTI
         // ============================================
-        /// <summary>
-        /// Mendapatkan riwayat data cuti akademik
-        /// </summary>
-        /// <param name="userId">ID User untuk filter berdasarkan role (opsional)</param>
-        /// <param name="status">Status cuti akademik untuk filter (opsional). Kosongkan untuk menampilkan semua data. Contoh: 'disetujui', 'belum disetujui prodi', 'menunggu upload sk'</param>
-        /// <param name="search">Kata kunci pencarian berdasarkan NIM atau ID cuti (opsional)</param>
-        /// <returns>List riwayat cuti akademik</returns>
-        /// <response code="200">Berhasil mendapatkan data riwayat</response>
-        /// <response code="500">Terjadi kesalahan server</response>
-        /// <remarks>
-        /// Endpoint ini akan menampilkan SEMUA riwayat cuti akademik secara default jika tidak ada parameter yang diisi.
-        /// 
-        /// Contoh penggunaan:
-        /// 
-        ///     GET /api/CutiAkademik/riwayat (menampilkan semua riwayat)
-        ///     GET /api/CutiAkademik/riwayat?status=disetujui (filter status disetujui)
-        ///     GET /api/CutiAkademik/riwayat?search=0420240032 (cari berdasarkan NIM)
-        ///     GET /api/CutiAkademik/riwayat?status=disetujui&amp;search=042024 (kombinasi filter)
-        /// 
-        /// Status yang tersedia:
-        /// - disetujui
-        /// - belum disetujui prodi  
-        /// - belum disetujui wadir 1
-        /// - menunggu upload sk
-        /// - belum disetujui finance
-        /// - draft
-        /// </remarks>
+        
         [HttpGet("riwayat")]
         [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
         [ProducesResponseType(500)]
@@ -278,11 +220,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         /// <summary>
-        /// Mendapatkan data riwayat cuti akademik dalam format Excel
-        /// </summary>
-        /// <param name="userId">ID User untuk filter data (opsional)</param>
-        /// <returns>Data riwayat dalam format yang siap untuk export Excel</returns>
-        /// <response code="200">Berhasil mendapatkan data untuk Excel</response>
+       
         [HttpGet("riwayat/excel")]
         [ProducesResponseType(typeof(IEnumerable<CutiAkademikRiwayatExcelResponse>), 200)]
         public async Task<IActionResult> GetRiwayatExcel([FromQuery] string userId = "")
@@ -291,9 +229,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        /// <summary>
-        /// Debug endpoint - Check record status and test stored procedure
-        /// </summary>
+        
         [HttpGet("debug/check-record/{id}")]
         [ProducesResponseType(200)]
         public async Task<IActionResult> DebugCheckRecord(string id)
@@ -303,7 +239,7 @@ namespace astratech_apps_backend.Controllers
                 Console.WriteLine($"[DEBUG] === RECORD CHECK ===");
                 Console.WriteLine($"[DEBUG] ID: '{id}'");
                 
-                // Get connection string
+                
                 var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
                     HttpContext.RequestServices.GetRequiredService<IConfiguration>()
                         .GetConnectionString("DefaultConnection")!,
@@ -313,7 +249,7 @@ namespace astratech_apps_backend.Controllers
                 using var conn = new Microsoft.Data.SqlClient.SqlConnection(connString);
                 await conn.OpenAsync();
                 
-                // Check if record exists and get all relevant fields
+                
                 var checkCmd = new Microsoft.Data.SqlClient.SqlCommand(@"
                     SELECT cak_id, cak_status, mhs_id, cak_menimbang, cak_approval_prodi, 
                            cak_app_prodi_date, cak_created_date, cak_created_by
@@ -366,9 +302,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Debug endpoint - Test stored procedure execution
-        /// </summary>
+        
         [HttpPost("debug/test-sp-approval")]
         [ProducesResponseType(200)]
         public async Task<IActionResult> DebugTestSpApproval([FromBody] ApproveProdiCutiRequest dto)
@@ -380,7 +314,7 @@ namespace astratech_apps_backend.Controllers
                 Console.WriteLine($"[DEBUG] Menimbang: '{dto.Menimbang}' (Length: {dto.Menimbang?.Length ?? 0})");
                 Console.WriteLine($"[DEBUG] ApprovedBy: '{dto.ApprovedBy}'");
                 
-                // Get connection string
+                
                 var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
                     HttpContext.RequestServices.GetRequiredService<IConfiguration>()
                         .GetConnectionString("DefaultConnection")!,
@@ -390,7 +324,7 @@ namespace astratech_apps_backend.Controllers
                 using var conn = new Microsoft.Data.SqlClient.SqlConnection(connString);
                 await conn.OpenAsync();
                 
-                // Test the stored procedure directly
+                
                 var cmd = new Microsoft.Data.SqlClient.SqlCommand("sia_setujuiCutiAkademikProdi", conn)
                 {
                     CommandType = System.Data.CommandType.StoredProcedure
@@ -400,7 +334,7 @@ namespace astratech_apps_backend.Controllers
                 cmd.Parameters.AddWithValue("@p2", dto.Menimbang ?? "");
                 cmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
 
-                // p4-p50 kosong
+               
                 for (int i = 4; i <= 50; i++)
                     cmd.Parameters.AddWithValue($"@p{i}", "");
 
@@ -451,17 +385,7 @@ namespace astratech_apps_backend.Controllers
         // APPROVAL & REJECTION ENDPOINTS
         // ============================================
         
-        /// <summary>
-        /// Menyetujui cuti akademik (untuk prodi/wadir1/finance)
-        /// </summary>
-        /// <param name="dto">Data approval</param>
-        /// <returns>Status approval</returns>
-        /// <remarks>
-        /// Role yang valid:
-        /// - "prodi" → Status menjadi "Belum Disetujui Wadir 1"
-        /// - "wadir1" → Status menjadi "Belum Disetujui Finance"
-        /// - "finance" → Status menjadi "Menunggu Upload SK" dan generate nomor surat
-        /// </remarks>
+        
         [HttpPut("approve")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
@@ -491,19 +415,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Menyetujui cuti akademik oleh prodi
-        /// </summary>
-        /// <param name="dto">Data approval prodi (termasuk menimbang)</param>
-        /// <returns>Status approval</returns>
-        /// <remarks>
-        /// Contoh request body:
-        /// {
-        ///   "id": "033/PMA/CA/XIII/2025",
-        ///   "menimbang": "Mahasiswa memenuhi syarat untuk cuti akademik",
-        ///   "approvedBy": "prodi_user"
-        /// }
-        /// </remarks>
+        
         [HttpPut("approve/prodi")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
@@ -557,22 +469,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Menolak cuti akademik dengan keterangan
-        /// </summary>
-        /// <param name="dto">Data penolakan</param>
-        /// <returns>Status penolakan</returns>
-        /// <remarks>
-        /// Status akan menjadi "Ditolak {role}"
-        /// Contoh: "Ditolak prodi", "Ditolak wadir1", "Ditolak finance"
-        /// 
-        /// Contoh request body:
-        /// {
-        ///   "id": "033/PMA/CA/XIII/2025",
-        ///   "role": "prodi",
-        ///   "keterangan": "Dokumen tidak lengkap"
-        /// }
-        /// </remarks>
+       
         [HttpPut("reject")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
@@ -597,9 +494,9 @@ namespace astratech_apps_backend.Controllers
                 
                 if (string.IsNullOrWhiteSpace(dto.Keterangan))
                 {
-                    Console.WriteLine("[Controller] ERROR: Keterangan is required");
+                    Console.WriteLine("[Controller] ERROR: Keterangan is required"); 
                     return BadRequest(new { message = "Keterangan/alasan penolakan harus diisi dan tidak boleh kosong." });
-                }
+                }   
                 
                 Console.WriteLine("[Controller] Calling service...");
                 var success = await _service.RejectCutiAsync(dto);
@@ -620,6 +517,137 @@ namespace astratech_apps_backend.Controllers
                 Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menolak cuti akademik.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+        }
+
+        // ============================================
+        // SK MANAGEMENT ENDPOINTS
+        // ============================================
+        
+        /// <summary>
+        /// Create SK Cuti Akademik - Generate nomor SK dan siapkan untuk upload
+        /// </summary>
+        [HttpPost("create-sk")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> CreateSK([FromBody] CreateSKRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[Controller] Create SK - ID: {dto.Id}, NoSK: {dto.NoSK}, CreatedBy: {dto.CreatedBy}");
+                
+                // Validate input
+                if (string.IsNullOrEmpty(dto.Id))
+                {
+                    Console.WriteLine("[Controller] ERROR: ID is required");
+                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
+                }
+                
+                if (string.IsNullOrEmpty(dto.CreatedBy))
+                {
+                    Console.WriteLine("[Controller] ERROR: CreatedBy is required");
+                    return BadRequest(new { message = "CreatedBy harus diisi." });
+                }
+                
+                Console.WriteLine("[Controller] Calling service...");
+                var noSK = await _service.CreateSKAsync(dto);
+                Console.WriteLine($"[Controller] Service returned: {noSK}");
+                
+                if (!string.IsNullOrEmpty(noSK))
+                {
+                    Console.WriteLine("[Controller] SK creation successful");
+                    return Ok(new { 
+                        message = "SK berhasil dibuat dan siap untuk diupload.", 
+                        noSK = noSK,
+                        status = "Disetujui"
+                    });
+                }
+                
+                Console.WriteLine("[Controller] SK creation failed - service returned null");
+                return BadRequest(new { message = "Gagal membuat SK. Periksa apakah ID valid dan status cuti sudah disetujui finance." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Controller] ERROR in CreateSK: {ex.Message}");
+                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat membuat SK.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Upload SK Cuti Akademik (untuk admin)
+        /// </summary>
+        [HttpPut("upload-sk")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> UploadSK([FromForm] UploadSKRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[Controller] Upload SK - ID: {dto.Id}, File: {dto.FileSK?.FileName}, UploadBy: {dto.UploadBy}");
+                
+                // Validate input
+                if (string.IsNullOrEmpty(dto.Id))
+                {
+                    Console.WriteLine("[Controller] ERROR: ID is required");
+                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
+                }
+                
+                if (dto.FileSK == null || dto.FileSK.Length == 0)
+                {
+                    Console.WriteLine("[Controller] ERROR: File SK is required");
+                    return BadRequest(new { message = "File SK harus diupload." });
+                }
+                
+                if (string.IsNullOrEmpty(dto.UploadBy))
+                {
+                    Console.WriteLine("[Controller] ERROR: UploadBy is required");
+                    return BadRequest(new { message = "UploadBy harus diisi." });
+                }
+
+                // Validate file type
+                var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png" };
+                var fileExtension = Path.GetExtension(dto.FileSK.FileName).ToLowerInvariant();
+                
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    Console.WriteLine($"[Controller] ERROR: Invalid file type: {fileExtension}");
+                    return BadRequest(new { message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                }
+
+                // Validate file size (max 10MB)
+                if (dto.FileSK.Length > 10 * 1024 * 1024)
+                {
+                    Console.WriteLine($"[Controller] ERROR: File too large: {dto.FileSK.Length} bytes");
+                    return BadRequest(new { message = "Ukuran file maksimal 10MB." });
+                }
+                
+                Console.WriteLine("[Controller] Calling service...");
+                var success = await _service.UploadSKAsync(dto);
+                Console.WriteLine($"[Controller] Service returned: {success}");
+                
+                if (success)
+                {
+                    Console.WriteLine("[Controller] SK upload successful");
+                    return Ok(new { message = "SK berhasil diupload. Status cuti akademik telah diubah menjadi 'Disetujui'." });
+                }
+                
+                Console.WriteLine("[Controller] SK upload failed - service returned false");
+                return BadRequest(new { message = "Gagal mengupload SK. Periksa apakah ID valid dan status cuti adalah 'Menunggu Upload SK'." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Controller] ERROR in UploadSK: {ex.Message}");
+                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengupload SK.", 
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });

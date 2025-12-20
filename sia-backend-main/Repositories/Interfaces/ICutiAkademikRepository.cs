@@ -20,6 +20,10 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto);
         Task<bool> ApproveProdiCutiAsync(ApproveProdiCutiRequest dto);
         Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto);
+        
+        // SK MANAGEMENT
+        Task<string?> CreateSKAsync(CreateSKRequest dto);
+        Task<bool> UploadSKAsync(UploadSKRequest dto);
 
         // other methods...
     }
