@@ -502,7 +502,7 @@ namespace astratech_apps_backend.Controllers
                 var success = await _service.RejectCutiAsync(dto);
                 Console.WriteLine($"[Controller] Service returned: {success}");
                 
-                if (success)
+                if (success)    
                 {
                     Console.WriteLine("[Controller] Rejection successful");
                     return Ok(new { message = "Cuti akademik berhasil ditolak." });

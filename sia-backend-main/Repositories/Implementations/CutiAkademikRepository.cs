@@ -138,33 +138,194 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // STEP 2 — Generate Final ID (SP: sia_createCutiAkademik)
+        // STEP 2 — Generate Final ID (FIXED: Bypass Buggy SP)
         // ============================================================
         public async Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
+                Console.WriteLine($"[Repository] GenerateIdAsync - DraftId: '{dto.DraftId}', ModifiedBy: '{dto.ModifiedBy}'");
+                
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                // Validate draft record exists and is in Draft status
+                var checkCmd = new SqlCommand(@"
+                    SELECT cak_id, cak_status, mhs_id
+                    FROM sia_mscutiakademik 
+                    WHERE cak_id = @draftId", conn);
+                checkCmd.Parameters.AddWithValue("@draftId", dto.DraftId);
+                
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    throw new Exception($"Draft record dengan ID '{dto.DraftId}' tidak ditemukan.");
+                }
+                
+                var status = reader["cak_status"].ToString();
+                var mhsId = reader["mhs_id"].ToString();
+                reader.Close();
+                
+                if (status != "Draft")
+                {
+                    throw new Exception($"Record dengan ID '{dto.DraftId}' bukan dalam status Draft (status: {status}).");
+                }
+                
+                // Generate unique final ID using SAFE logic (not buggy SP)
+                string finalId = await GenerateUniqueFinalIdSafeAsync(conn);
+                Console.WriteLine($"[Repository] Generated unique final ID: {finalId}");
+                
+                // Update draft record to final ID with proper status
+                var updateCmd = new SqlCommand(@"
+                    UPDATE sia_mscutiakademik 
+                    SET cak_id = @finalId,
+                        cak_status = 'Belum Disetujui Prodi',
+                        cak_modif_date = GETDATE(),
+                        cak_modif_by = @modifiedBy
+                    WHERE cak_id = @draftId", conn);
+                
+                updateCmd.Parameters.AddWithValue("@finalId", finalId);
+                updateCmd.Parameters.AddWithValue("@modifiedBy", dto.ModifiedBy);
+                updateCmd.Parameters.AddWithValue("@draftId", dto.DraftId);
+                
+                var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
+                
+                if (rowsAffected == 0)
+                {
+                    throw new Exception("Gagal mengupdate draft record ke final ID.");
+                }
+                
+                Console.WriteLine($"[Repository] Successfully updated draft to final ID: {finalId}");
+                return finalId;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Repository] ERROR in GenerateIdAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        // ============================================================
+        // Helper: Generate Unique Final ID (SAFE - No SP Dependency)
+        // ============================================================
+        private async Task<string> GenerateUniqueFinalIdSafeAsync(SqlConnection conn)
+        {
+            try
+            {
+                // Get current month in Roman numerals (same as SP logic)
+                var now = DateTime.Now;
+                var month = now.Month;
+                var year = now.Year;
+                
+                // Convert month to Roman using same logic as SP function
+                string romanMonth = ConvertToRoman(month);
+                string kode = $"/PMA/CA/{romanMonth}/{year}";
+                
+                Console.WriteLine($"[Repository] Generating ID with kode: {kode}");
+                
+                // Get the HIGHEST sequence number for current year (FIXED: order by cak_id, not created_date)
+                var getLastIdCmd = new SqlCommand(@"
+                    SELECT TOP 1 cak_id 
+                    FROM sia_mscutiakademik 
+                    WHERE cak_id LIKE '%/PMA/CA/%' 
+                      AND cak_id LIKE '%/' + CAST(@year AS VARCHAR(4))
+                    ORDER BY CAST(LEFT(cak_id, 3) AS INT) DESC", conn);
+                
+                getLastIdCmd.Parameters.AddWithValue("@year", year);
+                
+                var lastId = await getLastIdCmd.ExecuteScalarAsync() as string;
+                Console.WriteLine($"[Repository] Last ID found: {lastId}");
+                
+                int nextSequence = 1;
+                
+                if (!string.IsNullOrEmpty(lastId))
+                {
+                    // Extract sequence number from ID like "052/PMA/CA/XII/2025"
+                    try
+                    {
+                        var sequenceStr = lastId.Substring(0, 3);
+                        if (int.TryParse(sequenceStr, out int currentSequence))
+                        {
+                            nextSequence = currentSequence + 1;
+                        }
+                    }
+                    catch
+                    {
+                        // If parsing fails, start from 1
+                        nextSequence = 1;
+                    }
+                }
+                
+                Console.WriteLine($"[Repository] Next sequence: {nextSequence}");
+                
+                // Generate new ID with collision protection
+                for (int attempt = 0; attempt < 20; attempt++)
+                {
+                    string candidateId;
+                    
+                    // Format sequence number with leading zeros (same as SP)
+                    if (nextSequence < 10)
+                        candidateId = $"00{nextSequence}{kode}";
+                    else if (nextSequence < 100)
+                        candidateId = $"0{nextSequence}{kode}";
+                    else
+                        candidateId = $"{nextSequence}{kode}";
+                    
+                    Console.WriteLine($"[Repository] Trying candidate ID: {candidateId}");
+                    
+                    // Check if this ID already exists
+                    var checkExistCmd = new SqlCommand(@"
+                        SELECT COUNT(*) 
+                        FROM sia_mscutiakademik 
+                        WHERE cak_id = @candidateId", conn);
+                    checkExistCmd.Parameters.AddWithValue("@candidateId", candidateId);
+                    
+                    var count = (int)await checkExistCmd.ExecuteScalarAsync();
+                    if (count == 0)
+                    {
+                        Console.WriteLine($"[Repository] ID is unique: {candidateId}");
+                        return candidateId;
+                    }
+                    
+                    Console.WriteLine($"[Repository] ID collision detected, trying next sequence");
+                    nextSequence++;
+                }
+                
+                // If all attempts fail, use timestamp fallback
+                var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 1000;
+                var fallbackId = $"{timestamp:D3}{kode}";
+                Console.WriteLine($"[Repository] Using fallback ID: {fallbackId}");
+                return fallbackId;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Repository] ERROR in GenerateUniqueFinalIdSafeAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        // ============================================================
+        // Helper: Convert Month to Roman (Same as SP fnConvertIntToRoman)
+        // ============================================================
+        private string ConvertToRoman(int month)
+        {
+            return month switch
+            {
+                1 => "I",
+                2 => "II", 
+                3 => "III",
+                4 => "IV",
+                5 => "V",
+                6 => "VI",
+                7 => "VII",
+                8 => "VIII",
+                9 => "IX",
+                10 => "X",
+                11 => "XI",
+                12 => "XII",
+                _ => "I"
             };
-
-            cmd.Parameters.AddWithValue("@p1", "STEP2");
-            cmd.Parameters.AddWithValue("@p2", dto.DraftId);
-            cmd.Parameters.AddWithValue("@p3", dto.ModifiedBy);
-
-            for (int i = 4; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-
-            await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
-
-            var cmd2 = new SqlCommand(
-                @"SELECT TOP 1 cak_id 
-                  FROM sia_mscutiakademik 
-                  WHERE cak_id LIKE '%CA%'
-                  ORDER BY cak_created_date DESC", conn);
-
-            return (string?)await cmd2.ExecuteScalarAsync();
         }
 
         // ============================================================
