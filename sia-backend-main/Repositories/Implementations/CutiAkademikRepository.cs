@@ -715,6 +715,12 @@ namespace astratech_apps_backend.Repositories.Implementations
             try
             {
                 // =============================
+                // Simpan file terlebih dahulu (sama seperti mahasiswa)
+                // =============================
+                var fileSP = SaveFile(dto.LampiranSuratPengajuan);
+                var fileLampiran = SaveFile(dto.Lampiran);
+
+                // =============================
                 // Gunakan SP khusus untuk prodi: sia_createCutiAkademikByProdi
                 // =============================
                 var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
@@ -725,8 +731,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@p1", "STEP1");
                 cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran ?? "");
                 cmd.Parameters.AddWithValue("@p3", dto.Semester ?? "");
-                cmd.Parameters.AddWithValue("@p4", dto.LampiranSuratPengajuan ?? "");
-                cmd.Parameters.AddWithValue("@p5", dto.Lampiran ?? "");
+                cmd.Parameters.AddWithValue("@p4", fileSP ?? "");
+                cmd.Parameters.AddWithValue("@p5", fileLampiran ?? "");
                 cmd.Parameters.AddWithValue("@p6", dto.MhsId ?? "");
                 cmd.Parameters.AddWithValue("@p7", dto.Menimbang ?? "");
                 cmd.Parameters.AddWithValue("@p8", dto.ApprovalProdi ?? "");
@@ -770,6 +776,12 @@ namespace astratech_apps_backend.Repositories.Implementations
         // ---------------------------------------------------------
         private async Task<string?> CreateDraftByProdiDirectAsync(CreateCutiProdiRequest dto, SqlConnection conn)
         {
+            // =============================
+            // Simpan file terlebih dahulu (sama seperti mahasiswa)
+            // =============================
+            var fileSP = SaveFile(dto.LampiranSuratPengajuan);
+            var fileLampiran = SaveFile(dto.Lampiran);
+
             // Generate unique draft ID
             string newDraftId = await GenerateUniqueDraftIdAsync(conn);
 
@@ -807,8 +819,8 @@ namespace astratech_apps_backend.Repositories.Implementations
             cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId ?? "");
             cmd.Parameters.AddWithValue("@tahunajaran", dto.TahunAjaran ?? "");
             cmd.Parameters.AddWithValue("@semester", dto.Semester ?? "");
-            cmd.Parameters.AddWithValue("@lampiran_sp", dto.LampiranSuratPengajuan ?? "");
-            cmd.Parameters.AddWithValue("@lampiran", dto.Lampiran ?? "");
+            cmd.Parameters.AddWithValue("@lampiran_sp", fileSP ?? "");
+            cmd.Parameters.AddWithValue("@lampiran", fileLampiran ?? "");
             cmd.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
             cmd.Parameters.AddWithValue("@approval_prodi", dto.ApprovalProdi ?? "");
             cmd.Parameters.AddWithValue("@created_by", dto.ApprovalProdi ?? "");
