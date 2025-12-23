@@ -1022,26 +1022,189 @@ namespace astratech_apps_backend.Repositories.Implementations
         
         /// <summary>
         /// Menyetujui cuti akademik (prodi/wadir1/finance)
+        /// <summary>
+        /// Menyetujui cuti akademik (prodi/wadir1/finance)
         /// </summary>
         public async Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                Console.WriteLine($"[ApproveCutiAsync] === STARTING APPROVAL ===");
+                Console.WriteLine($"[ApproveCutiAsync] ID: '{dto.Id}'");
+                Console.WriteLine($"[ApproveCutiAsync] Role: '{dto.Role}'");
+                Console.WriteLine($"[ApproveCutiAsync] ApprovedBy: '{dto.ApprovedBy}'");
 
-            cmd.Parameters.AddWithValue("@p1", dto.Id);
-            cmd.Parameters.AddWithValue("@p2", dto.Role.ToLower());
-            cmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                Console.WriteLine($"[ApproveCutiAsync] Database connection opened successfully");
 
-            // p4-p50 kosong
-            for (int i = 4; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                // First, check if record exists and get current status
+                var checkCmd = new SqlCommand(
+                    "SELECT cak_id, cak_status, mhs_id FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", dto.Id);
 
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
+                Console.WriteLine($"[ApproveCutiAsync] Checking if record exists...");
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    Console.WriteLine($"[ApproveCutiAsync] ERROR: Record not found for ID: '{dto.Id}'");
+                    return false;
+                }
+
+                var currentStatus = reader["cak_status"].ToString();
+                var mhsId = reader["mhs_id"].ToString();
+                reader.Close();
+                
+                Console.WriteLine($"[ApproveCutiAsync] Record found!");
+                Console.WriteLine($"[ApproveCutiAsync] Current status: '{currentStatus}'");
+                Console.WriteLine($"[ApproveCutiAsync] MHS ID: '{mhsId}'");
+
+                // Handle finance approval specifically
+                if (dto.Role.ToLower() == "finance" || dto.Role.ToLower() == "karyawan")
+                {
+                    Console.WriteLine($"[ApproveCutiAsync] Processing finance approval...");
+                    
+                    // Finance approval should change status from "Belum Disetujui Finance" to "Menunggu Upload SK"
+                    if (currentStatus != "Belum Disetujui Finance")
+                    {
+                        Console.WriteLine($"[ApproveCutiAsync] ERROR: Invalid status for finance approval");
+                        Console.WriteLine($"[ApproveCutiAsync] Current status: '{currentStatus}'");
+                        Console.WriteLine($"[ApproveCutiAsync] Expected status: 'Belum Disetujui Finance'");
+                        return false;
+                    }
+
+                    Console.WriteLine($"[ApproveCutiAsync] Status validation passed, executing finance approval update...");
+
+                    var financeCmd = new SqlCommand(@"
+                        UPDATE sia_mscutiakademik 
+                        SET cak_approval_dakap = @approvedBy,
+                            cak_status = 'Menunggu Upload SK',
+                            cak_app_dakap_date = GETDATE(),
+                            cak_modif_date = GETDATE(),
+                            cak_modif_by = @approvedBy
+                        WHERE cak_id = @id", conn);
+
+                    financeCmd.Parameters.AddWithValue("@id", dto.Id);
+                    financeCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
+
+                    Console.WriteLine($"[ApproveCutiAsync] Executing SQL update...");
+                    Console.WriteLine($"[ApproveCutiAsync] Parameters: @id='{dto.Id}', @approvedBy='{dto.ApprovedBy}'");
+
+                    var financeRows = await financeCmd.ExecuteNonQueryAsync();
+                    Console.WriteLine($"[ApproveCutiAsync] Finance approval rows affected: {financeRows}");
+                    
+                    if (financeRows > 0)
+                    {
+                        Console.WriteLine($"[ApproveCutiAsync] Finance approval successful!");
+                        
+                        // Verify the update by checking the new status
+                        var verifyCmd = new SqlCommand(
+                            "SELECT cak_status, cak_approval_dakap FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                        verifyCmd.Parameters.AddWithValue("@id", dto.Id);
+                        
+                        var verifyReader = await verifyCmd.ExecuteReaderAsync();
+                        if (await verifyReader.ReadAsync())
+                        {
+                            var updatedStatus = verifyReader["cak_status"].ToString();
+                            var updatedApproval = verifyReader["cak_approval_dakap"].ToString();
+                            Console.WriteLine($"[ApproveCutiAsync] Verification - New status: '{updatedStatus}'");
+                            Console.WriteLine($"[ApproveCutiAsync] Verification - New approval: '{updatedApproval}'");
+                        }
+                        verifyReader.Close();
+                        
+                        return true;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ApproveCutiAsync] Finance approval failed - no rows affected");
+                        Console.WriteLine($"[ApproveCutiAsync] This might indicate the WHERE condition didn't match any records");
+                        return false;
+                    }
+                }
+
+                // For other roles, try stored procedure first
+                Console.WriteLine($"[ApproveCutiAsync] Processing non-finance approval for role: {dto.Role}");
+                
+                var spCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                spCmd.Parameters.AddWithValue("@p1", dto.Id);
+                spCmd.Parameters.AddWithValue("@p2", dto.Role.ToLower());
+                spCmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
+
+                // p4-p50 kosong
+                for (int i = 4; i <= 50; i++)
+                    spCmd.Parameters.AddWithValue($"@p{i}", "");
+
+                Console.WriteLine($"[ApproveCutiAsync] Trying stored procedure for role: {dto.Role}");
+                var spRows = await spCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[ApproveCutiAsync] SP rows affected: {spRows}");
+
+                if (spRows > 0)
+                {
+                    Console.WriteLine($"[ApproveCutiAsync] SP success!");
+                    return true;
+                }
+
+                // If SP failed, try role-specific direct SQL update as fallback
+                Console.WriteLine($"[ApproveCutiAsync] SP failed, trying direct SQL update...");
+                
+                string newStatus = "";
+                string approvalField = "";
+                string dateField = "";
+
+                switch (dto.Role.ToLower())
+                {
+                    case "prodi":
+                        newStatus = "Belum Disetujui Wadir 1";
+                        approvalField = "cak_approval_prodi";
+                        dateField = "cak_app_prodi_date";
+                        break;
+                    case "wadir1":
+                    case "wadir 1":
+                        newStatus = "Belum Disetujui Finance";
+                        approvalField = "cak_approval_dir1";
+                        dateField = "cak_app_dir1_date";
+                        break;
+                    default:
+                        Console.WriteLine($"[ApproveCutiAsync] ERROR: Unknown role for fallback: {dto.Role}");
+                        return false;
+                }
+
+                var directCmd = new SqlCommand($@"
+                    UPDATE sia_mscutiakademik 
+                    SET {approvalField} = @approvedBy,
+                        cak_status = @newStatus,
+                        {dateField} = GETDATE(),
+                        cak_modif_date = GETDATE(),
+                        cak_modif_by = @approvedBy
+                    WHERE cak_id = @id", conn);
+
+                directCmd.Parameters.AddWithValue("@id", dto.Id);
+                directCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
+                directCmd.Parameters.AddWithValue("@newStatus", newStatus);
+
+                var directRows = await directCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[ApproveCutiAsync] Direct SQL rows affected: {directRows}");
+
+                var success = directRows > 0;
+                Console.WriteLine($"[ApproveCutiAsync] Final result: {success}");
+                
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ApproveCutiAsync] EXCEPTION: {ex.Message}");
+                Console.WriteLine($"[ApproveCutiAsync] Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"[ApproveCutiAsync] Inner exception: {ex.InnerException.Message}");
+                }
+                throw; // Re-throw to let controller handle it
+            }
         }
 
         /// <summary>

@@ -1,6 +1,10 @@
 {
   "Version": 1,
+<<<<<<< Updated upstream
   "WorkspaceRootPath": "C:\\Users\\Satya\\source\\repos\\SIA-BACKEND\\",
+=======
+  "WorkspaceRootPath": "C:\\Users\\lenovo\\source\\repos\\SIA-BACKEND\\",
+>>>>>>> Stashed changes
   "Documents": [],
   "DocumentGroupContainers": [
     {
@@ -13,7 +17,11 @@
           "Children": [
             {
               "$type": "Bookmark",
+<<<<<<< Updated upstream
               "Name": "ST:0:0:{b1e99781-ab81-11d0-b683-00aa00a3ee26}"
+=======
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+>>>>>>> Stashed changes
             }
           ]
         }

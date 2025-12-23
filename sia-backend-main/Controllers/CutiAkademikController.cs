@@ -377,6 +377,51 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
+        
+        [HttpPost("debug/test-finance-approval")]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> DebugTestFinanceApproval([FromBody] ApproveCutiAkademikRequest dto)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] === FINANCE APPROVAL TEST ===");
+                Console.WriteLine($"[DEBUG] ID: '{dto.Id}'");
+                Console.WriteLine($"[DEBUG] Role: '{dto.Role}'");
+                Console.WriteLine($"[DEBUG] ApprovedBy: '{dto.ApprovedBy}'");
+                
+                // Map KARYAWAN role to finance for approval logic
+                if (dto.Role.ToUpper() == "KARYAWAN")
+                {
+                    Console.WriteLine("[DEBUG] Mapping KARYAWAN role to finance");
+                    dto.Role = "finance";
+                }
+                
+                Console.WriteLine($"[DEBUG] Mapped Role: '{dto.Role}'");
+                
+                var success = await _service.ApproveCutiAsync(dto);
+                
+                return Ok(new { 
+                    success = success,
+                    message = success ? "Finance approval berhasil" : "Finance approval gagal",
+                    originalRole = dto.Role,
+                    parameters = new {
+                        id = dto.Id,
+                        role = dto.Role,
+                        approvedBy = dto.ApprovedBy
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] Finance Approval Exception: {ex.Message}");
+                return Ok(new { 
+                    success = false,
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
         // ============================================
         // DOWNLOAD FILE
         // ============================================
