@@ -17,16 +17,6 @@ namespace astratech_apps_backend.Controllers
         }
 
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetAll(
-        //[FromQuery] string status = "",
-        //[FromQuery] string roleId = ""
-        //)
-        //{
-        //    var data = await _service.GetAllAsync(status, roleId);
-        //    return Ok(data);
-        //}
-
         [HttpGet("GetAll")]
         public async Task<IActionResult> GetAll([FromQuery] GetAllMeninggalDuniaRequest req)
         {

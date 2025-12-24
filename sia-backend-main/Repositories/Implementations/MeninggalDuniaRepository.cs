@@ -145,22 +145,46 @@ namespace astratech_apps_backend.Repositories.Implementations
         GetAllAsync(GetAllMeninggalDuniaRequest req)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataMeninggalDunia", conn);
+            
+            // Gunakan query langsung untuk memastikan data bisa diambil
+            var sql = @"
+                SELECT 
+                    a.mdu_id,
+                    (case when CHARINDEX('PA',a.mdu_id) > 0 then a.mdu_id else 'Draft' end) as mdu_id_alternative,
+                    a.mhs_id,
+                    a.mdu_approve_dir1_by,
+                    CONVERT(VARCHAR(11),a.mdu_created_date,106) AS mdu_created_date,
+                    a.mdu_created_date as tanggal_buat,
+                    a.srt_no,
+                    a.mdu_status,
+                    ISNULL(b.mhs_nama, '') as mhs_nama,
+                    ISNULL(c.kon_singkatan, '') as kon_singkatan
+                FROM sia_msmeninggaldunia a
+                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                WHERE a.mdu_status != 'Dihapus'";
 
-            cmd.CommandType = CommandType.StoredProcedure;
+            // Add status filter if provided
+            if (!string.IsNullOrEmpty(req.Status))
+            {
+                sql += " AND a.mdu_status = @Status";
+            }
 
-            // @p1 → boleh username, tapi SP tidak pakai
-            cmd.Parameters.AddWithValue("@p1", req.UserId ?? "");
+            // Add role filter if provided
+            if (!string.IsNullOrEmpty(req.RoleId))
+            {
+                sql += " AND c.kon_npk = @RoleId";
+            }
 
-            // @p2 → STATUS FILTER
-            cmd.Parameters.AddWithValue("@p2", req.Status ?? "");
+            sql += " ORDER BY a.mdu_created_date DESC";
 
-            // @p3 → KON_NPK (identity[4].ToString() di WebForms)
-            cmd.Parameters.AddWithValue("@p3", req.RoleId ?? "");
-
-            // @p4–@p50 → WAJIB DIISI tapi kosong
-            for (int i = 4; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            await using var cmd = new SqlCommand(sql, conn);
+            
+            if (!string.IsNullOrEmpty(req.Status))
+                cmd.Parameters.AddWithValue("@Status", req.Status);
+            
+            if (!string.IsNullOrEmpty(req.RoleId))
+                cmd.Parameters.AddWithValue("@RoleId", req.RoleId);
 
             await conn.OpenAsync();
 
@@ -174,8 +198,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                     Id = reader["mdu_id"].ToString(),
                     NoPengajuan = reader["mdu_id_alternative"].ToString(),
                     TanggalPengajuan = reader["mdu_created_date"]?.ToString() ?? "",
-                    NamaMahasiswa ="",
-                    Prodi ="",
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Prodi = reader["kon_singkatan"]?.ToString() ?? "",
                     NomorSK = reader["srt_no"]?.ToString() ?? "-",
                     Status = reader["mdu_status"]?.ToString() ?? ""
                 });
