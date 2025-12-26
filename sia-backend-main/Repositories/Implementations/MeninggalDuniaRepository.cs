@@ -449,20 +449,66 @@ namespace astratech_apps_backend.Repositories.Implementations
             var list = new List<RiwayatMeninggalDuniaListDto>();
 
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDunia", conn)
+            
+            // Gunakan query langsung untuk memastikan data bisa diambil
+            var sql = @"
+                SELECT 
+                    a.mdu_id,
+                    a.mhs_id,
+                    CONVERT(VARCHAR(11),a.mdu_created_date,106) AS tanggal_buat,
+                    a.srt_no,
+                    b.mhs_nama,
+                    a.mdu_status,
+                    d.pro_singkatan + ' (' + c.kon_singkatan + ')' as kon_singkatan
+                FROM sia_msmeninggaldunia a
+                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                LEFT JOIN sia_msprodi d ON d.pro_id = c.pro_id
+                WHERE a.mdu_status NOT IN ('Draft', 'Dihapus')";
+
+            // Add keyword filter if provided
+            if (!string.IsNullOrEmpty(req.Keyword))
             {
-                CommandType = CommandType.StoredProcedure
+                sql += @" AND (
+                    UPPER(a.mhs_id) LIKE '%' + UPPER(@Keyword) + '%' OR
+                    UPPER(b.mhs_nama) LIKE '%' + UPPER(@Keyword) + '%' OR
+                    UPPER(a.srt_no) LIKE '%' + UPPER(@Keyword) + '%'
+                )";
+            }
+
+            // Add konsentrasi filter if provided
+            if (!string.IsNullOrEmpty(req.Konsentrasi))
+            {
+                sql += " AND b.kon_id = @Konsentrasi";
+            }
+
+            // Add roleId filter if provided
+            if (!string.IsNullOrEmpty(req.RoleId))
+            {
+                sql += " AND c.kon_npk = @RoleId";
+            }
+
+            // Add sorting
+            var sort = req.Sort ?? "mdu_created_date desc";
+            sql += sort switch
+            {
+                "mhs_id asc" => " ORDER BY a.mhs_id ASC",
+                "mhs_id desc" => " ORDER BY a.mhs_id DESC",
+                "mdu_created_date asc" => " ORDER BY a.mdu_created_date ASC",
+                "mdu_created_date desc" => " ORDER BY a.mdu_created_date DESC",
+                _ => " ORDER BY a.mdu_created_date DESC"
             };
 
-            cmd.Parameters.AddWithValue("@p1", "");
-            cmd.Parameters.AddWithValue("@p2", ""); // FE mode
-            cmd.Parameters.AddWithValue("@p3", req.RoleId ?? "");
-            cmd.Parameters.AddWithValue("@p4", req.Keyword ?? "");
-            cmd.Parameters.AddWithValue("@p5", req.Sort ?? "mdu_created_date desc");
-            cmd.Parameters.AddWithValue("@p6", req.Konsentrasi ?? "");
-
-            for (int i = 7; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            await using var cmd = new SqlCommand(sql, conn);
+            
+            if (!string.IsNullOrEmpty(req.Keyword))
+                cmd.Parameters.AddWithValue("@Keyword", req.Keyword);
+            
+            if (!string.IsNullOrEmpty(req.Konsentrasi))
+                cmd.Parameters.AddWithValue("@Konsentrasi", req.Konsentrasi);
+            
+            if (!string.IsNullOrEmpty(req.RoleId))
+                cmd.Parameters.AddWithValue("@RoleId", req.RoleId);
 
             await conn.OpenAsync();
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -474,10 +520,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                     Id = reader["mdu_id"].ToString(),
                     NoPengajuan = reader["mdu_id"].ToString(),
                     TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
-                    NamaMahasiswa = reader["mhs_nama"].ToString(),
-                    Prodi = reader["kon_singkatan"].ToString(),
-                    NomorSK = reader["srt_no"].ToString(),
-                    Status = reader["mdu_status"].ToString()
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Prodi = reader["kon_singkatan"]?.ToString() ?? "",
+                    NomorSK = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["mdu_status"]?.ToString() ?? ""
                 });
             }
 

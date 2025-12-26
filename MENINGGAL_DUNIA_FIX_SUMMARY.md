@@ -1,39 +1,34 @@
 # Perbaikan GetAll Meninggal Dunia - Summary
 
 ## Masalah
-Endpoint `/api/MeninggalDunia/GetAll` mengembalikan data kosong meskipun bisa diakses tanpa parameter.
+- Endpoint `/api/MeninggalDunia/GetAll` mengembalikan data kosong meskipun bisa diakses tanpa parameter
+- Endpoint `/api/MeninggalDunia/Riwayat` juga mengembalikan data kosong tanpa parameter
 
 ## Perbaikan yang Dilakukan
 
 ### 1. Controller (MeninggalDuniaController.cs)
-- ✅ Menambahkan endpoint `[HttpGet]` yang bisa dipanggil tanpa parameter
-- ✅ Endpoint lama `[HttpGet("GetAll")]` tetap ada untuk backward compatibility
-- ✅ Parameter semua optional dengan default value
+- ✅ Endpoint `[HttpGet("GetAll")]` bisa dipanggil tanpa parameter
+- ✅ Endpoint `[HttpGet("Riwayat")]` bisa dipanggil tanpa parameter
 
 ### 2. Repository (MeninggalDuniaRepository.cs)
-- ✅ Mengganti stored procedure call dengan query SQL langsung
+- ✅ **GetAllAsync**: Mengganti stored procedure dengan query SQL langsung
+- ✅ **GetRiwayatAsync**: Mengganti stored procedure dengan query SQL langsung
 - ✅ Menggunakan LEFT JOIN untuk memastikan data tetap muncul meski relasi tidak lengkap
 - ✅ Menambahkan filter kondisional berdasarkan parameter yang diberikan
 - ✅ Memperbaiki mapping field `NamaMahasiswa` dan `Prodi`
 
 ## Endpoint yang Tersedia
 
-### 1. Endpoint Utama (Tanpa Parameter)
-```
-GET /api/MeninggalDunia
-```
-Menampilkan semua data kecuali yang dihapus
-
-### 2. Endpoint dengan Parameter
-```
-GET /api/MeninggalDunia?status=Draft&pageSize=20
-GET /api/MeninggalDunia?roleId=12345
-GET /api/MeninggalDunia?searchKeyword=nama
-```
-
-### 3. Endpoint Lama (Tetap Berfungsi)
+### 1. GetAll - Semua Data
 ```
 GET /api/MeninggalDunia/GetAll
+GET /api/MeninggalDunia/GetAll?status=Draft&pageSize=20
+```
+
+### 2. Riwayat - Data yang Sudah Disetujui/Ditolak
+```
+GET /api/MeninggalDunia/Riwayat
+GET /api/MeninggalDunia/Riwayat?keyword=nama&pageSize=20
 ```
 
 ## Keuntungan Perbaikan
@@ -41,10 +36,9 @@ GET /api/MeninggalDunia/GetAll
 - ✅ Tidak bergantung pada stored procedure yang kompleks
 - ✅ Query lebih transparan dan mudah di-debug
 - ✅ Performa lebih baik dengan LEFT JOIN
-- ✅ Backward compatibility terjaga
+- ✅ Filter tetap berfungsi jika diperlukan
 
 ## Testing
 Setelah perbaikan, test dengan:
-1. `GET /api/MeninggalDunia` - harus menampilkan data
-2. `GET /api/MeninggalDunia?pageSize=100` - untuk data lebih banyak
-3. `GET /api/MeninggalDunia?status=Draft` - filter berdasarkan status
+1. `GET /api/MeninggalDunia/GetAll` - semua data kecuali dihapus
+2. `GET /api/MeninggalDunia/Riwayat` - data yang sudah diproses (bukan Draft/Dihapus)
