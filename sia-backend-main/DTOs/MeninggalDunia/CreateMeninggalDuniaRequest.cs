@@ -1,9 +1,14 @@
-﻿namespace astratech_apps_backend.DTOs.MeninggalDunia
+﻿using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
+
+namespace astratech_apps_backend.DTOs.MeninggalDunia
 {
     public class CreateMeninggalDuniaRequest
     {
+        [Required(ErrorMessage = "Mahasiswa harus dipilih")]
         public string MhsId { get; set; } = "";
-        public string Lampiran { get; set; } = "";
-        // Frontend usually only sends minimal fields; server fills metadata.
+        
+        [Required(ErrorMessage = "Lampiran file harus diupload")]
+        public IFormFile? LampiranFile { get; set; }
     }
 }

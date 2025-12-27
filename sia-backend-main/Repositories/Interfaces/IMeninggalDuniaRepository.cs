@@ -9,6 +9,23 @@ namespace astratech_apps_backend.Repositories.Interfaces
         //CREATE
         Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy);
 
+        //CREATE WITH MAHASISWA DATA
+        Task<string> CreateWithMahasiswaDataAsync(string mhsId, string lampiranFileName, MahasiswaDetailDto mahasiswaData, string createdBy);
+
+        //GET MAHASISWA DETAIL
+        Task<MahasiswaDetailDto?> GetMahasiswaDetailAsync(string mhsId);
+
+        //FINALIZE DRAFT TO OFFICIAL
+        Task<string> FinalizeAsync(string draftId, string updatedBy);
+
+        //DROPDOWN DATA
+        Task<IEnumerable<MahasiswaDropdownDto>> GetMahasiswaListAsync(string? search = null);
+        Task<IEnumerable<ProgramStudiDropdownDto>> GetProgramStudiListAsync();
+
+        //STORED PROCEDURE METHODS
+        Task<IEnumerable<MahasiswaDropdownSPDto>> GetMahasiswaDropdownSPAsync();
+        Task<MahasiswaProdiDto?> GetMahasiswaProdiSPAsync(string mhsId);
+
         //READ ALL
         Task<(IEnumerable<MeninggalDuniaListDto> Data, int TotalData)>GetAllAsync(GetAllMeninggalDuniaRequest req);
 

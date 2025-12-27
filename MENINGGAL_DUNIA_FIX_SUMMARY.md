@@ -1,44 +1,45 @@
-# Perbaikan GetAll Meninggal Dunia - Summary
+# Perbaikan Meninggal Dunia - Summary
 
-## Masalah
-- Endpoint `/api/MeninggalDunia/GetAll` mengembalikan data kosong meskipun bisa diakses tanpa parameter
-- Endpoint `/api/MeninggalDunia/Riwayat` juga mengembalikan data kosong tanpa parameter
+## Masalah yang Diperbaiki
+1. Endpoint `/api/MeninggalDunia/GetAll` mengembalikan data kosong tanpa parameter
+2. Endpoint `/api/MeninggalDunia/Riwayat` mengembalikan data kosong tanpa parameter  
+3. Implementasi Create tidak sesuai dengan stored procedure `sia_createMeninggalDunia`
 
 ## Perbaikan yang Dilakukan
 
-### 1. Controller (MeninggalDuniaController.cs)
-- ✅ Endpoint `[HttpGet("GetAll")]` bisa dipanggil tanpa parameter
-- ✅ Endpoint `[HttpGet("Riwayat")]` bisa dipanggil tanpa parameter
+### 1. GetAll & Riwayat Endpoints
+- ✅ Mengganti stored procedure dengan query SQL langsung
+- ✅ Menggunakan LEFT JOIN untuk memastikan data muncul
+- ✅ Filter kondisional berdasarkan parameter
+- ✅ Bisa diakses tanpa parameter
 
-### 2. Repository (MeninggalDuniaRepository.cs)
-- ✅ **GetAllAsync**: Mengganti stored procedure dengan query SQL langsung
-- ✅ **GetRiwayatAsync**: Mengganti stored procedure dengan query SQL langsung
-- ✅ Menggunakan LEFT JOIN untuk memastikan data tetap muncul meski relasi tidak lengkap
-- ✅ Menambahkan filter kondisional berdasarkan parameter yang diberikan
-- ✅ Memperbaiki mapping field `NamaMahasiswa` dan `Prodi`
+### 2. Create Meninggal Dunia (Sesuai SP)
+- ✅ **STEP1**: Create Draft dengan temporary numeric ID
+- ✅ **STEP2**: Convert Draft ke Official ID format (xxx/PA/MD/Roman/Year)
+- ✅ Menambahkan endpoint `POST /api/MeninggalDunia/finalize/{draftId}`
+
+## Stored Procedure Flow
+```
+1. POST /api/MeninggalDunia → STEP1 → Draft dengan ID numeric (1, 2, 3, ...)
+2. POST /api/MeninggalDunia/finalize/{draftId} → STEP2 → Official ID (001/PA/MD/XII/2025)
+```
 
 ## Endpoint yang Tersedia
 
-### 1. GetAll - Semua Data
+### Data Retrieval
 ```
-GET /api/MeninggalDunia/GetAll
-GET /api/MeninggalDunia/GetAll?status=Draft&pageSize=20
-```
-
-### 2. Riwayat - Data yang Sudah Disetujui/Ditolak
-```
-GET /api/MeninggalDunia/Riwayat
-GET /api/MeninggalDunia/Riwayat?keyword=nama&pageSize=20
+GET /api/MeninggalDunia/GetAll - Semua data kecuali dihapus
+GET /api/MeninggalDunia/Riwayat - Data yang sudah diproses
 ```
 
-## Keuntungan Perbaikan
+### Create Process
+```
+POST /api/MeninggalDunia - Create draft (returns numeric ID)
+POST /api/MeninggalDunia/finalize/{draftId} - Convert to official ID
+```
+
+## Keuntungan
+- ✅ Sesuai dengan stored procedure yang ada
+- ✅ Two-step creation process (Draft → Official)
 - ✅ Data bisa diakses tanpa parameter
-- ✅ Tidak bergantung pada stored procedure yang kompleks
-- ✅ Query lebih transparan dan mudah di-debug
-- ✅ Performa lebih baik dengan LEFT JOIN
-- ✅ Filter tetap berfungsi jika diperlukan
-
-## Testing
-Setelah perbaikan, test dengan:
-1. `GET /api/MeninggalDunia/GetAll` - semua data kecuali dihapus
-2. `GET /api/MeninggalDunia/Riwayat` - data yang sudah diproses (bukan Draft/Dihapus)
+- ✅ Backward compatibility terjaga

@@ -24,6 +24,47 @@ namespace astratech_apps_backend.Controllers
             return Ok(await _service.GetAllAsync(req));
         }
 
+        [HttpGet("mahasiswa")]
+        public async Task<IActionResult> GetMahasiswa([FromQuery] string? search = null)
+        {
+            var data = await _service.GetMahasiswaListAsync(search);
+            return Ok(data);
+        }
+
+        [HttpGet("mahasiswa-dropdown")]
+        public async Task<IActionResult> GetMahasiswaDropdown()
+        {
+            var data = await _service.GetMahasiswaDropdownAsync();
+            return Ok(data);
+        }
+
+        [HttpGet("mahasiswa/{mhsId}")]
+        public async Task<IActionResult> GetMahasiswaDetail(string mhsId)
+        {
+            var data = await _service.GetMahasiswaDetailAsync(mhsId);
+            if (data == null)
+                return NotFound(new { message = "Data mahasiswa tidak ditemukan" });
+            
+            return Ok(data);
+        }
+
+        [HttpGet("mahasiswa/{mhsId}/prodi")]
+        public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
+        {
+            var data = await _service.GetMahasiswaProdiAsync(mhsId);
+            if (data == null)
+                return NotFound(new { message = "Data prodi mahasiswa tidak ditemukan" });
+            
+            return Ok(data);
+        }
+
+        [HttpGet("program-studi")]
+        public async Task<IActionResult> GetProgramStudi()
+        {
+            var data = await _service.GetProgramStudiListAsync();
+            return Ok(data);
+        }
+
 
 
         //[HttpGet("{id}")]
@@ -60,10 +101,22 @@ namespace astratech_apps_backend.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateMeninggalDuniaRequest dto)
+        public async Task<IActionResult> Create([FromForm] CreateMeninggalDuniaRequest dto)
         {
-            var id = await _service.CreateAsync(dto, "system");
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var createdBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
+            var id = await _service.CreateAsync(dto, createdBy);
             return Ok(new { id });
+        }
+
+        [HttpPost("finalize/{draftId}")]
+        public async Task<IActionResult> Finalize(string draftId)
+        {
+            var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
+            var officialId = await _service.FinalizeAsync(draftId, updatedBy);
+            return Ok(new { officialId });
         }
 
         

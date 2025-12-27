@@ -16,20 +16,28 @@ namespace astratech_apps_backend.Repositories.Implementations
         //CREATE DRAFT
         public async Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
         {
+            // This method is kept for backward compatibility
+            // Use CreateWithMahasiswaDataAsync for new implementation
+            throw new NotImplementedException("Use CreateWithMahasiswaDataAsync instead");
+        }
+
+        //CREATE WITH MAHASISWA DATA
+        public async Task<string> CreateWithMahasiswaDataAsync(string mhsId, string lampiranFileName, MahasiswaDetailDto mahasiswaData, string createdBy)
+        {
             await using var conn = new SqlConnection(_conn);
             await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // MULTI-STEP SP MODE
+            // STEP1: Create Draft dengan temporary numeric ID
             cmd.Parameters.AddWithValue("@p1", "STEP1");
 
-            // @p2 = Lampiran
-            cmd.Parameters.AddWithValue("@p2", dto.Lampiran ?? "");
+            // @p2 = Lampiran (filename)
+            cmd.Parameters.AddWithValue("@p2", lampiranFileName ?? "");
 
             // @p3 = mhs_id
-            cmd.Parameters.AddWithValue("@p3", dto.MhsId ?? "");
+            cmd.Parameters.AddWithValue("@p3", mhsId ?? "");
 
             // @p4 = createdBy
             cmd.Parameters.AddWithValue("@p4", createdBy ?? "");
@@ -43,10 +51,58 @@ namespace astratech_apps_backend.Repositories.Implementations
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
 
-            return "DRAFT_CREATED";
+            // Get the created draft ID (temporary numeric ID)
+            var getDraftIdCmd = new SqlCommand(
+                "SELECT TOP 1 mdu_id FROM sia_msmeninggaldunia WHERE mdu_id NOT LIKE '%MD%' ORDER BY mdu_created_date DESC", 
+                conn);
+            var draftId = await getDraftIdCmd.ExecuteScalarAsync();
+
+            return draftId?.ToString() ?? "DRAFT_CREATED";
         }
 
-        // ========= STEP 2: FINAL APPROVE =========
+        //GET MAHASISWA DETAIL
+        public async Task<MahasiswaDetailDto?> GetMahasiswaDetailAsync(string mhsId)
+        {
+            await using var conn = new SqlConnection(_conn);
+            
+            var sql = @"
+                SELECT 
+                    m.mhs_id,
+                    m.mhs_nama,
+                    m.mhs_angkatan,
+                    p.pro_nama as program_studi,
+                    p.pro_singkatan as program_studi_singkatan,
+                    k.kon_nama as konsentrasi,
+                    k.kon_id as konsentrasi_id
+                FROM sia_msmahasiswa m
+                LEFT JOIN sia_mskonsentrasi k ON m.kon_id = k.kon_id
+                LEFT JOIN sia_msprodi p ON k.pro_id = p.pro_id
+                WHERE m.mhs_id = @mhsId";
+
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@mhsId", mhsId);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                return new MahasiswaDetailDto
+                {
+                    MhsId = reader["mhs_id"].ToString() ?? "",
+                    MhsNama = reader["mhs_nama"].ToString() ?? "",
+                    MhsAngkatan = reader["mhs_angkatan"].ToString() ?? "",
+                    ProgramStudi = reader["program_studi"].ToString() ?? "",
+                    ProgramStudiSingkatan = reader["program_studi_singkatan"].ToString() ?? "",
+                    Konsentrasi = reader["konsentrasi"].ToString() ?? "",
+                    KonsentrasiId = reader["konsentrasi_id"].ToString() ?? ""
+                };
+            }
+
+            return null;
+        }
+
+        // ========= STEP 2: FINALIZE DRAFT TO OFFICIAL ID =========
         public async Task<string> FinalizeAsync(string draftId, string updatedBy)
         {
             await using var conn = new SqlConnection(_conn);
@@ -55,16 +111,16 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SET STEP2
+            // STEP2: Convert Draft ID to Official ID format (xxx/PA/MD/Roman/Year)
             cmd.Parameters.AddWithValue("@p1", "STEP2");
 
-            // draft ID
+            // @p2 = draft ID (temporary numeric ID)
             cmd.Parameters.AddWithValue("@p2", draftId);
 
-            // updatedBy
+            // @p3 = updatedBy
             cmd.Parameters.AddWithValue("@p3", updatedBy);
 
-            // sisanya tetap dikirim
+            // @p4 - @p50 sisanya tetap dikirim kosong
             for (int i = 4; i <= 50; i++)
             {
                 cmd.Parameters.AddWithValue($"@p{i}", "");
@@ -74,6 +130,85 @@ namespace astratech_apps_backend.Repositories.Implementations
             var result = await cmd.ExecuteScalarAsync();
 
             return result?.ToString() ?? "";
+        }
+
+        // ========= DROPDOWN DATA =========
+        public async Task<IEnumerable<MahasiswaDropdownDto>> GetMahasiswaListAsync(string? search = null)
+        {
+            await using var conn = new SqlConnection(_conn);
+            
+            var sql = @"
+                SELECT 
+                    m.mhs_id,
+                    m.mhs_nama,
+                    m.mhs_angkatan,
+                    p.pro_nama as program_studi,
+                    k.kon_nama as konsentrasi
+                FROM sia_msmahasiswa m
+                LEFT JOIN sia_mskonsentrasi k ON m.kon_id = k.kon_id
+                LEFT JOIN sia_msprodi p ON k.pro_id = p.pro_id
+                WHERE m.mhs_status = 'Aktif'";
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                sql += " AND (UPPER(m.mhs_nama) LIKE '%' + UPPER(@search) + '%' OR UPPER(m.mhs_id) LIKE '%' + UPPER(@search) + '%')";
+            }
+
+            sql += " ORDER BY m.mhs_nama";
+
+            await using var cmd = new SqlCommand(sql, conn);
+            
+            if (!string.IsNullOrEmpty(search))
+                cmd.Parameters.AddWithValue("@search", search);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            var list = new List<MahasiswaDropdownDto>();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new MahasiswaDropdownDto
+                {
+                    MhsId = reader["mhs_id"].ToString() ?? "",
+                    MhsNama = reader["mhs_nama"].ToString() ?? "",
+                    MhsAngkatan = reader["mhs_angkatan"].ToString() ?? "",
+                    ProgramStudi = reader["program_studi"].ToString() ?? "",
+                    Konsentrasi = reader["konsentrasi"].ToString() ?? ""
+                });
+            }
+
+            return list;
+        }
+
+        public async Task<IEnumerable<ProgramStudiDropdownDto>> GetProgramStudiListAsync()
+        {
+            await using var conn = new SqlConnection(_conn);
+            
+            var sql = @"
+                SELECT 
+                    pro_id,
+                    pro_nama,
+                    pro_singkatan
+                FROM sia_msprodi
+                WHERE pro_status = 'Aktif'
+                ORDER BY pro_nama";
+
+            await using var cmd = new SqlCommand(sql, conn);
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            var list = new List<ProgramStudiDropdownDto>();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new ProgramStudiDropdownDto
+                {
+                    ProId = reader["pro_id"].ToString() ?? "",
+                    ProNama = reader["pro_nama"].ToString() ?? "",
+                    ProSingkatan = reader["pro_singkatan"].ToString() ?? ""
+                });
+            }
+
+            return list;
         }
 
         //UPDATE SK
@@ -687,6 +822,71 @@ namespace astratech_apps_backend.Repositories.Implementations
             var result = await cmd.ExecuteNonQueryAsync();
 
             return result > 0;
+        }
+
+        // ========= STORED PROCEDURE METHODS =========
+        public async Task<IEnumerable<MahasiswaDropdownSPDto>> GetMahasiswaDropdownSPAsync()
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("lpm_getListMahasiswa", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            // SP memerlukan 50 parameter tapi tidak digunakan
+            for (int i = 1; i <= 50; i++)
+            {
+                cmd.Parameters.AddWithValue($"@p{i}", "");
+            }
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            var list = new List<MahasiswaDropdownSPDto>();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new MahasiswaDropdownSPDto
+                {
+                    Value = reader["Value"].ToString() ?? "",
+                    Text = reader["Text"].ToString() ?? "",
+                    NimNama = reader["NimNama"].ToString() ?? ""
+                });
+            }
+
+            return list;
+        }
+
+        public async Task<MahasiswaProdiDto?> GetMahasiswaProdiSPAsync(string mhsId)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("lpm_getListMahasiswaByProdi", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            // @p1 = mhs_id
+            cmd.Parameters.AddWithValue("@p1", mhsId);
+
+            // @p2 - @p50 harus tetap dikirim kosong
+            for (int i = 2; i <= 50; i++)
+            {
+                cmd.Parameters.AddWithValue($"@p{i}", "");
+            }
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                return new MahasiswaProdiDto
+                {
+                    KonId = reader["kon_id"].ToString() ?? "",
+                    ProId = reader["pro_id"].ToString() ?? "",
+                    ProNama = reader["pro_nama"].ToString() ?? ""
+                };
+            }
+
+            return null;
         }
 
 

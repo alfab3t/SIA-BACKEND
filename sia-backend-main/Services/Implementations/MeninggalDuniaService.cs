@@ -18,7 +18,62 @@ namespace astratech_apps_backend.Services.Implementations
         //CREATE
         public async Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
         {
-            return await _repo.CreateAsync(dto, createdBy);
+            // Get mahasiswa data untuk auto-fill program studi dan angkatan
+            var mahasiswaData = await _repo.GetMahasiswaDetailAsync(dto.MhsId);
+            if (mahasiswaData == null)
+            {
+                throw new ArgumentException("Data mahasiswa tidak ditemukan");
+            }
+
+            // Handle file upload
+            string fileName = "";
+            if (dto.LampiranFile != null)
+            {
+                var folder = Path.Combine("uploads", "meninggal", "lampiran");
+                Directory.CreateDirectory(folder);
+
+                fileName = $"{Guid.NewGuid()}_{dto.LampiranFile.FileName}";
+                var filePath = Path.Combine(folder, fileName);
+
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await dto.LampiranFile.CopyToAsync(stream);
+            }
+
+            // Create dengan data lengkap
+            return await _repo.CreateWithMahasiswaDataAsync(dto.MhsId, fileName, mahasiswaData, createdBy);
+        }
+
+        //FINALIZE DRAFT TO OFFICIAL
+        public async Task<string> FinalizeAsync(string draftId, string updatedBy)
+        {
+            return await _repo.FinalizeAsync(draftId, updatedBy);
+        }
+
+        //DROPDOWN DATA
+        public async Task<IEnumerable<MahasiswaDropdownDto>> GetMahasiswaListAsync(string? search = null)
+        {
+            return await _repo.GetMahasiswaListAsync(search);
+        }
+
+        public async Task<IEnumerable<ProgramStudiDropdownDto>> GetProgramStudiListAsync()
+        {
+            return await _repo.GetProgramStudiListAsync();
+        }
+
+        public async Task<MahasiswaDetailDto?> GetMahasiswaDetailAsync(string mhsId)
+        {
+            return await _repo.GetMahasiswaDetailAsync(mhsId);
+        }
+
+        //STORED PROCEDURE METHODS
+        public async Task<IEnumerable<MahasiswaDropdownSPDto>> GetMahasiswaDropdownAsync()
+        {
+            return await _repo.GetMahasiswaDropdownSPAsync();
+        }
+
+        public async Task<MahasiswaProdiDto?> GetMahasiswaProdiAsync(string mhsId)
+        {
+            return await _repo.GetMahasiswaProdiSPAsync(mhsId);
         }
 
 
