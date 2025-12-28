@@ -743,42 +743,68 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<MeninggalDuniaDetailResponse?> GetDetailAsync(string id)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDetailMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                
+                // Gunakan query langsung yang sesuai dengan stored procedure
+                var sql = @"
+                    SELECT 
+                        a.mhs_id,
+                        ISNULL(b.mhs_nama, '') as mhs_nama,
+                        ISNULL(d.pro_nama + ' (' + c.kon_singkatan + ')', '') as kon_nama,
+                        ISNULL(b.mhs_angkatan, '') as mhs_angkatan,
+                        ISNULL(d.pro_singkatan + ' (' + c.kon_singkatan + ')', '') as kon_singkatan,
+                        ISNULL(a.mdu_lampiran, '') as mdu_lampiran,
+                        ISNULL(a.mdu_status, '') as mdu_status,
+                        ISNULL(a.mdu_created_by, '') as mdu_created_by,
+                        ISNULL(CONVERT(VARCHAR(11), a.mdu_approve_dir1_date, 106), '') as mdu_approve_dir1_date,
+                        ISNULL((SELECT RTRIM(kry_nama_depan + ' ' + kry_nama_blkg) 
+                               FROM ess_mskaryawan 
+                               WHERE kry_username = a.mdu_approve_dir1_by), '') as mdu_approve_dir1_by,
+                        ISNULL(a.srt_no, '-') as srt_no,
+                        ISNULL(a.mdu_no_spkb, '') as mdu_no_spkb,
+                        ISNULL(a.mdu_sk, '') as mdu_sk,
+                        ISNULL(a.mdu_spkb, '') as mdu_spkb
+                    FROM sia_msmeninggaldunia a
+                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                    LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
+                    WHERE a.mdu_id = @id";
 
-            // P1 → ID
-            cmd.Parameters.AddWithValue("@p1", id);
+                await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@id", id);
 
-            // p2–p50 → kosong
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                await conn.OpenAsync();
 
-            await conn.OpenAsync();
+                using var reader = await cmd.ExecuteReaderAsync();
 
-            using var reader = await cmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync()) return null;
 
-            if (!await reader.ReadAsync()) return null;
-
-            return new MeninggalDuniaDetailResponse
+                return new MeninggalDuniaDetailResponse
+                {
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
+                    MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                    KonNama = reader["kon_nama"]?.ToString() ?? "",
+                    MhsAngkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                    KonSingkatan = reader["kon_singkatan"]?.ToString() ?? "",
+                    Lampiran = reader["mdu_lampiran"]?.ToString() ?? "",
+                    Status = reader["mdu_status"]?.ToString() ?? "",
+                    CreatedBy = reader["mdu_created_by"]?.ToString() ?? "",
+                    ApproveDir1Date = reader["mdu_approve_dir1_date"]?.ToString() ?? "",
+                    ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
+                    SuratNo = reader["srt_no"]?.ToString() ?? "-",
+                    NoSpkb = reader["mdu_no_spkb"]?.ToString() ?? "",
+                    SK = reader["mdu_sk"]?.ToString() ?? "",
+                    SPKB = reader["mdu_spkb"]?.ToString() ?? ""
+                };
+            }
+            catch (Exception ex)
             {
-                MhsId = reader["mhs_id"].ToString(),
-                MhsNama = reader["mhs_nama"].ToString(),
-                KonNama = reader["kon_nama"].ToString(),
-                MhsAngkatan = reader["mhs_angkatan"].ToString(),
-                KonSingkatan = reader["kon_singkatan"].ToString(),
-                Lampiran = reader["mdu_lampiran"].ToString(),
-                Status = reader["mdu_status"].ToString(),
-                CreatedBy = reader["mdu_created_by"].ToString(),
-                ApproveDir1Date = reader["mdu_approve_dir1_date"].ToString(),
-                ApproveDir1By = reader["mdu_approve_dir1_by"].ToString(),
-                SuratNo = reader["srt_no"].ToString(),
-                NoSpkb = reader["mdu_no_spkb"].ToString(),
-                SK = reader["mdu_sk"].ToString(),
-                SPKB = reader["mdu_spkb"].ToString()
-            };
+                // Log error jika perlu
+                Console.WriteLine($"Error in GetDetailAsync: {ex.Message}");
+                return null;
+            }
         }
 
         public async Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto)

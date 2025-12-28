@@ -74,15 +74,49 @@ namespace astratech_apps_backend.Controllers
         //    return data == null ? NotFound() : Ok(data);
         //}
 
+        [HttpGet("debug/ids")]
+        public async Task<IActionResult> GetAllIds()
+        {
+            try
+            {
+                var data = await _service.GetAllAsync(new GetAllMeninggalDuniaRequest { PageSize = 100 });
+                var ids = data.Data.Select(x => new { 
+                    Id = x.Id, 
+                    NoPengajuan = x.NoPengajuan,
+                    Status = x.Status 
+                }).ToList();
+                
+                return Ok(new { 
+                    message = "Daftar ID yang tersedia", 
+                    totalData = data.TotalData,
+                    ids = ids 
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Error mengambil daftar ID", error = ex.Message });
+            }
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDetail(string id)
         {
-            var data = await _service.GetDetailAsync(id);
+            try
+            {
+                // Decode URL jika perlu
+                id = Uri.UnescapeDataString(id);
+                
+                var data = await _service.GetDetailAsync(id);
 
-            if (data == null)
-                return NotFound();
+                if (data == null)
+                    return NotFound(new { message = $"Data dengan ID '{id}' tidak ditemukan" });
 
-            return Ok(data);
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Terjadi kesalahan saat mengambil detail data", error = ex.Message });
+            }
         }
 
         [HttpGet("report/{id}")]
@@ -217,7 +251,7 @@ namespace astratech_apps_backend.Controllers
         {
             return Ok(await _service.GetRiwayatAsync(req));
         }
-
+            
 
 
         [HttpGet("riwayat/excel")]
