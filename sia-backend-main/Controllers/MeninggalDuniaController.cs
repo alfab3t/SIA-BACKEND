@@ -24,6 +24,44 @@ namespace astratech_apps_backend.Controllers
             return Ok(await _service.GetAllAsync(req));
         }
 
+        // Debug endpoint untuk melihat data yang dihapus
+        [HttpGet("GetAll/deleted")]
+        public async Task<IActionResult> GetAllDeleted([FromQuery] GetAllMeninggalDuniaRequest req)
+        {
+            // Override status untuk melihat data yang dihapus
+            req.Status = "Dihapus";
+            ModelState.Clear();
+            return Ok(await _service.GetAllAsync(req));
+        }
+
+        // Debug endpoint untuk melihat data spesifik sebelum delete
+        [HttpGet("debug/{id}")]
+        public async Task<IActionResult> DebugGetById(string id)
+        {
+            try
+            {
+                var data = await _service.GetDetailAsync(id);
+                if (data == null)
+                {
+                    return NotFound(new { message = "Data tidak ditemukan", id = id });
+                }
+                return Ok(new { 
+                    message = "Data ditemukan", 
+                    id = id,
+                    data = data,
+                    canDelete = !string.IsNullOrEmpty(data.MhsId)
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { 
+                    message = "Error saat mengambil data", 
+                    id = id, 
+                    error = ex.Message 
+                });
+            }
+        }
+
         [HttpGet("mahasiswa")]
         public async Task<IActionResult> GetMahasiswa([FromQuery] string? search = null)
         {
@@ -231,7 +269,6 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { message = "Upload SK berhasil" });
         }
 
-        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> SoftDelete(string id)
         {
@@ -285,7 +322,6 @@ namespace astratech_apps_backend.Controllers
         }
 
 
-        [Authorize]
         [HttpPost("{id}/upload-sk")]
         public async Task<IActionResult> UploadSK(string id, [FromForm] UploadSKMeninggalDuniaDto dto)
         {

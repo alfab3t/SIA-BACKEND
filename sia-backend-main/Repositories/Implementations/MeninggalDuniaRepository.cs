@@ -472,26 +472,58 @@ namespace astratech_apps_backend.Repositories.Implementations
         //DELETE
         public async Task<bool> SoftDeleteAsync(string id, string updatedBy)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_deleteMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                // Coba dengan query langsung dulu untuk debugging
+                var directSql = @"
+                    UPDATE sia_msmeninggaldunia 
+                    SET mdu_status = 'Dihapus',
+                        mdu_modif_by = @updatedBy,
+                        mdu_modif_date = GETDATE()
+                    WHERE mdu_id = @id";
 
-            // wajib sesuai SP
-            cmd.Parameters.AddWithValue("@p1", id);         // mdu_id
-            cmd.Parameters.AddWithValue("@p2", updatedBy);   // mdu_modif_by
+                await using var directCmd = new SqlCommand(directSql, conn);
+                directCmd.Parameters.AddWithValue("@id", id);
+                directCmd.Parameters.AddWithValue("@updatedBy", updatedBy);
 
-            // @p3 - @p50 harus tetap dikirim
-            for (int i = 3; i <= 50; i++)
-            {
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                var directRows = await directCmd.ExecuteNonQueryAsync();
+
+                Console.WriteLine($"[SoftDeleteAsync] Direct SQL - ID: {id}, UpdatedBy: {updatedBy}, Rows affected: {directRows}");
+
+                if (directRows > 0)
+                {
+                    return true;
+                }
+
+                // Jika direct SQL gagal, coba stored procedure
+                await using var spCmd = new SqlCommand("sia_deleteMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                spCmd.Parameters.AddWithValue("@p1", id);         // mdu_id
+                spCmd.Parameters.AddWithValue("@p2", updatedBy);   // mdu_modif_by
+
+                // @p3 - @p50 harus tetap dikirim
+                for (int i = 3; i <= 50; i++)
+                {
+                    spCmd.Parameters.AddWithValue($"@p{i}", "");
+                }
+
+                var spRows = await spCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[SoftDeleteAsync] SP - ID: {id}, UpdatedBy: {updatedBy}, Rows affected: {spRows}");
+
+                return spRows > 0;
             }
-
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-
-            return rows > 0;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SoftDeleteAsync] Error: {ex.Message}");
+                Console.WriteLine($"[SoftDeleteAsync] Stack trace: {ex.StackTrace}");
+                throw;
+            }
         }
 
 
