@@ -431,7 +431,7 @@ namespace astratech_apps_backend.Controllers
             var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/cuti", filename);
 
             if (!System.IO.File.Exists(path))
-                return NotFound();
+                return NotFound();  
 
             var fileBytes = System.IO.File.ReadAllBytes(path);
             return File(fileBytes, "application/octet-stream", filename);

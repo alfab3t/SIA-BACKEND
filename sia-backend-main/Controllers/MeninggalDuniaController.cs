@@ -130,6 +130,59 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
+        // ============================================
+        // DOWNLOAD FILE
+        // ============================================
+        [HttpGet("file/{filename}")]
+        public IActionResult DownloadFile(string filename)
+        {
+            // Coba beberapa lokasi file yang mungkin
+            var possiblePaths = new[]
+            {
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "meninggal", filename),
+                Path.Combine(Directory.GetCurrentDirectory(), "uploads", "meninggal", filename),
+                Path.Combine(Directory.GetCurrentDirectory(), "uploads", "meninggal", "lampiran", filename),
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "meninggal", "lampiran", filename)
+            };
+
+            string? foundPath = null;
+            foreach (var path in possiblePaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    foundPath = path;
+                    break;
+                }
+            }
+
+            if (foundPath == null)
+                return NotFound(new { 
+                    message = "File tidak ditemukan.", 
+                    filename = filename,
+                    searchedPaths = possiblePaths.Select(p => p.Replace(Directory.GetCurrentDirectory(), "")).ToArray()
+                });
+
+            var fileBytes = System.IO.File.ReadAllBytes(foundPath);
+            var contentType = GetContentType(filename);
+            
+            return File(fileBytes, contentType, filename);
+        }
+
+        private string GetContentType(string filename)
+        {
+            var extension = Path.GetExtension(filename).ToLowerInvariant();
+            return extension switch
+            {
+                ".pdf" => "application/pdf",
+                ".doc" => "application/msword",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".txt" => "text/plain",
+                _ => "application/octet-stream"
+            };
+        }
+
 
 
 
