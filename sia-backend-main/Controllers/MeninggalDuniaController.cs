@@ -247,15 +247,64 @@ namespace astratech_apps_backend.Controllers
         
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(string id, [FromBody] UpdateMeninggalDuniaRequest dto)
+        public async Task<IActionResult> Update(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
         {
-            var updatedBy = "system";
+            try
+            {
+                // Validate input
+                if (string.IsNullOrEmpty(id))
+                {
+                    return BadRequest(new { message = "ID tidak boleh kosong." });
+                }
 
-            var success = await _service.UpdateAsync(id, dto, updatedBy);
+                var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
 
-            return success
-                ? Ok(new { message = "Data berhasil diperbarui." })
-                : NotFound();
+                // Validate file if provided
+                if (dto.LampiranFile != null)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { 
+                            message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" 
+                        });
+                    }
+
+                    // Validate file size (max 10MB)
+                    if (dto.LampiranFile.Length > 10 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Ukuran file maksimal 10MB." });
+                    }
+                }
+
+                var success = await _service.UpdateAsync(id, dto, updatedBy);
+
+                if (!success)
+                {
+                    return BadRequest(new { 
+                        message = "Gagal memperbarui data. Data mungkin tidak ditemukan.",
+                        id = id
+                    });
+                }
+
+                return Ok(new { 
+                    message = "Data berhasil diperbarui.",
+                    id = id,
+                    updatedBy = updatedBy,
+                    hasFile = dto.LampiranFile != null,
+                    mhsId = dto.MhsId
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat memperbarui data.",
+                    error = ex.Message,
+                    id = id
+                });
+            }
         }
 
         [HttpPut("upload-sk")]

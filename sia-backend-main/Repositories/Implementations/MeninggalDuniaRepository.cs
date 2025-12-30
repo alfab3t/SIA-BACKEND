@@ -442,28 +442,90 @@ namespace astratech_apps_backend.Repositories.Implementations
         ////UPDATE
         public async Task<bool> UpdateAsync(string id, UpdateMeninggalDuniaRequest dto, string updatedBy)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_editMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            // wajib isi p1 - p50
-            for (int i = 1; i <= 50; i++)
-            {
-                if (i == 1)
-                    cmd.Parameters.AddWithValue("@p1", id);
-                else if (i == 2)
-                    cmd.Parameters.AddWithValue("@p2", dto.Lampiran ?? "");
-                else if (i == 3)
-                    cmd.Parameters.AddWithValue("@p3", updatedBy);
-                else
-                    cmd.Parameters.AddWithValue($"@p{i}", ""); // dummy
+                // Handle file upload jika ada
+                string? fileName = null;
+                if (dto.LampiranFile != null)
+                {
+                    var folder = Path.Combine("uploads", "meninggal", "lampiran");
+                    Directory.CreateDirectory(folder);
+
+                    fileName = $"{Guid.NewGuid()}_{dto.LampiranFile.FileName}";
+                    var filePath = Path.Combine(folder, fileName);
+
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await dto.LampiranFile.CopyToAsync(stream);
+                    
+                    Console.WriteLine($"[UpdateAsync] File uploaded: {fileName}");
+                }
+
+                // Tentukan nilai lampiran yang akan diupdate
+                var lampiranValue = fileName ?? dto.Lampiran ?? "";
+
+                // Update menggunakan direct SQL untuk fleksibilitas
+                var sql = @"
+                    UPDATE sia_msmeninggaldunia 
+                    SET mdu_lampiran = @lampiran,
+                        mdu_modif_by = @updatedBy,
+                        mdu_modif_date = GETDATE()";
+
+                // Tambahkan update mhs_id jika disediakan
+                if (!string.IsNullOrEmpty(dto.MhsId))
+                {
+                    sql += ", mhs_id = @mhsId";
+                }
+
+                sql += " WHERE mdu_id = @id";
+
+                await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@id", id);
+                cmd.Parameters.AddWithValue("@lampiran", lampiranValue);
+                cmd.Parameters.AddWithValue("@updatedBy", updatedBy);
+                
+                if (!string.IsNullOrEmpty(dto.MhsId))
+                {
+                    cmd.Parameters.AddWithValue("@mhsId", dto.MhsId);
+                }
+
+                var rows = await cmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[UpdateAsync] Direct SQL - ID: {id}, Rows affected: {rows}, File: {fileName ?? "none"}");
+
+                if (rows > 0)
+                {
+                    return true;
+                }
+
+                // Fallback ke stored procedure jika direct SQL gagal
+                await using var spCmd = new SqlCommand("sia_editMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                spCmd.Parameters.AddWithValue("@p1", id);
+                spCmd.Parameters.AddWithValue("@p2", lampiranValue);
+                spCmd.Parameters.AddWithValue("@p3", updatedBy);
+
+                // @p4 - @p50 dummy
+                for (int i = 4; i <= 50; i++)
+                {
+                    spCmd.Parameters.AddWithValue($"@p{i}", "");
+                }
+
+                var spRows = await spCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[UpdateAsync] SP - ID: {id}, Rows affected: {spRows}");
+
+                return spRows > 0;
             }
-
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UpdateAsync] Error: {ex.Message}");
+                Console.WriteLine($"[UpdateAsync] Stack trace: {ex.StackTrace}");
+                throw;
+            }
         }
 
 
