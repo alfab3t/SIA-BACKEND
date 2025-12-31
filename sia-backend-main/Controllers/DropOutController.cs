@@ -32,15 +32,20 @@ namespace astratech_apps_backend.Controllers
             return data == null ? NotFound() : Ok(data);
         }
 
-        [HttpGet("detail/{id}")]
-        public async Task<IActionResult> GetDetail(string id)
+        [HttpGet("detail")]
+        public async Task<IActionResult> GetDetail([FromQuery] string id)
         {
+            if (string.IsNullOrEmpty(id))
+                return BadRequest(new { message = "ID wajib diisi." });
+
             var data = await _service.GetDetailAsync(id);
+
             if (data == null)
                 return NotFound(new { message = "Data Drop Out tidak ditemukan." });
 
             return Ok(data);
         }
+
 
 
         [HttpGet("{id}/check-report")]
@@ -152,11 +157,11 @@ namespace astratech_apps_backend.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Create(CreateDropOutRequest dto)
-        {
-            var id = await _service.CreateAsync(dto, "system");
-            return Ok(new { id });
-        }
+        //public async Task<IActionResult> Create(CreateDropOutRequest dto)
+        //{
+        //    var id = await _service.CreateAsync(dto, "system");
+        //    return Ok(new { id });
+        //}
 
         [HttpPost("create-pengajuan")]
         public async Task<IActionResult> CreatePengajuanDO([FromBody] CreatePengajuanDORequest dto)
@@ -199,26 +204,37 @@ namespace astratech_apps_backend.Controllers
 
 
         [Authorize]
-        [HttpPut("{id}/approve")]
-        public async Task<IActionResult> Approve(string id, [FromBody] ApproveDropOutRequest dto)
+        [HttpPut("wadir/approve")]
+        public async Task<IActionResult> ApproveByWadir(
+            [FromQuery] string id,
+            [FromBody] ApproveDropOutRequest dto)
         {
-            var success = await _service.ApproveDropOutAsync(id, dto);
+            if (string.IsNullOrEmpty(id))
+                return BadRequest(new { message = "ID wajib diisi." });
+
+            var success = await _service.ApproveByWadirAsync(id, dto);
 
             if (!success)
-                return BadRequest(new { message = "Gagal menyetujui Drop Out." });
+                return BadRequest(new { message = "Approve gagal." });
 
-            return Ok(new { message = "Drop Out berhasil disetujui oleh Wadir 1." });
+            return Ok(new { message = "Drop Out berhasil disetujui Wadir 1" });
         }
 
-        [HttpPut("{id}/reject")]
-        public async Task<IActionResult> Reject(string id, [FromBody] RejectDropOutRequest dto)
+        [Authorize]
+        [HttpPut("wadir/reject")]
+        public async Task<IActionResult> RejectByWadir(
+            [FromQuery] string id,
+            [FromBody] RejectDropOutRequest dto)
         {
-            var success = await _service.RejectAsync(id, dto);
+            if (string.IsNullOrEmpty(id))
+                return BadRequest(new { message = "ID wajib diisi." });
+
+            var success = await _service.RejectByWadirAsync(id, dto);
 
             if (!success)
-                return BadRequest(new { message = "Gagal menolak pengajuan Drop Out." });
+                return BadRequest(new { message = "Reject gagal." });
 
-            return Ok(new { message = "Pengajuan Drop Out berhasil ditolak." });
+            return Ok(new { message = "Drop Out berhasil ditolak" });
         }
 
         [HttpPut("upload-sk")]
@@ -250,10 +266,86 @@ namespace astratech_apps_backend.Controllers
     [FromQuery] string username,
     [FromQuery] string keyword = "",
     [FromQuery] string sortBy = "a.dro_created_date desc",
-    [FromQuery] string konsentrasi = ""
+    [FromQuery] string konsentrasi = "",
+    [FromQuery] string role = "",
+    [FromQuery] string displayName = ""
 )
         {
-            var data = await _service.GetPendingAsync(username, keyword, sortBy, konsentrasi);
+            return Ok(await _service.GetPendingAsync(
+                username, keyword, sortBy, konsentrasi, role, displayName
+            ));
+        }
+
+        [HttpGet("mahasiswa-by-konsentrasi")]
+        public async Task<IActionResult> GetMahasiswaByKonsentrasi(
+    [FromQuery] string konsentrasiId)
+        {
+            if (string.IsNullOrEmpty(konsentrasiId))
+                return BadRequest(new { message = "Konsentrasi wajib diisi." });
+
+            var data = await _service.GetMahasiswaByKonsentrasiAsync(konsentrasiId);
+
+            return Ok(data);
+        }
+
+        [HttpGet("prodi")]
+        public async Task<IActionResult> GetProdi()
+        {
+            return Ok(await _service.GetProdiAsync());
+        }
+
+        [HttpGet("konsentrasi")]
+        public async Task<IActionResult> GetKonsentrasiByProdi(
+    [FromQuery] string prodiId
+)
+        {
+            if (string.IsNullOrEmpty(prodiId))
+                return BadRequest("prodiId wajib diisi");
+
+            // username dipakai utk filter sekprodi (opsional)
+            var username = HttpContext.Items["Username"]?.ToString() ?? "";
+
+            var data = await _service.GetKonsentrasiByProdiAsync(prodiId, username);
+            return Ok(data);
+        }
+
+
+
+
+        [HttpGet("mahasiswa")]
+        public async Task<IActionResult> GetMahasiswa([FromQuery] string konsentrasiId)
+        {
+            return Ok(await _service.GetMahasiswaByKonsentrasiAsync(konsentrasiId));
+        }
+
+
+        [HttpGet("angkatan-by-mahasiswa")]
+        public async Task<IActionResult> GetAngkatanByMahasiswa(
+    [FromQuery] string mhsId
+)
+        {
+            if (string.IsNullOrEmpty(mhsId))
+                return BadRequest(new { message = "Mahasiswa ID wajib diisi." });
+
+            var angkatan = await _service.GetAngkatanByMahasiswaAsync(mhsId);
+
+            if (angkatan == null)
+                return NotFound(new { message = "Angkatan mahasiswa tidak ditemukan." });
+
+            return Ok(new { angkatan });
+        }
+
+        [HttpGet("mahasiswa-profil")]
+        public async Task<IActionResult> GetProfilMahasiswa(
+    [FromQuery] string mhsId)
+        {
+            if (string.IsNullOrEmpty(mhsId))
+                return BadRequest("mhsId wajib diisi");
+
+            var data = await _service.GetMahasiswaProfilAsync(mhsId);
+            if (data == null)
+                return NotFound(new { message = "Mahasiswa tidak ditemukan / tidak aktif" });
+
             return Ok(data);
         }
 

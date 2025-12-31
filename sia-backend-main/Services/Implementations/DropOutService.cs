@@ -13,10 +13,10 @@ namespace astratech_apps_backend.Services.Implementations
             _repo = repo;
         }
 
-        public async Task<string> CreateAsync(CreateDropOutRequest dto, string createdBy)
-        {
-            return await _repo.CreateAsync(dto, createdBy);
-        }
+        //public async Task<string> CreateAsync(CreateDropOutRequest dto, string createdBy)
+        //{
+        //    return await _repo.CreateAsync(dto, createdBy);
+        //}
 
         public async Task<string?> CreatePengajuanDOAsync(CreatePengajuanDORequest dto, string createdBy)
         {
@@ -96,10 +96,11 @@ namespace astratech_apps_backend.Services.Implementations
         }
 
 
-        public async Task<bool> ApproveDropOutAsync(string id, ApproveDropOutRequest dto)
+        public async Task<bool> ApproveByWadirAsync(string id, ApproveDropOutRequest dto)
         {
-            return await _repo.ApproveDropOutAsync(id, dto);
+            return await _repo.ApproveByWadirAsync(id, dto);
         }
+
 
         public async Task<string?> CheckReportAsync(string id)
         {
@@ -139,9 +140,9 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.GetIdByDraftAsync(id);
         }
 
-        public async Task<bool> RejectAsync(string id, RejectDropOutRequest dto)
+        public async Task<bool> RejectByWadirAsync(string id, RejectDropOutRequest dto)
         {
-            return await _repo.RejectAsync(id, dto);
+            return await _repo.RejectByWadirAsync(id, dto);
         }
 
         public async Task<SKDOReportResponse?> GetReportSKDOAsync(string id)
@@ -160,21 +161,46 @@ namespace astratech_apps_backend.Services.Implementations
         }
 
 
-        public async Task<IEnumerable<DropOutPendingResponse>> GetPendingAsync(
-    string username,
-    string keyword,
-    string sortBy,
-    string konsentrasi)
+        public Task<IEnumerable<DropOutPendingResponse>> GetPendingAsync(
+        string username,
+        string keyword,
+        string sortBy,
+        string konsentrasi,
+        string role,
+        string displayName)
         {
-            return await _repo.GetPendingAsync(username, keyword, sortBy, konsentrasi);
+            return _repo.GetPendingAsync(
+                username, keyword, sortBy, konsentrasi, role, displayName
+            );
         }
 
+        public async Task<IEnumerable<DropOutMahasiswaOptionResponse>>
+    GetMahasiswaByKonsentrasiAsync(string konsentrasiId)
+        {
+            if (string.IsNullOrEmpty(konsentrasiId))
+                return Enumerable.Empty<DropOutMahasiswaOptionResponse>();
 
+            return await _repo.GetMahasiswaByKonsentrasiAsync(konsentrasiId);
+        }
 
+        public Task<IEnumerable<DropOutProdiOptionResponse>> GetProdiAsync()
+    => _repo.GetProdiAsync();
 
+        public Task<IEnumerable<DropOutKonsentrasiOptionResponse>>
+    GetKonsentrasiByProdiAsync(string prodiId, string sekprodiUsername)
+        {
+            return _repo.GetKonsentrasiByProdiAsync(prodiId, sekprodiUsername);
+        }
 
+        public async Task<string?> GetAngkatanByMahasiswaAsync(string mhsId)
+        {
+            return await _repo.GetAngkatanByMahasiswaAsync(mhsId);
+        }
 
-
+        public async Task<MahasiswaProfilResponse?> GetMahasiswaProfilAsync(string mhsId)
+        {
+            return await _repo.GetMahasiswaProfilAsync(mhsId);
+        }
 
 
     }

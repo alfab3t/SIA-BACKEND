@@ -2,7 +2,7 @@
 {
     public class RejectDropOutRequest
     {
-        public string RejectedBy { get; set; } = ""; // username (p2)
+        public string Username { get; set; } = ""; // username (p2)
         public string Reason { get; set; } = ""; // alasan tolak (p3)
     }
 }

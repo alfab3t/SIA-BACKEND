@@ -19,23 +19,23 @@ namespace astratech_apps_backend.Repositories.Implementations
             );
         }
 
-        public async Task<string> CreateAsync(CreateDropOutRequest dto, string createdBy)
-        {
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_createDropOut", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
+        //public async Task<string> CreateAsync(CreateDropOutRequest dto, string createdBy)
+        //{
+        //    using var conn = new SqlConnection(_conn);
+        //    using var cmd = new SqlCommand("USE [ERP_PolmanAstra_NDA]\r\nGO\r\n/****** Object:  StoredProcedure [dbo].[sia_createPengajuanDO]    Script Date: 12/30/2025 10:17:52 AM ******/\r\nSET ANSI_NULLS ON\r\nGO\r\nSET QUOTED_IDENTIFIER ON\r\nGO\r\nALTER PROCEDURE [dbo].[sia_createPengajuanDO]\r\n\t@p1 varchar(max), @p2 varchar(max), @p3 varchar(max), @p4 varchar(max), @p5 varchar(max),\r\n\t@p6 varchar(max), @p7 varchar(max), @p8 varchar(max), @p9 varchar(max), @p10 varchar(max),\r\n\t@p11 varchar(max), @p12 varchar(max), @p13 varchar(max), @p14 varchar(max), @p15 varchar(max),\r\n\t@p16 varchar(max), @p17 varchar(max), @p18 varchar(max), @p19 varchar(max), @p20 varchar(max),\r\n\t@p21 varchar(max), @p22 varchar(max), @p23 varchar(max), @p24 varchar(max), @p25 varchar(max),\r\n\t@p26 varchar(max), @p27 varchar(max), @p28 varchar(max), @p29 varchar(max), @p30 varchar(max),\r\n\t@p31 varchar(max), @p32 varchar(max), @p33 varchar(max), @p34 varchar(max), @p35 varchar(max),\r\n\t@p36 varchar(max), @p37 varchar(max), @p38 varchar(max), @p39 varchar(max), @p40 varchar(max),\r\n\t@p41 varchar(max), @p42 varchar(max), @p43 varchar(max), @p44 varchar(max), @p45 varchar(max),\r\n\t@p46 varchar(max), @p47 varchar(max), @p48 varchar(max), @p49 varchar(max), @p50 varchar(max)\r\nAS\r\nBEGIN\r\n\tSET NOCOUNT ON;\r\n\t\r\n\tdeclare @tempIdDraft int;\r\n\t\r\n\tselect @tempIdDraft = (select top 1 dro_id from sia_msdropout where dro_id not like '%DO%' order by dro_created_date desc);\r\n\r\n\tif @tempIdDraft is null\r\n\t\tselect @tempIdDraft = 0;\r\n\tselect @tempIdDraft = @tempIdDraft + 1;\r\n\tinsert into sia_msdropout values (CAST(@tempIdDraft as varchar), @p1, @p2, @p3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Draft', @p4, GETDATE(), NULL, NULL);\r\n\t\r\nEND\r\n\r\n\r\n\r\n", conn)
+        //    {
+        //        CommandType = CommandType.StoredProcedure
+        //    };
 
-            cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
-            cmd.Parameters.AddWithValue("@dro_menimbang", dto.Menimbang ?? "");
-            cmd.Parameters.AddWithValue("@dro_mengingat", dto.Mengingat ?? "");
-            cmd.Parameters.AddWithValue("@createdBy", createdBy);
+        //    cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
+        //    cmd.Parameters.AddWithValue("@dro_menimbang", dto.Menimbang ?? "");
+        //    cmd.Parameters.AddWithValue("@dro_mengingat", dto.Mengingat ?? "");
+        //    cmd.Parameters.AddWithValue("@createdBy", createdBy);
 
-            await conn.OpenAsync();
-            var id = await cmd.ExecuteScalarAsync();
-            return id?.ToString() ?? "";
-        }
+        //    await conn.OpenAsync();
+        //    var id = await cmd.ExecuteScalarAsync();
+        //    return id?.ToString() ?? "";
+        //}
 
         public async Task<string?> CreatePengajuanDOAsync(CreatePengajuanDORequest dto, string createdBy)
         {
@@ -128,39 +128,39 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP expects @p1–@p50
             cmd.Parameters.AddWithValue("@p1", id);
             for (int i = 2; i <= 50; i++)
                 cmd.Parameters.AddWithValue($"@p{i}", "");
 
             await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
 
-            await using var reader = await cmd.ExecuteReaderAsync();
-            if (!await reader.ReadAsync())
+            if (!reader.Read())
                 return null;
 
             return new DropOutDetailResponse
             {
-                Id = reader.GetString(0),
-                MhsId = reader.GetString(1),
-                MhsText = reader.GetString(2),
-                Konsentrasi = reader.GetString(3),
-                Angkatan = reader.GetString(4),
-                Menimbang = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                Mengingat = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                Status = reader.GetString(7),
-                CreatedBy = reader.GetString(8),
-                Sk = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                ApproveWadir1Date = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                ApproveWadir1By = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                ApproveDirDate = reader.IsDBNull(12) ? "" : reader.GetString(12),
-                ApproveDirBy = reader.IsDBNull(13) ? "" : reader.GetString(13),
-                AlasanTolak = reader.IsDBNull(14) ? "" : reader.GetString(14),
-                Konsentrasi2 = reader.IsDBNull(15) ? "" : reader.GetString(15),
-                Prodi = reader.IsDBNull(16) ? "" : reader.GetString(16),
-                SuratKeteranganNo = reader.IsDBNull(17) ? "" : reader.GetString(17)
+                Id = reader["dro_id"]?.ToString() ?? "",
+                MhsId = reader["mhs_id"]?.ToString() ?? "",
+                MhsText = reader["mhstext"]?.ToString() ?? "",
+                Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                Angkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                Menimbang = reader["dro_menimbang"]?.ToString() ?? "",
+                Mengingat = reader["dro_mengingat"]?.ToString() ?? "",
+                Status = reader["dro_status"]?.ToString() ?? "",
+                CreatedBy = reader["dro_created_by"]?.ToString() ?? "",
+                Sk = reader["dro_sk"]?.ToString() ?? "",
+                ApproveWadir1Date = reader[""]?.ToString() ?? "", // dari CONVERT di SP
+                ApproveWadir1By = reader["dro_appr_wadir1"]?.ToString() ?? "",
+                ApproveDirDate = reader[""]?.ToString() ?? "",    // dari CONVERT di SP
+                ApproveDirBy = reader["dro_appr_dir"]?.ToString() ?? "",
+                AlasanTolak = reader["dro_alasan_tolak"]?.ToString() ?? "",
+                Konsentrasi2 = reader["kon_nama2"]?.ToString() ?? "",
+                Prodi = reader["pro_nama"]?.ToString() ?? "",
+                SuratKeteranganNo = reader["dro_srt_ket_no"]?.ToString() ?? ""
             };
         }
+
 
 
         public async Task<DropOut?> GetByIdAsync(string id)
@@ -226,45 +226,63 @@ namespace astratech_apps_backend.Repositories.Implementations
         public async Task<bool> DeleteAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_deleteDropOut", conn)
+            await conn.OpenAsync();
+
+            // 1️⃣ Cek dulu data ada atau tidak
+            var checkCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM sia_msdropout WHERE dro_id = @id",
+                conn
+            );
+            checkCmd.Parameters.AddWithValue("@id", id);
+
+            var exists = (int)await checkCmd.ExecuteScalarAsync();
+            if (exists == 0)
+                return false;
+
+            // 2️⃣ Baru delete
+            await using var deleteCmd = new SqlCommand("sia_deleteDropOut", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP punya 50 parameter → tetapi hanya @p1 yang dipakai
-            cmd.Parameters.AddWithValue("@p1", id);
-
+            deleteCmd.Parameters.AddWithValue("@p1", id);
             for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                deleteCmd.Parameters.AddWithValue($"@p{i}", "");
 
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
+            await deleteCmd.ExecuteNonQueryAsync();
 
-            return rows > 0; // jika berhasil delete
+            return true; // 💥 TANPA peduli rows
         }
 
-
-        public async Task<bool> ApproveDropOutAsync(string id, ApproveDropOutRequest dto)
+        public async Task<bool> ApproveByWadirAsync(string id, ApproveDropOutRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_approveDropOut", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            // Main parameters
-            cmd.Parameters.AddWithValue("@p1", id);
-            cmd.Parameters.AddWithValue("@p2", dto.Username);
+                // Jalankan SP approve langsung
+                await using var cmd = new SqlCommand("sia_approveDropOut", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            // Fill p3..p50 with empty values
-            for (int i = 3; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                cmd.Parameters.AddWithValue("@p1", id);
+                cmd.Parameters.AddWithValue("@p2", dto.Username);
 
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
+                for (int i = 3; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
 
-            return rows > 0;
+                await cmd.ExecuteNonQueryAsync();
+
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
+
 
         public async Task<string?> CheckReportAsync(string id)
         {
@@ -400,26 +418,55 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         public async Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
-       string username, string keyword, string sortBy, string konsentrasi, string role, string displayName)
+     string username,
+     string keyword,
+     string sortBy,
+     string konsentrasi,
+     string role,
+     string displayName)
         {
-            using var conn = new SqlConnection(_conn);
+            var result = new List<DropOutRiwayatResponse>();
 
-            var result = await conn.QueryAsync<DropOutRiwayatResponse>(
-                "sia_getDataRiwayatDO",
-                new
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("sia_getDataRiwayatDO", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            // PARAMETER SESUAI SP LEGACY
+            cmd.Parameters.AddWithValue("@p1", username ?? "");
+            cmd.Parameters.AddWithValue("@p2", keyword ?? "");
+            cmd.Parameters.AddWithValue("@p3", sortBy ?? "a.dro_created_date desc");
+            cmd.Parameters.AddWithValue("@p4", konsentrasi ?? "");
+            cmd.Parameters.AddWithValue("@p5", role ?? "");
+            cmd.Parameters.AddWithValue("@p6", displayName ?? "");
+
+            // WAJIB: p7–p50
+            for (int i = 7; i <= 50; i++)
+            {
+                cmd.Parameters.AddWithValue($"@p{i}", "");
+            }
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new DropOutRiwayatResponse
                 {
-                    p1 = username,
-                    p2 = keyword,
-                    p3 = sortBy,
-                    p4 = konsentrasi,
-                    p5 = role,
-                    p6 = displayName
-                },
-                commandType: CommandType.StoredProcedure
-            );
+                    DroId = reader["dro_id"]?.ToString() ?? "",
+                    TanggalPengajuan = reader["dro_created_date"]?.ToString() ?? "",
+                    DibuatOleh = reader["dro_created_by"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Prodi = reader["kon_nama"]?.ToString() ?? "",
+                    NoSkDo = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["dro_status"]?.ToString() ?? ""
+                });
+            }
 
             return result;
         }
+
 
         public async Task<IEnumerable<DropOutRiwayatExcelResponse>> GetRiwayatExcelAsync(
         string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi)
@@ -491,26 +538,38 @@ namespace astratech_apps_backend.Repositories.Implementations
             return null;
         }
 
-        public async Task<bool> RejectAsync(string id, RejectDropOutRequest dto)
+        public async Task<bool> RejectByWadirAsync(string id, RejectDropOutRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_rejectDropOut", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            cmd.Parameters.AddWithValue("@p1", id);
-            cmd.Parameters.AddWithValue("@p2", dto.RejectedBy);
-            cmd.Parameters.AddWithValue("@p3", dto.Reason);
+                // Jalankan SP reject langsung
+                await using var cmd = new SqlCommand("sia_rejectDropOut", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            // sisanya @p4 sampai @p50 = ""
-            for (int i = 4; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                cmd.Parameters.AddWithValue("@p1", id);
+                cmd.Parameters.AddWithValue("@p2", dto.Username);
+                cmd.Parameters.AddWithValue("@p3", dto.Reason);
 
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
+                for (int i = 4; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+
+                await cmd.ExecuteNonQueryAsync();
+
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
+
+
+
 
         public async Task<SKDOReportResponse?> GetReportSKDOAsync(string id)
         {
@@ -583,32 +642,41 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<bool> UploadSKDOAsync(UploadSKDORequest request)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_uploadSKDO", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await using var cmd = new SqlCommand("sia_uploadSKDO", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            cmd.Parameters.AddWithValue("@p1", request.DroId);
-            cmd.Parameters.AddWithValue("@p2", request.SK);
-            cmd.Parameters.AddWithValue("@p3", request.SKPB);
-            cmd.Parameters.AddWithValue("@p4", request.ModifiedBy);
+                cmd.Parameters.AddWithValue("@p1", request.DroId);
+                cmd.Parameters.AddWithValue("@p2", request.SK);
+                cmd.Parameters.AddWithValue("@p3", request.SKPB);
+                cmd.Parameters.AddWithValue("@p4", request.ModifiedBy);
 
-            // parameter 5–50 kosong
-            for (int i = 5; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                // parameter 5–50 kosong
+                for (int i = 5; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
 
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
+                await conn.OpenAsync();
+                await cmd.ExecuteNonQueryAsync();
 
-            return rows > 0;
+                return true; // SP legacy dengan SET NOCOUNT ON tidak return rows
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public async Task<IEnumerable<DropOutPendingResponse>> GetPendingAsync(
     string username,
     string keyword,
     string sortBy,
-    string konsentrasi)
+    string konsentrasi,
+    string role,
+    string displayName)
         {
             var result = new List<DropOutPendingResponse>();
 
@@ -619,13 +687,16 @@ namespace astratech_apps_backend.Repositories.Implementations
             };
 
             // SP expects @p1–@p50
-            cmd.Parameters.AddWithValue("@p1", username);
-            cmd.Parameters.AddWithValue("@p2", keyword);
-            cmd.Parameters.AddWithValue("@p3", sortBy);
-            cmd.Parameters.AddWithValue("@p4", konsentrasi);
+            cmd.Parameters.AddWithValue("@p1", username ?? "");
+            cmd.Parameters.AddWithValue("@p2", keyword ?? "");
+            cmd.Parameters.AddWithValue("@p3", sortBy ?? "a.dro_created_date desc");
+            cmd.Parameters.AddWithValue("@p4", konsentrasi ?? "");
+            cmd.Parameters.AddWithValue("@p5", role ?? "");        // 🔴 WAJIB
+            cmd.Parameters.AddWithValue("@p6", displayName ?? ""); // 🔴 WAJIB
 
-            for (int i = 5; i <= 50; i++)
+            for (int i = 7; i <= 50; i++)
                 cmd.Parameters.AddWithValue($"@p{i}", "");
+
 
             await conn.OpenAsync();
 
@@ -648,13 +719,181 @@ namespace astratech_apps_backend.Repositories.Implementations
             return result;
         }
 
+        public async Task<IEnumerable<DropOutMahasiswaOptionResponse>>
+    GetMahasiswaByKonsentrasiAsync(string konsentrasiId)
+        {
+            var result = new List<DropOutMahasiswaOptionResponse>();
 
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand(
+                "sia_getListMahasiswaByKonsentrasi2",
+                conn
+            )
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
+            // SP pakai @p1 = kon_id
+            cmd.Parameters.AddWithValue("@p1", konsentrasiId);
 
+            // p2–p50 wajib diisi
+            for (int i = 2; i <= 50; i++)
+                cmd.Parameters.AddWithValue($"@p{i}", "");
 
+            await conn.OpenAsync();
 
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new DropOutMahasiswaOptionResponse
+                {
+                    Value = reader["mhs_id"].ToString() ?? "",
+                    Text = reader["mhs_nama"].ToString() ?? ""
+                });
+            }
 
+            return result;
+        }
 
+        public async Task<IEnumerable<DropOutProdiOptionResponse>> GetProdiAsync()
+        {
+            var result = new List<DropOutProdiOptionResponse>();
+
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("sia_getListProdi", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            for (int i = 1; i <= 50; i++)
+                cmd.Parameters.AddWithValue($"@p{i}", "");
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new DropOutProdiOptionResponse
+                {
+                    Value = reader["pro_id"].ToString(),
+                    Text = reader["pro_nama"].ToString()
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<IEnumerable<DropOutKonsentrasiOptionResponse>> GetKonsentrasiAsync(string username)
+        {
+            var result = new List<DropOutKonsentrasiOptionResponse>();
+
+            using var conn = new SqlConnection(_conn);
+            using var cmd = new SqlCommand("sia_getListKonsentrasiByProdi", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            // SP HANYA TERIMA PARAMETER INI
+            cmd.Parameters.AddWithValue("@SekprodiUsername", username);
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new DropOutKonsentrasiOptionResponse
+                {
+                    Value = reader["kon_id"].ToString(),
+                    Text = reader["kon_nama"].ToString()
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<IEnumerable<DropOutKonsentrasiOptionResponse>>
+    GetKonsentrasiByProdiAsync(string prodiId, string sekprodiUsername)
+        {
+            var result = new List<DropOutKonsentrasiOptionResponse>();
+
+            using var conn = new SqlConnection(_conn);
+            using var cmd = new SqlCommand("sia_getListKonsentrasiByProdi2", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            // SP pakai @p1 & @p2
+            cmd.Parameters.AddWithValue("@p1", prodiId);
+            cmd.Parameters.AddWithValue("@p2", sekprodiUsername ?? "");
+
+            // p3 – p50 WAJIB ada (signature legacy)
+            for (int i = 3; i <= 50; i++)
+                cmd.Parameters.AddWithValue($"@p{i}", "");
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                result.Add(new DropOutKonsentrasiOptionResponse
+                {
+                    Value = reader["kon_id"].ToString(),
+                    Text = reader["kon_nama"].ToString()
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<string?> GetAngkatanByMahasiswaAsync(string mhsId)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand(
+                "sia_getListAngkatanByMahasiswa",
+                conn
+            )
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            // SP hanya pakai @p1
+            cmd.Parameters.AddWithValue("@p1", mhsId);
+
+            // p2–p50 WAJIB ADA (SP legacy)
+            for (int i = 2; i <= 50; i++)
+                cmd.Parameters.AddWithValue($"@p{i}", "");
+
+            await conn.OpenAsync();
+
+            var result = await cmd.ExecuteScalarAsync();
+
+            return result?.ToString();
+        }
+
+        public async Task<MahasiswaProfilResponse?> GetMahasiswaProfilAsync(string mhsId)
+        {
+            using var conn = new SqlConnection(_conn);
+            using var cmd = new SqlCommand("sia_getMahasiswaByNIM", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@Id", mhsId);
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+
+            if (!await reader.ReadAsync())
+                return null;
+
+            return new MahasiswaProfilResponse
+            {
+                Nama = reader["mhs_nama"].ToString(),
+                ProdiKonsentrasi = reader["kon_nama"].ToString(),
+                Angkatan = reader["mhs_angkatan"].ToString(),
+                Kelas = reader["kelas"].ToString()
+            };
+        }
 
 
 
