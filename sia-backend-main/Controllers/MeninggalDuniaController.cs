@@ -239,9 +239,34 @@ namespace astratech_apps_backend.Controllers
         [HttpPost("finalize/{draftId}")]
         public async Task<IActionResult> Finalize(string draftId)
         {
-            var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
-            var officialId = await _service.FinalizeAsync(draftId, updatedBy);
-            return Ok(new { officialId });
+            try
+            {
+                var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
+                var officialId = await _service.FinalizeAsync(draftId, updatedBy);
+                
+                if (string.IsNullOrEmpty(officialId))
+                {
+                    return BadRequest(new { 
+                        message = "Gagal memfinalisasi draft. Draft mungkin tidak ditemukan, sudah diproses, atau terjadi kesalahan dalam generate ID resmi.",
+                        draftId = draftId
+                    });
+                }
+
+                return Ok(new { 
+                    message = "Draft berhasil difinalisasi menjadi pengajuan resmi.",
+                    draftId = draftId,
+                    officialId = officialId,
+                    updatedBy = updatedBy
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat memfinalisasi draft.",
+                    draftId = draftId,
+                    error = ex.Message
+                });
+            }
         }
 
         

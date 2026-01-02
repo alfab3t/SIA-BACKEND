@@ -105,31 +105,166 @@ namespace astratech_apps_backend.Repositories.Implementations
         // ========= STEP 2: FINALIZE DRAFT TO OFFICIAL ID =========
         public async Task<string> FinalizeAsync(string draftId, string updatedBy)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            // STEP2: Convert Draft ID to Official ID format (xxx/PA/MD/Roman/Year)
-            cmd.Parameters.AddWithValue("@p1", "STEP2");
+                // First, check if draft exists and is still in draft status
+                var checkSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @draftId";
+                await using var checkCmd = new SqlCommand(checkSql, conn);
+                checkCmd.Parameters.AddWithValue("@draftId", draftId);
+                
+                var currentStatus = (await checkCmd.ExecuteScalarAsync())?.ToString();
+                if (string.IsNullOrEmpty(currentStatus))
+                {
+                    Console.WriteLine($"[FinalizeAsync] Draft ID {draftId} not found");
+                    return "";
+                }
 
-            // @p2 = draft ID (temporary numeric ID)
-            cmd.Parameters.AddWithValue("@p2", draftId);
+                if (currentStatus != "Draft")
+                {
+                    Console.WriteLine($"[FinalizeAsync] Draft ID {draftId} already processed with status: {currentStatus}");
+                    
+                    // If already finalized, try to get the existing official ID
+                    if (draftId.Contains("PA/MD"))
+                    {
+                        return draftId; // Already an official ID
+                    }
+                    
+                    return "";
+                }
 
-            // @p3 = updatedBy
-            cmd.Parameters.AddWithValue("@p3", updatedBy);
+                // Generate new official ID manually
+                var officialId = await GenerateOfficialIdAsync(conn);
+                if (string.IsNullOrEmpty(officialId))
+                {
+                    Console.WriteLine($"[FinalizeAsync] Failed to generate official ID");
+                    return "";
+                }
 
-            // @p4 - @p50 sisanya tetap dikirim kosong
-            for (int i = 4; i <= 50; i++)
-            {
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                // Update the record with new official ID and status
+                var updateSql = @"
+                    UPDATE sia_msmeninggaldunia 
+                    SET mdu_id = @officialId,
+                        mdu_status = 'Belum Disetujui Wadir 1',
+                        mdu_modif_by = @updatedBy,
+                        mdu_modif_date = GETDATE()
+                    WHERE mdu_id = @draftId";
+
+                await using var updateCmd = new SqlCommand(updateSql, conn);
+                updateCmd.Parameters.AddWithValue("@officialId", officialId);
+                updateCmd.Parameters.AddWithValue("@draftId", draftId);
+                updateCmd.Parameters.AddWithValue("@updatedBy", updatedBy);
+
+                var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
+
+                if (rowsAffected > 0)
+                {
+                    Console.WriteLine($"[FinalizeAsync] Successfully finalized Draft ID: {draftId} -> Official ID: {officialId}");
+                    return officialId;
+                }
+                else
+                {
+                    Console.WriteLine($"[FinalizeAsync] Failed to update draft {draftId}");
+                    return "";
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FinalizeAsync] Error: {ex.Message}");
+                throw;
+            }
+        }
 
-            await conn.OpenAsync();
-            var result = await cmd.ExecuteScalarAsync();
+        private async Task<string> GenerateOfficialIdAsync(SqlConnection conn)
+        {
+            try
+            {
+                // Get current year and month
+                var now = DateTime.Now;
+                var year = now.Year;
+                var month = now.Month;
+                var romanMonth = GetRomanNumeral(month);
 
-            return result?.ToString() ?? "";
+                // Get the highest existing sequence number for this month/year
+                var maxSql = @"
+                    SELECT ISNULL(MAX(
+                        CASE 
+                            WHEN mdu_id LIKE '[0-9][0-9][0-9]/PA/MD/' + @romanMonth + '/' + @year
+                            THEN CAST(LEFT(mdu_id, 3) AS INT)
+                            ELSE 0
+                        END
+                    ), 0) as MaxSequence
+                    FROM sia_msmeninggaldunia 
+                    WHERE mdu_id LIKE '%/PA/MD/' + @romanMonth + '/' + @year + '%'";
+
+                await using var maxCmd = new SqlCommand(maxSql, conn);
+                maxCmd.Parameters.AddWithValue("@romanMonth", romanMonth);
+                maxCmd.Parameters.AddWithValue("@year", year.ToString());
+
+                var maxSequence = (int)await maxCmd.ExecuteScalarAsync();
+                Console.WriteLine($"[GenerateOfficialIdAsync] Found max sequence: {maxSequence} for {romanMonth}/{year}");
+
+                // Start from next number
+                var nextNumber = maxSequence + 1;
+
+                // Generate ID and check for uniqueness (double-check)
+                string officialId;
+                int attempts = 0;
+                const int maxAttempts = 100;
+
+                do
+                {
+                    officialId = $"{nextNumber:D3}/PA/MD/{romanMonth}/{year}";
+                    
+                    // Check if this ID already exists
+                    var existsSql = "SELECT COUNT(*) FROM sia_msmeninggaldunia WHERE mdu_id = @officialId";
+                    await using var existsCmd = new SqlCommand(existsSql, conn);
+                    existsCmd.Parameters.AddWithValue("@officialId", officialId);
+
+                    var exists = (int)await existsCmd.ExecuteScalarAsync();
+                    
+                    if (exists == 0)
+                    {
+                        Console.WriteLine($"[GenerateOfficialIdAsync] Generated unique ID: {officialId}");
+                        return officialId;
+                    }
+
+                    Console.WriteLine($"[GenerateOfficialIdAsync] ID {officialId} already exists, trying next number...");
+                    nextNumber++;
+                    attempts++;
+                    
+                } while (attempts < maxAttempts);
+
+                Console.WriteLine($"[GenerateOfficialIdAsync] Could not generate unique ID after {maxAttempts} attempts for {romanMonth}/{year}");
+                return "";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GenerateOfficialIdAsync] Error: {ex.Message}");
+                return "";
+            }
+        }
+
+        private string GetRomanNumeral(int month)
+        {
+            return month switch
+            {
+                1 => "I",
+                2 => "II", 
+                3 => "III",
+                4 => "IV",
+                5 => "V",
+                6 => "VI",
+                7 => "VII",
+                8 => "VIII",
+                9 => "IX",
+                10 => "X",
+                11 => "XI",
+                12 => "XII",
+                _ => "I"
+            };
         }
 
         // ========= DROPDOWN DATA =========
