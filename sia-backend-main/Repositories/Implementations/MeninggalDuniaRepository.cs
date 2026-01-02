@@ -293,10 +293,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                     a.srt_no,
                     a.mdu_status,
                     ISNULL(b.mhs_nama, '') as mhs_nama,
-                    ISNULL(c.kon_singkatan, '') as kon_singkatan
+                    ISNULL(d.pro_nama, '') as pro_nama
                 FROM sia_msmeninggaldunia a
                 LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
                 LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
                 WHERE a.mdu_status != 'Dihapus'";
 
             // Add status filter if provided
@@ -334,7 +335,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     NoPengajuan = reader["mdu_id_alternative"].ToString(),
                     TanggalPengajuan = reader["mdu_created_date"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                    Prodi = reader["kon_singkatan"]?.ToString() ?? "",
+                    Prodi = reader["pro_nama"]?.ToString() ?? "",
                     NomorSK = reader["srt_no"]?.ToString() ?? "-",
                     Status = reader["mdu_status"]?.ToString() ?? ""
                 });
@@ -688,7 +689,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     a.srt_no,
                     b.mhs_nama,
                     a.mdu_status,
-                    d.pro_singkatan + ' (' + c.kon_singkatan + ')' as kon_singkatan
+                    ISNULL(d.pro_nama, '') as pro_nama
                 FROM sia_msmeninggaldunia a
                 LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
                 LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
@@ -750,7 +751,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     NoPengajuan = reader["mdu_id"].ToString(),
                     TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                    Prodi = reader["kon_singkatan"]?.ToString() ?? "",
+                    Prodi = reader["pro_nama"]?.ToString() ?? "",
                     NomorSK = reader["srt_no"]?.ToString() ?? "",
                     Status = reader["mdu_status"]?.ToString() ?? ""
                 });

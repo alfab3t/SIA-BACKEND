@@ -26,6 +26,18 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         public string MhsId { get; set; } = "";
         
         /// <summary>
+        /// Nama Mahasiswa
+        /// </summary>
+        /// <example>JOHN DOE</example>
+        public string NamaMahasiswa { get; set; } = "";
+        
+        /// <summary>
+        /// Nama Prodi
+        /// </summary>
+        /// <example>Manajemen Informatika</example>
+        public string Prodi { get; set; } = "";
+        
+        /// <summary>
         /// Tahun ajaran cuti
         /// </summary>
         /// <example>2024/2025</example>

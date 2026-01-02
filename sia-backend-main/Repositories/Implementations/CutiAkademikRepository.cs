@@ -346,6 +346,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                     SELECT a.cak_id,
                            (case when CHARINDEX('PMA',a.cak_id) > 0 then a.cak_id else 'DRAFT' end) as id,
                            a.mhs_id,
+                           ISNULL(b.mhs_nama, '') as mhs_nama,
+                           ISNULL(c.kon_nama, '') as kon_nama,
                            a.cak_tahunajaran,
                            a.cak_semester,
                            a.cak_approval_prodi as approve_prodi,
@@ -354,6 +356,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                            a.srt_no,
                            a.cak_status as status
                     FROM sia_mscutiakademik a
+                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
                     WHERE a.cak_status != 'Dihapus'
                       AND (@mhsId = '%' OR a.mhs_id LIKE '%' + @mhsId + '%')
                       AND (@search = '' OR a.mhs_id LIKE '%' + @search + '%' OR a.cak_id LIKE '%' + @search + '%')
@@ -373,6 +377,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                         Id = reader["cak_id"].ToString(),
                         IdDisplay = reader["id"].ToString(),
                         MhsId = reader["mhs_id"].ToString(),
+                        NamaMahasiswa = reader["mhs_nama"].ToString(),
+                        Prodi = reader["kon_nama"].ToString(),
                         TahunAjaran = reader["cak_tahunajaran"].ToString(),
                         Semester = reader["cak_semester"].ToString(),
                         ApproveProdi = reader["approve_prodi"].ToString(),
@@ -409,6 +415,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                         Id = reader["cak_id"].ToString(),
                         IdDisplay = reader["id"].ToString(),
                         MhsId = reader["mhs_id"].ToString(),
+                        NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                        Prodi = reader["kon_nama"]?.ToString() ?? "",
                         TahunAjaran = reader["cak_tahunajaran"].ToString(),
                         Semester = reader["cak_semester"].ToString(),
                         ApproveProdi = reader["approve_prodi"].ToString(),
