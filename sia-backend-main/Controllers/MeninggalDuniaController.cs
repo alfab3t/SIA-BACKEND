@@ -20,8 +20,35 @@ namespace astratech_apps_backend.Controllers
         [HttpGet("GetAll")]
         public async Task<IActionResult> GetAll([FromQuery] GetAllMeninggalDuniaRequest req)
         {
-            ModelState.Clear();
-            return Ok(await _service.GetAllAsync(req));
+            try
+            {
+                // Set default page size to show more records if not specified
+                if (req.PageSize <= 0)
+                {
+                    req.PageSize = 50; // Increase default page size
+                }
+                
+                Console.WriteLine($"[GetAll] Received request - Status: '{req.Status}', RoleId: '{req.RoleId}', SearchKeyword: '{req.SearchKeyword}', PageNumber: {req.PageNumber}, PageSize: {req.PageSize}");
+                
+                ModelState.Clear();
+                var result = await _service.GetAllAsync(req);
+                
+                Console.WriteLine($"[GetAll] Returning {result.Data.Count()} records, Total: {result.TotalData}");
+                
+                // Log the status distribution for debugging
+                var statusCounts = result.Data.GroupBy(x => x.Status).Select(g => new { Status = g.Key, Count = g.Count() });
+                foreach (var statusCount in statusCounts)
+                {
+                    Console.WriteLine($"[GetAll] Status '{statusCount.Status}': {statusCount.Count} records in current page");
+                }
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetAll] ERROR: {ex.Message}");
+                return BadRequest(new { message = "Terjadi kesalahan saat mengambil data.", error = ex.Message });
+            }
         }
 
         // Debug endpoint untuk melihat data yang dihapus
