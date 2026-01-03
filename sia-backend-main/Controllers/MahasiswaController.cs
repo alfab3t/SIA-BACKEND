@@ -1,4 +1,5 @@
 using astratech_apps_backend.DTOs.Mahasiswa;
+using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
@@ -9,13 +10,15 @@ namespace astratech_apps_backend.Controllers
     public class MahasiswaController : ControllerBase
     {
         private readonly string _conn;
+        private readonly IMahasiswaRepository _mahasiswaRepository;
 
-        public MahasiswaController(IConfiguration config)
+        public MahasiswaController(IConfiguration config, IMahasiswaRepository mahasiswaRepository)
         {
             _conn = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
                 config.GetConnectionString("DefaultConnection")!,
                 Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
             );
+            _mahasiswaRepository = mahasiswaRepository;
         }
 
         /// <summary>
@@ -162,6 +165,71 @@ namespace astratech_apps_backend.Controllers
                 Console.WriteLine($"[GetByProdi] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengambil daftar mahasiswa.", 
+                    error = ex.Message 
+                });
+            }
+        }
+
+        /// <summary>
+        /// Mendapatkan detail profil mahasiswa berdasarkan mhs_id
+        /// </summary>
+        /// <param name="mhsId">ID Mahasiswa</param>
+        /// <returns>Detail profil mahasiswa lengkap</returns>
+        /// <response code="200">Berhasil mendapatkan detail mahasiswa</response>
+        /// <response code="400">Parameter mhsId tidak valid</response>
+        /// <response code="404">Mahasiswa tidak ditemukan</response>
+        /// <remarks>
+        /// Endpoint ini menggunakan stored procedure sia_detailMahasiswa untuk mendapatkan
+        /// informasi lengkap profil mahasiswa termasuk data pribadi, orang tua/wali, 
+        /// informasi akademik, dan data rekening.
+        /// 
+        /// Contoh penggunaan:
+        /// GET /api/Mahasiswa/GetDetail?mhsId=0320210077
+        /// 
+        /// Contoh response:
+        /// {
+        ///   "dulNoPendaftaran": "2021001",
+        ///   "mhsNama": "John Doe",
+        ///   "konNama": "Teknik Informatika (TI)",
+        ///   "mhsTempatLahir": "Jakarta",
+        ///   "mhsTglLahir": "2000-01-01",
+        ///   "mhsJenisKelamin": "L",
+        ///   "mhsAlamat": "Jl. Contoh No. 123",
+        ///   "mhsAngkatan": 2021,
+        ///   "mhsStatusKuliah": "Aktif",
+        ///   "mhsJenis": "Reguler"
+        /// }
+        /// </remarks>
+        [HttpGet("GetDetail")]
+        [ProducesResponseType(typeof(MahasiswaDetailResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> GetDetail([FromQuery] string mhsId)
+        {
+            try
+            {
+                Console.WriteLine($"[GetDetail] Starting to fetch detail for mhsId: {mhsId}");
+                
+                if (string.IsNullOrEmpty(mhsId))
+                {
+                    return BadRequest(new { message = "Parameter mhsId harus diisi." });
+                }
+
+                var result = await _mahasiswaRepository.GetDetailAsync(mhsId);
+                
+                if (result == null)
+                {
+                    return NotFound(new { message = $"Mahasiswa dengan ID {mhsId} tidak ditemukan." });
+                }
+
+                Console.WriteLine($"[GetDetail] Successfully retrieved detail for mhsId: {mhsId}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetDetail] ERROR: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengambil detail mahasiswa.", 
                     error = ex.Message 
                 });
             }

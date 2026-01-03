@@ -100,6 +100,8 @@ namespace astratech_apps_backend
             builder.Services.AddScoped<IDropOutRepository, DropOutRepository>();
             builder.Services.AddScoped<IDropOutService, DropOutService>();
 
+            builder.Services.AddScoped<IMahasiswaRepository, MahasiswaRepository>();
+
 
 
 
