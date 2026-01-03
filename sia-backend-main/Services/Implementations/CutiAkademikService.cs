@@ -104,5 +104,10 @@ namespace astratech_apps_backend.Services.Implementations
                 _ => status // Return original if no mapping found
             };
         }
+
+        public async Task<string> DetectUserRoleAsync(string username)
+        {
+            return await _repo.DetectUserRoleAsync(username);
+        }
     }
 }

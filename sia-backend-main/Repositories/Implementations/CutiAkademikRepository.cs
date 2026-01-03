@@ -1151,29 +1151,43 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var spRows = await spCmd.ExecuteNonQueryAsync();
                 Console.WriteLine($"[ApproveCutiAsync] SP rows affected: {spRows}");
 
-                if (spRows > 0)
+                // Check status after stored procedure execution to verify if it actually changed
+                var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
+                var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
+                Console.WriteLine($"[ApproveCutiAsync] Status after SP: '{newStatus}'");
+                
+                // Consider approval successful if status changed from the original status
+                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
+                
+                if (statusChanged)
                 {
-                    Console.WriteLine($"[ApproveCutiAsync] SP success!");
+                    Console.WriteLine($"[ApproveCutiAsync] SP success - status changed from '{currentStatus}' to '{newStatus}'!");
+                    return true;
+                }
+                else if (spRows > 0)
+                {
+                    Console.WriteLine($"[ApproveCutiAsync] SP success based on rows affected!");
                     return true;
                 }
 
                 // If SP failed, try role-specific direct SQL update as fallback
                 Console.WriteLine($"[ApproveCutiAsync] SP failed, trying direct SQL update...");
                 
-                string newStatus = "";
+                string targetStatus = "";
                 string approvalField = "";
                 string dateField = "";
 
                 switch (dto.Role.ToLower())
                 {
                     case "prodi":
-                        newStatus = "Belum Disetujui Wadir 1";
+                        targetStatus = "Belum Disetujui Wadir 1";
                         approvalField = "cak_approval_prodi";
                         dateField = "cak_app_prodi_date";
                         break;
                     case "wadir1":
                     case "wadir 1":
-                        newStatus = "Belum Disetujui Finance";
+                        targetStatus = "Belum Disetujui Finance";
                         approvalField = "cak_approval_dir1";
                         dateField = "cak_app_dir1_date";
                         break;
@@ -1193,7 +1207,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 directCmd.Parameters.AddWithValue("@id", dto.Id);
                 directCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
-                directCmd.Parameters.AddWithValue("@newStatus", newStatus);
+                directCmd.Parameters.AddWithValue("@newStatus", targetStatus);
 
                 var directRows = await directCmd.ExecuteNonQueryAsync();
                 Console.WriteLine($"[ApproveCutiAsync] Direct SQL rows affected: {directRows}");
@@ -1265,9 +1279,23 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var spRows = await spCmd.ExecuteNonQueryAsync();
                 Console.WriteLine($"[ApproveProdiCutiAsync] SP rows affected: {spRows}");
 
-                if (spRows > 0)
+                // Check status after stored procedure execution to verify if it actually changed
+                var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
+                var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
+                Console.WriteLine($"[ApproveProdiCutiAsync] Status after SP: '{newStatus}'");
+                
+                // Consider approval successful if status changed from the original status
+                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
+                
+                if (statusChanged)
                 {
-                    Console.WriteLine($"[ApproveProdiCutiAsync] SP success!");
+                    Console.WriteLine($"[ApproveProdiCutiAsync] SP success - status changed from '{currentStatus}' to '{newStatus}'!");
+                    return true;
+                }
+                else if (spRows > 0)
+                {
+                    Console.WriteLine($"[ApproveProdiCutiAsync] SP success based on rows affected!");
                     return true;
                 }
 
@@ -1352,9 +1380,23 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var spRows = await spCmd.ExecuteNonQueryAsync();
                 Console.WriteLine($"[RejectCutiAsync] SP rows affected: {spRows}");
 
-                if (spRows > 0)
+                // Check status after stored procedure execution to verify if it actually changed
+                var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
+                var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
+                Console.WriteLine($"[RejectCutiAsync] Status after SP: '{newStatus}'");
+                
+                // Consider rejection successful if status changed from the original status
+                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
+                
+                if (statusChanged)
                 {
-                    Console.WriteLine($"[RejectCutiAsync] SP success!");
+                    Console.WriteLine($"[RejectCutiAsync] SP success - status changed from '{currentStatus}' to '{newStatus}'!");
+                    return true;
+                }
+                else if (spRows > 0)
+                {
+                    Console.WriteLine($"[RejectCutiAsync] SP success based on rows affected!");
                     return true;
                 }
 
@@ -1647,8 +1689,102 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw; // Re-throw to let controller handle it
             }
         }
+
+        public async Task<string> DetectUserRoleAsync(string username)
+        {
+            try
+            {
+                Console.WriteLine($"[DetectUserRoleAsync] Starting role detection for username: '{username}'");
+                
+                await using var conn = new SqlConnection(_conn);
+                await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                // Based on the error message, the SP expects @UsernameToFind parameter
+                cmd.Parameters.AddWithValue("@UsernameToFind", username);
+                Console.WriteLine($"[DetectUserRoleAsync] Set @UsernameToFind parameter to: '{username}'");
+
+                await conn.OpenAsync();
+                Console.WriteLine($"[DetectUserRoleAsync] Connection opened, executing stored procedure...");
+                
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    // Log all available columns for debugging
+                    Console.WriteLine($"[DetectUserRoleAsync] Found data! Available columns:");
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        var columnName = reader.GetName(i);
+                        var columnValue = reader[i]?.ToString() ?? "NULL";
+                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
+                    }
+                    
+                    var strMainId = reader["str_main_id"]?.ToString() ?? "";
+                    var kryUsername = reader["kry_username"]?.ToString() ?? "";
+                    var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
+                    var rolId = reader["rol_id"]?.ToString() ?? "";
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Key fields - Username: '{username}', kry_username: '{kryUsername}', str_main_id: '{strMainId}', jab_main_id: '{jabMainId}', rol_id: '{rolId}'");
+                    
+                    // Role detection based on str_main_id as mentioned by user
+                    var role = strMainId switch
+                    {
+                        "27" or "23" or "28" => "finance",
+                        _ => "wadir1"
+                    };
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: '{role}' for str_main_id: '{strMainId}'");
+                    return role;
+                }
+                
+                Console.WriteLine($"[DetectUserRoleAsync] No data found for username: '{username}' - stored procedure returned no rows");
+                
+                // Let's also try a direct query to see if the user exists in the tables
+                await using var directCmd = new SqlCommand(@"
+                    SELECT a.kry_username, a.jab_main_id, a.str_main_id, b.rol_id, a.kry_id
+                    FROM ess_mskaryawan a 
+                    RIGHT JOIN sso_msuser b ON a.kry_username = b.usr_id 
+                    WHERE b.usr_id = @username", conn);
+                directCmd.Parameters.AddWithValue("@username", username);
+                
+                await using var directReader = await directCmd.ExecuteReaderAsync();
+                if (await directReader.ReadAsync())
+                {
+                    Console.WriteLine($"[DetectUserRoleAsync] Direct query found data:");
+                    for (int i = 0; i < directReader.FieldCount; i++)
+                    {
+                        var columnName = directReader.GetName(i);
+                        var columnValue = directReader[i]?.ToString() ?? "NULL";
+                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
+                    }
+                    
+                    var strMainId = directReader["str_main_id"]?.ToString() ?? "";
+                    var role = strMainId switch
+                    {
+                        "27" or "23" or "28" => "finance",
+                        _ => "wadir1"
+                    };
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Direct query - Detected role: '{role}' for str_main_id: '{strMainId}'");
+                    return role;
+                }
+                else
+                {
+                    Console.WriteLine($"[DetectUserRoleAsync] Direct query also found no data for username: '{username}'");
+                }
+                
+                return "";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DetectUserRoleAsync] Error: {ex.Message}");
+                Console.WriteLine($"[DetectUserRoleAsync] Stack trace: {ex.StackTrace}");
+                return "";
+            }
+        }
             
     }
 }
-
-    

@@ -21,6 +21,9 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<bool> ApproveProdiCutiAsync(ApproveProdiCutiRequest dto);
         Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto);
         
+        // ROLE DETECTION
+        Task<string> DetectUserRoleAsync(string username);
+        
         // SK MANAGEMENT
         Task<string?> CreateSKAsync(CreateSKRequest dto);
         Task<bool> UploadSKAsync(UploadSKRequest dto);

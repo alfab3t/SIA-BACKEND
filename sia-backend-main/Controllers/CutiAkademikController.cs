@@ -449,6 +449,24 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                Console.WriteLine($"[Approve] Starting approval for ID: {dto.Id}, Username: {dto.ApprovedBy}");
+                
+                // Auto-detect role based on username using stored procedure
+                var detectedRole = await _service.DetectUserRoleAsync(dto.ApprovedBy);
+                if (string.IsNullOrEmpty(detectedRole))
+                {
+                    Console.WriteLine($"[Approve] Could not detect role for username: {dto.ApprovedBy}");
+                    return BadRequest(new { 
+                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
+                        username = dto.ApprovedBy
+                    });
+                }
+                
+                Console.WriteLine($"[Approve] Detected role: {detectedRole} for username: {dto.ApprovedBy}");
+                
+                // Override role dengan hasil deteksi
+                dto.Role = detectedRole;
+                
                 Console.WriteLine($"Approve request - ID: {dto.Id}, Role: {dto.Role}, ApprovedBy: {dto.ApprovedBy}");
                 
                 var success = await _service.ApproveCutiAsync(dto);
@@ -456,17 +474,30 @@ namespace astratech_apps_backend.Controllers
                 if (success)
                 {
                     Console.WriteLine("Approval successful");
-                    return Ok(new { message = "Cuti akademik berhasil disetujui." });
+                    return Ok(new { 
+                        approved = true,
+                        id = dto.Id,
+                        approvedBy = dto.ApprovedBy,
+                        role = detectedRole,
+                        message = $"Cuti akademik berhasil disetujui oleh {detectedRole}"
+                    });
                 }
                 
-                return BadRequest(new { message = "Gagal menyetujui cuti akademik." });
+                Console.WriteLine($"[Approve] Approval failed for ID: {dto.Id}");
+                return BadRequest(new { 
+                    message = "Gagal menyetujui cuti akademik. Data mungkin tidak ditemukan atau sudah diproses.",
+                    id = dto.Id,
+                    detectedRole = detectedRole,
+                    username = dto.ApprovedBy
+                });
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in ApproveCuti: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
-                    error = ex.Message 
+                    error = ex.Message,
+                    id = dto.Id
                 });
             }
         }
@@ -533,26 +564,44 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[Controller] Reject request - ID: {dto.Id}, Role: {dto.Role}, Keterangan: {dto.Keterangan}");
+                Console.WriteLine($"[Reject] Starting rejection for ID: {dto.Id}, Username: {dto.Username}");
                 
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
-                    Console.WriteLine("[Controller] ERROR: ID is required");
+                    Console.WriteLine("[Reject] ERROR: ID is required");
                     return BadRequest(new { message = "ID cuti akademik harus diisi." });
                 }
                 
-                if (string.IsNullOrEmpty(dto.Role))
+                if (string.IsNullOrEmpty(dto.Username))
                 {
-                    Console.WriteLine("[Controller] ERROR: Role is required");
-                    return BadRequest(new { message = "Role harus diisi." });
+                    Console.WriteLine("[Reject] ERROR: Username is required");
+                    return BadRequest(new { message = "Username harus diisi." });
                 }
                 
                 if (string.IsNullOrWhiteSpace(dto.Keterangan))
                 {
-                    Console.WriteLine("[Controller] ERROR: Keterangan is required"); 
+                    Console.WriteLine("[Reject] ERROR: Keterangan is required"); 
                     return BadRequest(new { message = "Keterangan/alasan penolakan harus diisi dan tidak boleh kosong." });
-                }   
+                }
+                
+                // Auto-detect role based on username using stored procedure
+                var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
+                if (string.IsNullOrEmpty(detectedRole))
+                {
+                    Console.WriteLine($"[Reject] Could not detect role for username: {dto.Username}");
+                    return BadRequest(new { 
+                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
+                        username = dto.Username
+                    });
+                }
+                
+                Console.WriteLine($"[Reject] Detected role: {detectedRole} for username: {dto.Username}");
+                
+                // Override role dengan hasil deteksi
+                dto.Role = detectedRole;
+                
+                Console.WriteLine($"[Controller] Reject request - ID: {dto.Id}, Role: {dto.Role}, Keterangan: {dto.Keterangan}");
                 
                 Console.WriteLine("[Controller] Calling service...");
                 var success = await _service.RejectCutiAsync(dto);
@@ -561,11 +610,22 @@ namespace astratech_apps_backend.Controllers
                 if (success)    
                 {
                     Console.WriteLine("[Controller] Rejection successful");
-                    return Ok(new { message = "Cuti akademik berhasil ditolak." });
+                    return Ok(new { 
+                        rejected = true,
+                        id = dto.Id,
+                        rejectedBy = dto.Username,
+                        role = detectedRole,
+                        message = $"Cuti akademik berhasil ditolak oleh {detectedRole}"
+                    });
                 }
                 
                 Console.WriteLine("[Controller] Rejection failed - service returned false");
-                return BadRequest(new { message = "Gagal menolak cuti akademik. Periksa apakah ID valid dan data dapat diupdate." });
+                return BadRequest(new { 
+                    message = "Gagal menolak cuti akademik. Data mungkin tidak ditemukan atau sudah diproses.",
+                    id = dto.Id,
+                    detectedRole = detectedRole,
+                    username = dto.Username
+                });
             }
             catch (Exception ex)
             {
@@ -574,7 +634,7 @@ namespace astratech_apps_backend.Controllers
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menolak cuti akademik.", 
                     error = ex.Message,
-                    details = ex.InnerException?.Message
+                    id = dto.Id
                 });
             }
         }

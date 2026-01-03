@@ -20,6 +20,12 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         public string Role { get; set; } = "";
         
         /// <summary>
+        /// Username yang menolak
+        /// </summary>
+        [Required(ErrorMessage = "Username harus diisi")]
+        public string Username { get; set; } = "";
+        
+        /// <summary>
         /// Keterangan/alasan penolakan (WAJIB diisi)
         /// </summary>
         [Required(ErrorMessage = "Keterangan/alasan penolakan harus diisi")]
