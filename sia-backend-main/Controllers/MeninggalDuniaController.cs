@@ -400,12 +400,60 @@ namespace astratech_apps_backend.Controllers
         [HttpPut("approve/{id}")]
         public async Task<IActionResult> Approve(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
         {
-            var result = await _service.ApproveAsync(id, dto);
+            try
+            {
+                // Decode URL jika perlu
+                id = Uri.UnescapeDataString(id);
+                
+                Console.WriteLine($"[Approve] Starting approval for ID: {id}, Username: {dto.Username}");
+                
+                // Auto-detect role based on username using stored procedure
+                var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
+                if (string.IsNullOrEmpty(detectedRole))
+                {
+                    Console.WriteLine($"[Approve] Could not detect role for username: {dto.Username}");
+                    return BadRequest(new { 
+                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
+                        username = dto.Username
+                    });
+                }
+                
+                Console.WriteLine($"[Approve] Detected role: {detectedRole} for username: {dto.Username}");
+                
+                // Override role dengan hasil deteksi
+                dto.Role = detectedRole;
+                
+                var result = await _service.ApproveAsync(id, dto);
 
-            if (!result)
-                return NotFound();
+                if (!result)
+                {
+                    Console.WriteLine($"[Approve] Approval failed for ID: {id}");
+                    return BadRequest(new { 
+                        message = "Gagal menyetujui pengajuan. Data mungkin tidak ditemukan atau sudah diproses.",
+                        id = id,
+                        detectedRole = detectedRole,
+                        username = dto.Username
+                    });
+                }
 
-            return Ok(new { approved = true });
+                Console.WriteLine($"[Approve] Successfully approved ID: {id} by {dto.Username} as {detectedRole}");
+                return Ok(new { 
+                    approved = true,
+                    id = id,
+                    approvedBy = dto.Username,
+                    role = detectedRole,
+                    message = $"Pengajuan berhasil disetujui oleh {detectedRole}"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Approve] Error: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat menyetujui pengajuan.",
+                    error = ex.Message,
+                    id = id
+                });
+            }
         }
 
         [HttpPut("reject/{id}")]

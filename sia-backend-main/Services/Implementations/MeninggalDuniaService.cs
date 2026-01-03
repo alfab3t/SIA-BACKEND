@@ -217,6 +217,11 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.RejectAsync(id, dto);
         }
 
+        public async Task<string> DetectUserRoleAsync(string username)
+        {
+            return await _repo.DetectUserRoleAsync(username);
+        }
+
 
 
 

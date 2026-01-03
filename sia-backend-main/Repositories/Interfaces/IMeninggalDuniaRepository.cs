@@ -64,6 +64,9 @@ namespace astratech_apps_backend.Repositories.Interfaces
 
         Task<bool> RejectAsync(string id, RejectMeninggalDuniaRequest dto);
 
+        //ROLE DETECTION
+        Task<string> DetectUserRoleAsync(string username);
+
 
 
 

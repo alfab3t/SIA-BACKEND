@@ -428,6 +428,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     a.srt_no,
                     a.mdu_status,
                     ISNULL(b.mhs_nama, '') as mhs_nama,
+                    ISNULL(b.mhs_id, '') as nim,
                     ISNULL(d.pro_nama, '') as pro_nama
                 FROM sia_msmeninggaldunia a
                 LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
@@ -470,8 +471,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                     NoPengajuan = reader["mdu_id_alternative"].ToString(),
                     TanggalPengajuan = reader["mdu_created_date"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Nim = reader["nim"]?.ToString() ?? "",
                     Prodi = reader["pro_nama"]?.ToString() ?? "",
-                    NomorSK = reader["srt_no"]?.ToString() ?? "-",
+                    NomorSK = reader["srt_no"]?.ToString() ?? "",
                     Status = reader["mdu_status"]?.ToString() ?? ""
                 });
             }
@@ -1078,6 +1080,55 @@ namespace astratech_apps_backend.Repositories.Implementations
             var result = await cmd.ExecuteNonQueryAsync();
 
             return result > 0;
+        }
+
+        public async Task<string> DetectUserRoleAsync(string username)
+        {
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                // Set the username parameter
+                cmd.Parameters.AddWithValue("@p1", username);
+
+                // Fill the remaining 49 parameters with empty strings as required by the SP
+                for (int i = 2; i <= 50; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                }
+
+                await conn.OpenAsync();
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    var strMainId = reader["str_main_id"]?.ToString() ?? "";
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Username: {username}, str_main_id: {strMainId}");
+                    
+                    // Role detection based on str_main_id as mentioned by user
+                    var role = strMainId switch
+                    {
+                        "27" or "23" or "28" => "finance",
+                        _ => "wadir1"
+                    };
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: {role} for str_main_id: {strMainId}");
+                    return role;
+                }
+                
+                Console.WriteLine($"[DetectUserRoleAsync] No data found for username: {username}");
+                return "";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DetectUserRoleAsync] Error: {ex.Message}");
+                return "";
+            }
         }
 
         // ========= STORED PROCEDURE METHODS =========
