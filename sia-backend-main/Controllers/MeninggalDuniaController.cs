@@ -482,15 +482,61 @@ namespace astratech_apps_backend.Controllers
         [HttpPut("reject/{id}")]
         public async Task<IActionResult> Reject(string id, [FromBody] RejectMeninggalDuniaRequest dto)
         {
-            var success = await _service.RejectAsync(id, dto);
-
-            if (!success)
-                return BadRequest(new { message = "Gagal menolak pengajuan." });
-
-            return Ok(new
+            try
             {
-                message = $"Pengajuan Meninggal Dunia ditolak oleh {dto.Role}"
-            });
+                // Decode URL jika perlu
+                id = Uri.UnescapeDataString(id);
+                
+                Console.WriteLine($"[Reject] Starting rejection for ID: {id}, Username: {dto.Username}");
+                
+                // Auto-detect role based on username using stored procedure
+                var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
+                if (string.IsNullOrEmpty(detectedRole))
+                {
+                    Console.WriteLine($"[Reject] Could not detect role for username: {dto.Username}");
+                    return BadRequest(new { 
+                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
+                        username = dto.Username
+                    });
+                }
+                
+                Console.WriteLine($"[Reject] Detected role: {detectedRole} for username: {dto.Username}");
+                
+                // Override role dengan hasil deteksi
+                dto.Role = detectedRole;
+                
+                var success = await _service.RejectAsync(id, dto);
+
+                if (!success)
+                {
+                    Console.WriteLine($"[Reject] Rejection failed for ID: {id}");
+                    return BadRequest(new { 
+                        message = "Gagal menolak pengajuan. Data mungkin tidak ditemukan atau sudah diproses.",
+                        id = id,
+                        detectedRole = detectedRole,
+                        username = dto.Username
+                    });
+                }
+
+                Console.WriteLine($"[Reject] Successfully rejected ID: {id} by {dto.Username} as {detectedRole}");
+                return Ok(new
+                {
+                    rejected = true,
+                    id = id,
+                    rejectedBy = dto.Username,
+                    role = detectedRole,
+                    message = $"Pengajuan berhasil ditolak oleh {detectedRole}"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Reject] Error: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat menolak pengajuan.",
+                    error = ex.Message,
+                    id = id
+                });
+            }
         }
 
 

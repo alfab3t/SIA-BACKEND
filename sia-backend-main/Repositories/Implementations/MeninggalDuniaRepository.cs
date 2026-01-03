@@ -1117,24 +1117,78 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<bool> RejectAsync(string id, RejectMeninggalDuniaRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_tolakMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                Console.WriteLine($"[RejectAsync] Starting rejection for ID: '{id}', Role: '{dto.Role}', Username: '{dto.Username}'");
+                
+                await using var conn = new SqlConnection(_conn);
+                
+                // Get current status before rejection
+                var getStatusSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id";
+                await using var getStatusCmd = new SqlCommand(getStatusSql, conn);
+                getStatusCmd.Parameters.AddWithValue("@id", id);
+                
+                await conn.OpenAsync();
+                var currentStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
+                Console.WriteLine($"[RejectAsync] Current status before rejection: '{currentStatus}'");
+                
+                if (string.IsNullOrEmpty(currentStatus))
+                {
+                    Console.WriteLine($"[RejectAsync] Record not found for ID: '{id}'");
+                    return false;
+                }
+                
+                // Execute rejection stored procedure
+                await using var cmd = new SqlCommand("sia_tolakMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            cmd.Parameters.AddWithValue("@p1", id);               // mdu_id
-            cmd.Parameters.AddWithValue("@p2", dto.Role ?? "");   // jenis penolak
-            cmd.Parameters.AddWithValue("@p3", dto.Username ?? ""); // username
+                cmd.Parameters.AddWithValue("@p1", id);               // mdu_id
+                cmd.Parameters.AddWithValue("@p2", dto.Role ?? "");   // jenis penolak
+                cmd.Parameters.AddWithValue("@p3", dto.Username ?? ""); // username
+                
+                Console.WriteLine($"[RejectAsync] Parameters - @p1: '{id}', @p2: '{dto.Role}', @p3: '{dto.Username}'");
 
-            // sisa parameter p4 - p50 = NULL
-            for (int i = 4; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", DBNull.Value);
+                // sisa parameter p4 - p50 = NULL
+                for (int i = 4; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", DBNull.Value);
 
-            await conn.OpenAsync();
-            var result = await cmd.ExecuteNonQueryAsync();
-
-            return result > 0;
+                Console.WriteLine($"[RejectAsync] Executing stored procedure...");
+                
+                var result = await cmd.ExecuteNonQueryAsync();
+                
+                Console.WriteLine($"[RejectAsync] Stored procedure executed, rows affected: {result}");
+                
+                // Check status after rejection to verify if it actually changed
+                var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
+                Console.WriteLine($"[RejectAsync] Status after rejection: '{newStatus}'");
+                
+                // Consider rejection successful if status changed from the original status
+                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
+                
+                if (statusChanged)
+                {
+                    Console.WriteLine($"[RejectAsync] Rejection successful - status changed from '{currentStatus}' to '{newStatus}' for ID: '{id}'");
+                    return true;
+                }
+                else if (result > 0)
+                {
+                    Console.WriteLine($"[RejectAsync] Rejection successful based on rows affected for ID: '{id}'");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[RejectAsync] Rejection failed - no status change and no rows affected for ID: '{id}'");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RejectAsync] Error: {ex.Message}");
+                Console.WriteLine($"[RejectAsync] Stack trace: {ex.StackTrace}");
+                return false;
+            }
         }
 
         public async Task<string> DetectUserRoleAsync(string username)
