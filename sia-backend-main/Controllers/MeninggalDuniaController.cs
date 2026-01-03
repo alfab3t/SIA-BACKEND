@@ -139,6 +139,29 @@ namespace astratech_apps_backend.Controllers
         //    return data == null ? NotFound() : Ok(data);
         //}
 
+        [HttpGet("debug/role/{username}")]
+        public async Task<IActionResult> DebugRoleDetection(string username)
+        {
+            try
+            {
+                var detectedRole = await _service.DetectUserRoleAsync(username);
+                return Ok(new { 
+                    username = username,
+                    detectedRole = detectedRole,
+                    success = !string.IsNullOrEmpty(detectedRole),
+                    message = string.IsNullOrEmpty(detectedRole) ? "Role detection failed" : "Role detected successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { 
+                    username = username,
+                    error = ex.Message,
+                    message = "Error during role detection"
+                });
+            }
+        }
+
         [HttpGet("debug/ids")]
         public async Task<IActionResult> GetAllIds()
         {

@@ -1041,23 +1041,78 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_setujuiMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                Console.WriteLine($"[ApproveAsync] Starting approval for ID: '{id}', Role: '{dto.Role}', Username: '{dto.Username}'");
+                
+                await using var conn = new SqlConnection(_conn);
+                
+                // Get current status before approval
+                var getStatusSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id";
+                await using var getStatusCmd = new SqlCommand(getStatusSql, conn);
+                getStatusCmd.Parameters.AddWithValue("@id", id);
+                
+                await conn.OpenAsync();
+                var currentStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
+                Console.WriteLine($"[ApproveAsync] Current status before approval: '{currentStatus}'");
+                
+                if (string.IsNullOrEmpty(currentStatus))
+                {
+                    Console.WriteLine($"[ApproveAsync] Record not found for ID: '{id}'");
+                    return false;
+                }
+                
+                // Execute approval stored procedure
+                await using var cmd = new SqlCommand("sia_setujuiMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            cmd.Parameters.AddWithValue("@p1", id);          // mdu_id
-            cmd.Parameters.AddWithValue("@p2", dto.Role);    // 'wadir1'
-            cmd.Parameters.AddWithValue("@p3", dto.Username); // approver
-                                                              // p4–p50 tidak dipakai → kirim NULL
-            for (int i = 4; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", DBNull.Value);
+                cmd.Parameters.AddWithValue("@p1", id);          // mdu_id
+                cmd.Parameters.AddWithValue("@p2", dto.Role);    // 'wadir1'
+                cmd.Parameters.AddWithValue("@p3", dto.Username); // approver
+                
+                Console.WriteLine($"[ApproveAsync] Parameters - @p1: '{id}', @p2: '{dto.Role}', @p3: '{dto.Username}'");
+                
+                // p4–p50 tidak dipakai → kirim NULL
+                for (int i = 4; i <= 50; i++)
+                    cmd.Parameters.AddWithValue($"@p{i}", DBNull.Value);
 
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-
-            return rows > 0;
+                Console.WriteLine($"[ApproveAsync] Executing stored procedure...");
+                
+                var rows = await cmd.ExecuteNonQueryAsync();
+                
+                Console.WriteLine($"[ApproveAsync] Stored procedure executed, rows affected: {rows}");
+                
+                // Check status after approval to verify if it actually changed
+                var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
+                Console.WriteLine($"[ApproveAsync] Status after approval: '{newStatus}'");
+                
+                // Consider approval successful if status changed from the original status
+                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
+                
+                if (statusChanged)
+                {
+                    Console.WriteLine($"[ApproveAsync] Approval successful - status changed from '{currentStatus}' to '{newStatus}' for ID: '{id}'");
+                    return true;
+                }
+                else if (rows > 0)
+                {
+                    Console.WriteLine($"[ApproveAsync] Approval successful based on rows affected for ID: '{id}'");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[ApproveAsync] Approval failed - no status change and no rows affected for ID: '{id}'");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ApproveAsync] Error: {ex.Message}");
+                Console.WriteLine($"[ApproveAsync] Stack trace: {ex.StackTrace}");
+                return false;
+            }
         }
 
         public async Task<bool> RejectAsync(string id, RejectMeninggalDuniaRequest dto)
@@ -1086,29 +1141,40 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
+                Console.WriteLine($"[DetectUserRoleAsync] Starting role detection for username: '{username}'");
+                
                 await using var conn = new SqlConnection(_conn);
                 await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Set the username parameter
-                cmd.Parameters.AddWithValue("@p1", username);
-
-                // Fill the remaining 49 parameters with empty strings as required by the SP
-                for (int i = 2; i <= 50; i++)
-                {
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
-                }
+                // Based on the error message, the SP expects @UsernameToFind parameter
+                cmd.Parameters.AddWithValue("@UsernameToFind", username);
+                Console.WriteLine($"[DetectUserRoleAsync] Set @UsernameToFind parameter to: '{username}'");
 
                 await conn.OpenAsync();
+                Console.WriteLine($"[DetectUserRoleAsync] Connection opened, executing stored procedure...");
+                
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 if (await reader.ReadAsync())
                 {
-                    var strMainId = reader["str_main_id"]?.ToString() ?? "";
+                    // Log all available columns for debugging
+                    Console.WriteLine($"[DetectUserRoleAsync] Found data! Available columns:");
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        var columnName = reader.GetName(i);
+                        var columnValue = reader[i]?.ToString() ?? "NULL";
+                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
+                    }
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Username: {username}, str_main_id: {strMainId}");
+                    var strMainId = reader["str_main_id"]?.ToString() ?? "";
+                    var kryUsername = reader["kry_username"]?.ToString() ?? "";
+                    var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
+                    var rolId = reader["rol_id"]?.ToString() ?? "";
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Key fields - Username: '{username}', kry_username: '{kryUsername}', str_main_id: '{strMainId}', jab_main_id: '{jabMainId}', rol_id: '{rolId}'");
                     
                     // Role detection based on str_main_id as mentioned by user
                     var role = strMainId switch
@@ -1117,16 +1183,52 @@ namespace astratech_apps_backend.Repositories.Implementations
                         _ => "wadir1"
                     };
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: {role} for str_main_id: {strMainId}");
+                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: '{role}' for str_main_id: '{strMainId}'");
                     return role;
                 }
                 
-                Console.WriteLine($"[DetectUserRoleAsync] No data found for username: {username}");
+                Console.WriteLine($"[DetectUserRoleAsync] No data found for username: '{username}' - stored procedure returned no rows");
+                
+                // Let's also try a direct query to see if the user exists in the tables
+                await using var directCmd = new SqlCommand(@"
+                    SELECT a.kry_username, a.jab_main_id, a.str_main_id, b.rol_id, a.kry_id
+                    FROM ess_mskaryawan a 
+                    RIGHT JOIN sso_msuser b ON a.kry_username = b.usr_id 
+                    WHERE b.usr_id = @username", conn);
+                directCmd.Parameters.AddWithValue("@username", username);
+                
+                await using var directReader = await directCmd.ExecuteReaderAsync();
+                if (await directReader.ReadAsync())
+                {
+                    Console.WriteLine($"[DetectUserRoleAsync] Direct query found data:");
+                    for (int i = 0; i < directReader.FieldCount; i++)
+                    {
+                        var columnName = directReader.GetName(i);
+                        var columnValue = directReader[i]?.ToString() ?? "NULL";
+                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
+                    }
+                    
+                    var strMainId = directReader["str_main_id"]?.ToString() ?? "";
+                    var role = strMainId switch
+                    {
+                        "27" or "23" or "28" => "finance",
+                        _ => "wadir1"
+                    };
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Direct query - Detected role: '{role}' for str_main_id: '{strMainId}'");
+                    return role;
+                }
+                else
+                {
+                    Console.WriteLine($"[DetectUserRoleAsync] Direct query also found no data for username: '{username}'");
+                }
+                
                 return "";
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[DetectUserRoleAsync] Error: {ex.Message}");
+                Console.WriteLine($"[DetectUserRoleAsync] Stack trace: {ex.StackTrace}");
                 return "";
             }
         }
