@@ -220,13 +220,78 @@ namespace astratech_apps_backend.Controllers
         }
 
         /// <summary>
-       
+        /// Get riwayat cuti akademik data as Excel file (only approved status)
+        /// </summary>
         [HttpGet("riwayat/excel")]
-        [ProducesResponseType(typeof(IEnumerable<CutiAkademikRiwayatExcelResponse>), 200)]
+        [ProducesResponseType(typeof(FileResult), 200)]
         public async Task<IActionResult> GetRiwayatExcel([FromQuery] string userId = "")
         {
-            var data = await _service.GetRiwayatExcelAsync(userId);
-            return Ok(data);
+            try
+            {
+                var data = await _service.GetRiwayatExcelAsync(userId);
+                
+                // Create Excel file using ClosedXML
+                using var workbook = new ClosedXML.Excel.XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Riwayat Cuti Akademik");
+
+                // Add headers
+                worksheet.Cell(1, 1).Value = "NIM";
+                worksheet.Cell(1, 2).Value = "Nama Mahasiswa";
+                worksheet.Cell(1, 3).Value = "Konsentrasi";
+                worksheet.Cell(1, 4).Value = "Tanggal Pengajuan";
+                worksheet.Cell(1, 5).Value = "No SK";
+                worksheet.Cell(1, 6).Value = "No Pengajuan";
+
+                // Style headers
+                var headerRange = worksheet.Range(1, 1, 1, 6);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+                headerRange.Style.Border.OutsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
+                headerRange.Style.Border.InsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
+
+                // Add data rows
+                int row = 2;
+                foreach (var item in data)
+                {
+                    worksheet.Cell(row, 1).Value = item.NIM;
+                    worksheet.Cell(row, 2).Value = item.NamaMahasiswa;
+                    worksheet.Cell(row, 3).Value = item.Konsentrasi;
+                    worksheet.Cell(row, 4).Value = item.TanggalPengajuan;
+                    worksheet.Cell(row, 5).Value = item.NoSK;
+                    worksheet.Cell(row, 6).Value = item.NoPengajuan;
+                    row++;
+                }
+
+                // Auto-fit columns
+                worksheet.Columns().AdjustToContents();
+
+                // Add borders to data
+                if (row > 2)
+                {
+                    var dataRange = worksheet.Range(2, 1, row - 1, 6);
+                    dataRange.Style.Border.OutsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
+                    dataRange.Style.Border.InsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
+                }
+
+                // Generate file
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                stream.Position = 0;
+
+                var fileName = $"RiwayatCutiAkademik_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                
+                return File(stream.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    fileName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error generating Excel: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat membuat file Excel.", 
+                    error = ex.Message 
+                });
+            }
         }
 
         

@@ -988,15 +988,25 @@ namespace astratech_apps_backend.Repositories.Implementations
             var result = new List<CutiAkademikRiwayatExcelResponse>();
 
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataRiwayatCutiAkademikExcel", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
+            
+            // Use direct SQL query to filter only "Disetujui" status
+            var sql = @"
+                SELECT 
+                    b.mhs_id as NIM,
+                    b.mhs_nama as [Nama Mahasiswa],
+                    c.kon_nama as Konsentrasi,
+                    FORMAT(a.cak_created_date, 'dd MMMM yyyy', 'id-ID') as [Tanggal Pengajuan],
+                    ISNULL(a.srt_no, '') as [No SK],
+                    a.cak_id as [No Pengajuan]
+                FROM sia_mscutiakademik a
+                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                WHERE a.cak_status = 'Disetujui'
+                  AND (@userId = '' OR a.mhs_id = @userId)
+                ORDER BY a.cak_created_date DESC";
 
-            cmd.Parameters.AddWithValue("@p1", userId ?? "");
-
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@userId", userId ?? "");
 
             await conn.OpenAsync();
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -1005,12 +1015,12 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 result.Add(new CutiAkademikRiwayatExcelResponse
                 {
-                    NIM = reader["NIM"]?.ToString(),
-                    NamaMahasiswa = reader["Nama Mahasiswa"]?.ToString(),
-                    Konsentrasi = reader["Konsentrasi"]?.ToString(),
-                    TanggalPengajuan = reader["Tanggal Pengajuan"]?.ToString(),
-                    NoSK = reader["No SK"]?.ToString(),
-                    NoPengajuan = reader["No Pengajuan"]?.ToString()
+                    NIM = reader["NIM"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["Nama Mahasiswa"]?.ToString() ?? "",
+                    Konsentrasi = reader["Konsentrasi"]?.ToString() ?? "",
+                    TanggalPengajuan = reader["Tanggal Pengajuan"]?.ToString() ?? "",
+                    NoSK = reader["No SK"]?.ToString() ?? "",
+                    NoPengajuan = reader["No Pengajuan"]?.ToString() ?? ""
                 });
             }
 
@@ -1042,8 +1052,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         // APPROVAL & REJECTION METHODS
         // ============================================================
         
-        /// <summary>
-        /// Menyetujui cuti akademik (prodi/wadir1/finance)
         /// <summary>
         /// Menyetujui cuti akademik (prodi/wadir1/finance)
         /// </summary>
