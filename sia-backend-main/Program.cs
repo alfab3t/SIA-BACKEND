@@ -102,6 +102,9 @@ namespace astratech_apps_backend
 
             builder.Services.AddScoped<IMahasiswaRepository, MahasiswaRepository>();
 
+            builder.Services.AddScoped<IEmployeeIdentityRepository, EmployeeIdentityRepository>();
+            builder.Services.AddScoped<IEmployeeIdentityService, EmployeeIdentityService>();
+
 
 
 
