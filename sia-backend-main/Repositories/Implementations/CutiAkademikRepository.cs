@@ -391,19 +391,33 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             else
             {
-                // Use stored procedure when status is specified
-                await using var cmd = new SqlCommand("sia_getDataCutiAkademik", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
+                // Use direct SQL query instead of stored procedure to avoid parameter issues
+                var sql = @"
+                    SELECT a.cak_id,
+                           (case when CHARINDEX('PMA',a.cak_id) > 0 then a.cak_id else 'DRAFT' end) as id,
+                           a.mhs_id,
+                           ISNULL(b.mhs_nama, '') as mhs_nama,
+                           ISNULL(c.kon_nama, '') as kon_nama,
+                           a.cak_tahunajaran,
+                           a.cak_semester,
+                           a.cak_approval_prodi as approve_prodi,
+                           a.cak_approval_dir1 as approve_dir1,
+                           CONVERT(VARCHAR(11),a.cak_created_date,106) AS tanggal,
+                           a.srt_no,
+                           a.cak_status as status
+                    FROM sia_mscutiakademik a
+                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                    WHERE a.cak_status != 'Dihapus'
+                      AND (@mhsId = '%' OR a.mhs_id LIKE '%' + @mhsId + '%')
+                      AND (@status = '' OR a.cak_status = @status)
+                      AND (@search = '' OR a.mhs_id LIKE '%' + @search + '%' OR a.cak_id LIKE '%' + @search + '%')
+                    ORDER BY a.cak_created_date DESC";
 
-                cmd.Parameters.AddWithValue("@p1", mhsId);
-                cmd.Parameters.AddWithValue("@p2", status);
-                cmd.Parameters.AddWithValue("@p3", userId);
-                cmd.Parameters.AddWithValue("@p4", search ?? "");
-
-                for (int i = 5; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@mhsId", mhsId ?? "%");
+                cmd.Parameters.AddWithValue("@status", status ?? "");
+                cmd.Parameters.AddWithValue("@search", search ?? "");
 
                 await conn.OpenAsync();
                 await using var reader = await cmd.ExecuteReaderAsync();
@@ -1729,14 +1743,22 @@ namespace astratech_apps_backend.Repositories.Implementations
                     
                     Console.WriteLine($"[DetectUserRoleAsync] Key fields - Username: '{username}', kry_username: '{kryUsername}', str_main_id: '{strMainId}', jab_main_id: '{jabMainId}', rol_id: '{rolId}'");
                     
-                    // Role detection based on str_main_id as mentioned by user
-                    var role = strMainId switch
+                    // Updated role detection logic based on jabMainId
+                    var role = jabMainId switch
                     {
-                        "27" or "23" or "28" => "finance",
-                        _ => "wadir1"
+                        "4" => "wadir1",                    // Wadir position
+                        "6" => "prodi",                     // Prodi position  
+                        "1" when username.ToLower().Contains("finance") => "finance", // Finance user
+                        _ => "other"                        // Default for other positions
                     };
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: '{role}' for str_main_id: '{strMainId}'");
+                    // Special case for specific finance users
+                    if (username.ToLower().Equals("user_finance") && jabMainId == "1" && strMainId == "27")
+                    {
+                        role = "finance";
+                    }
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: '{role}' for jabMainId: '{jabMainId}', username: '{username}'");
                     return role;
                 }
                 
@@ -1762,13 +1784,24 @@ namespace astratech_apps_backend.Repositories.Implementations
                     }
                     
                     var strMainId = directReader["str_main_id"]?.ToString() ?? "";
-                    var role = strMainId switch
+                    var jabMainId = directReader["jab_main_id"]?.ToString() ?? "";
+                    
+                    // Updated role detection logic based on jabMainId
+                    var role = jabMainId switch
                     {
-                        "27" or "23" or "28" => "finance",
-                        _ => "wadir1"
+                        "4" => "wadir1",                    // Wadir position
+                        "6" => "prodi",                     // Prodi position  
+                        "1" when username.ToLower().Contains("finance") => "finance", // Finance user
+                        _ => "other"                        // Default for other positions
                     };
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Direct query - Detected role: '{role}' for str_main_id: '{strMainId}'");
+                    // Special case for specific finance users
+                    if (username.ToLower().Equals("user_finance") && jabMainId == "1" && strMainId == "27")
+                    {
+                        role = "finance";
+                    }
+                    
+                    Console.WriteLine($"[DetectUserRoleAsync] Direct query - Detected role: '{role}' for jabMainId: '{jabMainId}', username: '{username}'");
                     return role;
                 }
                 else

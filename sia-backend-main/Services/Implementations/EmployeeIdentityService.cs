@@ -53,5 +53,30 @@ namespace astratech_apps_backend.Services.Implementations
             
             return isFinancePosition && isFinanceUser;
         }
+
+        public async Task<bool> IsProdiAsync(string username)
+        {
+            var identity = await _employeeIdentityRepository.GetEmployeeIdentityByUserAsync(username);
+            
+            if (identity?.ErrorMessage != null)
+                return false;
+
+            // Check if the employee has prodi position based on jabMainId = "6"
+            return identity.JabMainId == "6";
+        }
+
+        public async Task<string> GetUserRoleTypeAsync(string username)
+        {
+            if (await IsWadirAsync(username))
+                return "wadir";
+            
+            if (await IsFinanceAsync(username))
+                return "finance";
+                
+            if (await IsProdiAsync(username))
+                return "prodi";
+                
+            return "other";
+        }
     }
 }

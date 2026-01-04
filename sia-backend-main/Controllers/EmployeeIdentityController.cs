@@ -31,6 +31,8 @@ namespace astratech_apps_backend.Controllers
 
             var isWadir = await _employeeIdentityService.IsWadirAsync(username);
             var isFinance = await _employeeIdentityService.IsFinanceAsync(username);
+            var isProdi = await _employeeIdentityService.IsProdiAsync(username);
+            var roleType = await _employeeIdentityService.GetUserRoleTypeAsync(username);
 
             return Ok(new 
             { 
@@ -39,7 +41,8 @@ namespace astratech_apps_backend.Controllers
                 {
                     isWadir,
                     isFinance,
-                    roleType = isWadir ? "wadir" : isFinance ? "finance" : "other"
+                    isProdi,
+                    roleType
                 }
             });
         }
