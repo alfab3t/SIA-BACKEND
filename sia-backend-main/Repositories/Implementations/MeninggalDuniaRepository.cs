@@ -915,21 +915,32 @@ namespace astratech_apps_backend.Repositories.Implementations
             var list = new List<RiwayatMeninggalDuniaExcelResponse>();
 
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDuniaExcel", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
+            
+            // Use direct SQL query to filter only "Disetujui" status
+            var sql = @"
+                SELECT 
+                    a.mhs_id as NIM,
+                    b.mhs_nama as [Nama Mahasiswa],
+                    d.pro_nama + ' (' + c.kon_singkatan + ')' as Konsentrasi,
+                    FORMAT(a.mdu_created_date, 'dd MMMM yyyy', 'id-ID') AS [Tanggal Pengajuan],
+                    ISNULL(a.srt_no, '') as [No SK],
+                    a.mdu_id as [No Pengajuan]
+                FROM sia_msmeninggaldunia a
+                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
+                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
+                LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
+                WHERE a.mdu_status = 'Disetujui'
+                  AND (@konsentrasi = '' OR b.kon_id = @konsentrasi)
+                ORDER BY 
+                    CASE WHEN @sort = 'mhs_id asc' THEN a.mhs_id END ASC,
+                    CASE WHEN @sort = 'mhs_id desc' THEN a.mhs_id END DESC,
+                    CASE WHEN @sort = 'mdu_created_date asc' THEN a.mdu_created_date END ASC,
+                    CASE WHEN @sort = 'mdu_created_date desc' THEN a.mdu_created_date END DESC,
+                    a.mdu_created_date DESC"; // Default sort
 
-            // p1-p4 dan p7-p50 dummy
-            for (int i = 1; i <= 50; i++)
-            {
-                if (i == 5)
-                    cmd.Parameters.AddWithValue("@p5", sort ?? "");
-                else if (i == 6)
-                    cmd.Parameters.AddWithValue("@p6", konsentrasi ?? "");
-                else
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
-            }
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@sort", sort ?? "");
+            cmd.Parameters.AddWithValue("@konsentrasi", konsentrasi ?? "");
 
             await conn.OpenAsync();
             var reader = await cmd.ExecuteReaderAsync();
@@ -938,12 +949,12 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 list.Add(new RiwayatMeninggalDuniaExcelResponse
                 {
-                    NIM = reader["NIM"].ToString(),
-                    NamaMahasiswa = reader["Nama Mahasiswa"].ToString(),
-                    Konsentrasi = reader["Konsentrasi"].ToString(),
-                    TanggalPengajuan = reader["Tanggal Pengajuan"].ToString(),
-                    NoSK = reader["No SK"].ToString(),
-                    NoPengajuan = reader["No Pengajuan"].ToString()
+                    NIM = reader["NIM"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["Nama Mahasiswa"]?.ToString() ?? "",
+                    Konsentrasi = reader["Konsentrasi"]?.ToString() ?? "",
+                    TanggalPengajuan = reader["Tanggal Pengajuan"]?.ToString() ?? "",
+                    NoSK = reader["No SK"]?.ToString() ?? "",
+                    NoPengajuan = reader["No Pengajuan"]?.ToString() ?? ""
                 });
             }
 
