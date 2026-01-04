@@ -1353,7 +1353,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 Console.WriteLine($"[RejectCutiAsync] Starting rejection for ID: {dto.Id}");
                 Console.WriteLine($"[RejectCutiAsync] Role: {dto.Role}");
-                Console.WriteLine($"[RejectCutiAsync] Keterangan: '{dto.Keterangan}' (Length: {dto.Keterangan?.Length ?? 0})");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -1384,7 +1383,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 spCmd.Parameters.AddWithValue("@p1", dto.Id);
                 spCmd.Parameters.AddWithValue("@p2", dto.Role);
-                spCmd.Parameters.AddWithValue("@p3", dto.Keterangan ?? "");
+                spCmd.Parameters.AddWithValue("@p3", ""); // Empty keterangan
 
                 // p4-p50 kosong
                 for (int i = 4; i <= 50; i++)
@@ -1419,12 +1418,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 var directCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
-                    SET cak_keterangan = @keterangan,
+                    SET cak_keterangan = '',
                         cak_status = @newStatus
                     WHERE cak_id = @id", conn);
 
                 directCmd.Parameters.AddWithValue("@id", dto.Id);
-                directCmd.Parameters.AddWithValue("@keterangan", dto.Keterangan ?? "");
                 directCmd.Parameters.AddWithValue("@newStatus", $"Ditolak {dto.Role}");
 
                 var directRows = await directCmd.ExecuteNonQueryAsync();

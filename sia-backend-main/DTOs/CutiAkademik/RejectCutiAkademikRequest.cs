@@ -24,12 +24,5 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         /// </summary>
         [Required(ErrorMessage = "Username harus diisi")]
         public string Username { get; set; } = "";
-        
-        /// <summary>
-        /// Keterangan/alasan penolakan (WAJIB diisi)
-        /// </summary>
-        [Required(ErrorMessage = "Keterangan/alasan penolakan harus diisi")]
-        [MinLength(5, ErrorMessage = "Keterangan minimal 5 karakter")]
-        public string Keterangan { get; set; } = "";
     }
 }

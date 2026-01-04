@@ -579,12 +579,6 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "Username harus diisi." });
                 }
                 
-                if (string.IsNullOrWhiteSpace(dto.Keterangan))
-                {
-                    Console.WriteLine("[Reject] ERROR: Keterangan is required"); 
-                    return BadRequest(new { message = "Keterangan/alasan penolakan harus diisi dan tidak boleh kosong." });
-                }
-                
                 // Auto-detect role based on username using stored procedure
                 var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
                 if (string.IsNullOrEmpty(detectedRole))
@@ -601,7 +595,7 @@ namespace astratech_apps_backend.Controllers
                 // Override role dengan hasil deteksi
                 dto.Role = detectedRole;
                 
-                Console.WriteLine($"[Controller] Reject request - ID: {dto.Id}, Role: {dto.Role}, Keterangan: {dto.Keterangan}");
+                Console.WriteLine($"[Controller] Reject request - ID: {dto.Id}, Role: {dto.Role}");
                 
                 Console.WriteLine("[Controller] Calling service...");
                 var success = await _service.RejectCutiAsync(dto);
