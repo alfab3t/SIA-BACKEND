@@ -3,8 +3,8 @@
     public class UploadSKMeninggalRequest
     {
         public string MduId { get; set; } = "";
-        public string SK { get; set; } = "";      // mdu_sk
-        public string SKPB { get; set; } = "";    // mdu_spkb
+        public IFormFile? SK { get; set; }        // File upload untuk SK
+        public IFormFile? SKPB { get; set; }      // File upload untuk SPKB  
         public string ModifiedBy { get; set; } = "";
     }
 }

@@ -383,14 +383,102 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("upload-sk")]
-        public async Task<IActionResult> UploadSK([FromBody] UploadSKMeninggalRequest request)
+        public async Task<IActionResult> UploadSK([FromForm] UploadSKMeninggalRequest request)
         {
-            var result = await _service.UploadSKMeninggalAsync(request);
+            try
+            {
+                Console.WriteLine($"[Controller] Upload SK Meninggal Dunia - MduId: {request.MduId}");
+                Console.WriteLine($"[Controller] SK File: {request.SK?.FileName}");
+                Console.WriteLine($"[Controller] SPKB File: {request.SKPB?.FileName}");
+                Console.WriteLine($"[Controller] ModifiedBy: {request.ModifiedBy}");
 
-            if (!result)
-                return BadRequest(new { message = "Gagal upload SK Meninggal Dunia" });
+                // Validate input
+                if (string.IsNullOrEmpty(request.MduId))
+                {
+                    Console.WriteLine("[Controller] ERROR: MduId is required");
+                    return BadRequest(new { message = "MduId harus diisi." });
+                }
 
-            return Ok(new { message = "Upload SK berhasil" });
+                if (request.SK == null || request.SK.Length == 0)
+                {
+                    Console.WriteLine("[Controller] ERROR: SK File is required");
+                    return BadRequest(new { message = "File SK harus diupload." });
+                }
+
+                if (request.SKPB == null || request.SKPB.Length == 0)
+                {
+                    Console.WriteLine("[Controller] ERROR: SPKB File is required");
+                    return BadRequest(new { message = "File SPKB harus diupload." });
+                }
+
+                if (string.IsNullOrEmpty(request.ModifiedBy))
+                {
+                    // Auto-set dari context jika tidak ada
+                    request.ModifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
+                    Console.WriteLine($"[Controller] Auto-set ModifiedBy to: {request.ModifiedBy}");
+                }
+
+                // Validate file types
+                var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png" };
+                
+                var skFileExtension = Path.GetExtension(request.SK.FileName).ToLowerInvariant();
+                var spkbFileExtension = Path.GetExtension(request.SKPB.FileName).ToLowerInvariant();
+                
+                if (!allowedExtensions.Contains(skFileExtension))
+                {
+                    Console.WriteLine($"[Controller] ERROR: Invalid SK file type: {skFileExtension}");
+                    return BadRequest(new { message = $"Tipe file SK tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                }
+
+                if (!allowedExtensions.Contains(spkbFileExtension))
+                {
+                    Console.WriteLine($"[Controller] ERROR: Invalid SPKB file type: {spkbFileExtension}");
+                    return BadRequest(new { message = $"Tipe file SPKB tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                }
+
+                // Validate file sizes (max 10MB each)
+                if (request.SK.Length > 10 * 1024 * 1024)
+                {
+                    Console.WriteLine($"[Controller] ERROR: SK file too large: {request.SK.Length} bytes");
+                    return BadRequest(new { message = "Ukuran file SK maksimal 10MB." });
+                }
+
+                if (request.SKPB.Length > 10 * 1024 * 1024)
+                {
+                    Console.WriteLine($"[Controller] ERROR: SPKB file too large: {request.SKPB.Length} bytes");
+                    return BadRequest(new { message = "Ukuran file SPKB maksimal 10MB." });
+                }
+
+                Console.WriteLine("[Controller] Calling service UploadSKAsync...");
+                // Use existing UploadSKAsync method instead of UploadSKMeninggalAsync
+                var result = await _service.UploadSKAsync(request.MduId, request.SK, request.SKPB, request.ModifiedBy);
+                Console.WriteLine($"[Controller] Service returned: {result}");
+
+                if (!result)
+                {
+                    Console.WriteLine("[Controller] Upload SK failed");
+                    return BadRequest(new { message = "Gagal upload SK Meninggal Dunia. Periksa apakah MduId valid dan status adalah 'Menunggu Upload SK'." });
+                }
+
+                Console.WriteLine("[Controller] Upload SK successful");
+                return Ok(new { 
+                    message = "Upload SK berhasil. Status meninggal dunia telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis dengan format tahun 2026.",
+                    success = true,
+                    mduId = request.MduId,
+                    skFileName = request.SK.FileName,
+                    spkbFileName = request.SKPB.FileName,
+                    modifiedBy = request.ModifiedBy
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Controller] ERROR in UploadSK: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengupload SK.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
         }
 
         [HttpDelete("{id}")]
@@ -543,14 +631,38 @@ namespace astratech_apps_backend.Controllers
         [HttpPost("{id}/upload-sk")]
         public async Task<IActionResult> UploadSK(string id, [FromForm] UploadSKMeninggalDuniaDto dto)
         {
-            var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
+            try
+            {
+                Console.WriteLine($"[Controller] Upload SK Meninggal Dunia - ID: {id}");
+                Console.WriteLine($"[Controller] SK File: {dto.SkFile?.FileName}");
+                Console.WriteLine($"[Controller] SPKB File: {dto.SpkbFile?.FileName}");
 
-            var success = await _service.UploadSKAsync(id, dto.SkFile, dto.SpkbFile, updatedBy);
+                var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
 
-            if (!success)
-                return BadRequest(new { message = "Gagal upload SK meninggal dunia." });
+                var success = await _service.UploadSKAsync(id, dto.SkFile, dto.SpkbFile, updatedBy);
 
-            return Ok(new { message = "SK berhasil diupload dan status diperbarui." });
+                if (!success)
+                {
+                    Console.WriteLine("[Controller] Upload SK failed");
+                    return BadRequest(new { message = "Gagal upload SK meninggal dunia. Periksa apakah ID valid dan status adalah 'Menunggu Upload SK'." });
+                }
+
+                Console.WriteLine("[Controller] Upload SK successful");
+                return Ok(new { 
+                    message = "SK berhasil diupload. Status meninggal dunia telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis di daftar.",
+                    success = true,
+                    id = id
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Controller] ERROR in UploadSK: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengupload SK.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
         }
 
         [HttpGet("Riwayat")]

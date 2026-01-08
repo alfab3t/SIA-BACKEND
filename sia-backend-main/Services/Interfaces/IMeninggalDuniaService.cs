@@ -56,7 +56,8 @@ namespace astratech_apps_backend.Services.Interfaces
         string konsentrasi
         );
 
-        Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request);
+        // Method UploadSKMeninggalAsync sudah tidak diperlukan karena kita menggunakan UploadSKAsync
+        // Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request);
 
         Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto);
 

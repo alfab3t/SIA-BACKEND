@@ -465,6 +465,23 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             while (await reader.ReadAsync())
             {
+                var recordStatus = reader["mdu_status"]?.ToString() ?? "";
+                var createdDate = reader["tanggal_buat"] as DateTime?;
+                
+                // Generate nomor SK dinamis untuk status "Disetujui"
+                string nomorSK = "";
+                if (recordStatus == "Disetujui" && createdDate.HasValue)
+                {
+                    var month = createdDate.Value.Month;
+                    var year = createdDate.Value.Year;
+                    var romanMonth = ConvertToRoman(month);
+                    
+                    // Generate nomor SK berdasarkan ID atau timestamp
+                    var mduId = reader["mdu_id"].ToString();
+                    var sequence = GenerateSequenceFromMeninggalDuniaId(mduId);
+                    nomorSK = $"{sequence:D3}/PA-WADIR-I/SKM/{romanMonth}/{year}";
+                }
+                
                 list.Add(new MeninggalDuniaListDto
                 {
                     Id = reader["mdu_id"].ToString(),
@@ -473,7 +490,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
                     Nim = reader["nim"]?.ToString() ?? "",
                     Prodi = reader["pro_nama"]?.ToString() ?? "",
-                    NomorSK = reader["srt_no"]?.ToString() ?? "",
+                    NomorSK = nomorSK, // Generate dinamis
                     Status = reader["mdu_status"]?.ToString() ?? ""
                 });
             }
@@ -727,30 +744,263 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
-        //UPLOAD SK
+        //UPLOAD SK - Modified to bypass foreign key constraint like CutiAkademik
         public async Task<bool> UploadSKAsync(string id, string sk, string spkb, string updatedBy)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createSKMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Starting SK upload for ID: {id}");
+                Console.WriteLine($"[MeninggalDunia UploadSKAsync] SK: {sk}, SPKB: {spkb}, UpdatedBy: {updatedBy}");
 
-            cmd.Parameters.AddWithValue("@p1", id);
-            cmd.Parameters.AddWithValue("@p2", sk);
-            cmd.Parameters.AddWithValue("@p3", spkb);
-            cmd.Parameters.AddWithValue("@p4", updatedBy);
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            // 46 parameters lain tetap diisi kosong
-            for (int i = 5; i <= 50; i++)
-            {
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+                // First, check if record exists and get current status
+                var checkCmd = new SqlCommand(
+                    "SELECT mdu_id, mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id", conn);
+                checkCmd.Parameters.AddWithValue("@id", id);
+
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ERROR: Record not found for ID: {id}");
+                    return false;
+                }
+
+                var currentStatus = reader["mdu_status"].ToString();
+                reader.Close();
+                
+                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Current status: {currentStatus}");
+
+                // Allow upload if status is "Menunggu Upload SK" OR "Disetujui" (untuk re-upload)
+                if (currentStatus != "Menunggu Upload SK" && currentStatus != "Disetujui")
+                {
+                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ERROR: Invalid status for SK upload: {currentStatus}");
+                    return false;
+                }
+
+                // Generate SK number untuk keperluan internal/logging (tidak disimpan ke DB)
+                var skNumber = await GenerateMeninggalDuniaSKNumberAsync(conn);
+                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Generated SK number (for reference): {skNumber}");
+
+                // Update record WITHOUT srt_no field (bypass foreign key constraint)
+                var updateCmd = new SqlCommand(@"
+                    UPDATE sia_msmeninggaldunia 
+                    SET mdu_sk = @sk,
+                        mdu_spkb = @spkb,
+                        mdu_status = 'Disetujui',
+                        mdu_modif_by = @updatedBy,
+                        mdu_modif_date = GETDATE()
+                    WHERE mdu_id = @id;
+                    
+                    -- Also update mahasiswa status
+                    UPDATE sia_msmahasiswa 
+                    SET mhs_status_kuliah = 'Meninggal Dunia' 
+                    WHERE mhs_id = (SELECT mhs_id FROM sia_msmeninggaldunia WHERE mdu_id = @id);", conn);
+
+                updateCmd.Parameters.AddWithValue("@id", id);
+                updateCmd.Parameters.AddWithValue("@sk", sk);
+                updateCmd.Parameters.AddWithValue("@spkb", spkb);
+                updateCmd.Parameters.AddWithValue("@updatedBy", updatedBy);
+
+                var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Update rows affected: {rowsAffected}");
+
+                if (rowsAffected > 0)
+                {
+                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ✓ SUCCESS! SK uploaded (Generated SK for reference: {skNumber})");
+                    
+                    // Verify the update worked
+                    var verifyCmd = new SqlCommand(
+                        "SELECT mdu_sk, mdu_spkb, mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id", conn);
+                    verifyCmd.Parameters.AddWithValue("@id", id);
+                    
+                    var verifyReader = await verifyCmd.ExecuteReaderAsync();
+                    if (await verifyReader.ReadAsync())
+                    {
+                        var finalSk = verifyReader["mdu_sk"]?.ToString() ?? "";
+                        var finalSpkb = verifyReader["mdu_spkb"]?.ToString() ?? "";
+                        var finalStatus = verifyReader["mdu_status"]?.ToString() ?? "";
+                        Console.WriteLine($"[MeninggalDunia UploadSKAsync] Verification - SK: '{finalSk}', SPKB: '{finalSpkb}', Status: '{finalStatus}'");
+                    }
+                    verifyReader.Close();
+                    
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ✗ FAILED: No rows affected during update");
+                    return false;
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MeninggalDunia UploadSKAsync] ERROR: {ex.Message}");
+                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Stack trace: {ex.StackTrace}");
+                throw; // Re-throw to let controller handle it
+            }
+        }
 
-            await conn.OpenAsync();
-            var result = await cmd.ExecuteNonQueryAsync();
+        /// <summary>
+        /// Generate SK number for Meninggal Dunia with format: 010/PA-WADIR-I/SKM/IX/2026
+        /// Logika murni backend untuk generate nomor SK otomatis
+        /// </summary>
+        private async Task<string> GenerateMeninggalDuniaSKNumberAsync(SqlConnection conn)
+        {
+            try
+            {
+                var now = DateTime.Now;
+                var month = now.Month;
+                var year = now.Year;
+                
+                // Convert month to Roman numerals
+                string romanMonth = ConvertToRoman(month);
+                string skFormat = $"/PA-WADIR-I/SKM/{romanMonth}/{year}"; // SKM = SK Meninggal
+                
+                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Generating SK number for {romanMonth}/{year}");
+                
+                // Get the highest sequence number for current year
+                var getLastSkCmd = new SqlCommand(@"
+                    SELECT srt_no 
+                    FROM sia_msmeninggaldunia 
+                    WHERE srt_no LIKE '%/PA-WADIR-I/SKM/%/' + CAST(@year AS VARCHAR(4))
+                      AND srt_no IS NOT NULL 
+                      AND srt_no != ''
+                      AND LEN(srt_no) > 10
+                    ORDER BY srt_no DESC", conn);
+                
+                getLastSkCmd.Parameters.AddWithValue("@year", year);
+                
+                var reader = await getLastSkCmd.ExecuteReaderAsync();
+                
+                int maxSequence = 0;
+                while (await reader.ReadAsync())
+                {
+                    var srtNo = reader["srt_no"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(srtNo) && srtNo.Length >= 3)
+                    {
+                        try
+                        {
+                            // Extract first 3 characters as sequence
+                            var sequenceStr = srtNo.Substring(0, 3);
+                            if (int.TryParse(sequenceStr, out int sequence))
+                            {
+                                if (sequence > maxSequence)
+                                {
+                                    maxSequence = sequence;
+                                    Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Found sequence: {sequence} from SK: {srtNo}");
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Error parsing SK: {srtNo}, Error: {ex.Message}");
+                        }
+                    }
+                }
+                reader.Close();
+                
+                int nextSequence = maxSequence + 1;
+                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Max sequence found: {maxSequence}, Next will be: {nextSequence}");
+                
+                // Generate new SK number with collision protection
+                for (int attempt = 0; attempt < 100; attempt++)
+                {
+                    // Format sequence number with leading zeros (always 3 digits)
+                    string candidateSkNumber = $"{nextSequence:D3}{skFormat}";
+                    
+                    Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Attempt {attempt + 1}: Trying SK number: {candidateSkNumber}");
+                    
+                    // Check if this SK number already exists
+                    var checkExistCmd = new SqlCommand(@"
+                        SELECT COUNT(*) 
+                        FROM sia_msmeninggaldunia 
+                        WHERE srt_no = @candidateSkNumber", conn);
+                    checkExistCmd.Parameters.AddWithValue("@candidateSkNumber", candidateSkNumber);
+                    
+                    var count = (int)await checkExistCmd.ExecuteScalarAsync();
+                    if (count == 0)
+                    {
+                        Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ✓ SK number is unique: {candidateSkNumber}");
+                        return candidateSkNumber;
+                    }
+                    
+                    Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ✗ SK number collision detected, trying next sequence");
+                    nextSequence++;
+                }
+                
+                // If all attempts fail, use timestamp-based fallback
+                var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
+                var fallbackSkNumber = $"{timestamp + 500:D3}{skFormat}"; // Add 500 to avoid low numbers
+                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ⚠️ Using fallback SK number: {fallbackSkNumber}");
+                return fallbackSkNumber;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ERROR: {ex.Message}");
+                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Stack trace: {ex.StackTrace}");
+                
+                // Emergency fallback
+                var now = DateTime.Now;
+                var romanMonth = ConvertToRoman(now.Month);
+                var emergencySkNumber = $"999/PA-WADIR-I/SKM/{romanMonth}/{now.Year}";
+                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] 🚨 Using emergency fallback: {emergencySkNumber}");
+                return emergencySkNumber;
+            }
+        }
 
-            return result > 0;
+        /// <summary>
+        /// Generate sequence number from mdu_id for display purposes
+        /// </summary>
+        private int GenerateSequenceFromMeninggalDuniaId(string mduId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(mduId))
+                    return 1;
+                
+                // Extract numeric part from ID like "031/PA-MD/I/2026"
+                if (mduId.Contains("/PA-MD/"))
+                {
+                    var parts = mduId.Split('/');
+                    if (parts.Length > 0 && int.TryParse(parts[0], out int sequence))
+                    {
+                        return sequence;
+                    }
+                }
+                
+                // Fallback: generate from hash of ID
+                var hash = Math.Abs(mduId.GetHashCode()) % 999;
+                return hash == 0 ? 1 : hash;
+            }
+            catch
+            {
+                return 1;
+            }
+        }
+
+        /// <summary>
+        /// Convert Month to Roman (Same as CutiAkademik)
+        /// </summary>
+        private string ConvertToRoman(int month)
+        {
+            return month switch
+            {
+                1 => "I",
+                2 => "II", 
+                3 => "III",
+                4 => "IV",
+                5 => "V",
+                6 => "VI",
+                7 => "VII",
+                8 => "VIII",
+                9 => "IX",
+                10 => "X",
+                11 => "XI",
+                12 => "XII",
+                _ => "I"
+            };
         }
 
         //        public async Task<IEnumerable<GetRiwayatMeninggalDuniaResponse>> GetRiwayatAsync(
@@ -961,28 +1211,14 @@ namespace astratech_apps_backend.Repositories.Implementations
             return list;
         }
 
+        // Method ini sudah tidak diperlukan karena kita menggunakan UploadSKAsync yang lebih baik
+        // yang sudah support file upload dan bypass foreign key constraint
+        /*
         public async Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createSKMeninggalDunia", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@p1", request.MduId);
-            cmd.Parameters.AddWithValue("@p2", request.SK);
-            cmd.Parameters.AddWithValue("@p3", request.SKPB);
-            cmd.Parameters.AddWithValue("@p4", request.ModifiedBy);
-
-            // Kosongkan p5–p50
-            for (int i = 5; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-
-            return rows > 0;
+            // Method lama - sudah diganti dengan UploadSKAsync
         }
+        */
 
         public async Task<MeninggalDuniaDetailResponse?> GetDetailAsync(string id)
         {

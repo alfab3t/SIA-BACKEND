@@ -202,10 +202,16 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.GetRiwayatExcelAsync(sort, konsentrasi);
         }
 
+        /// <summary>
+        /// Method UploadSKMeninggalAsync sudah tidak diperlukan karena kita menggunakan UploadSKAsync
+        /// yang sudah support file upload dan bypass foreign key constraint
+        /// </summary>
+        /*
         public async Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request)
         {
-            return await _repo.UploadSKMeninggalAsync(request);
+            // Method lama - sudah diganti dengan UploadSKAsync
         }
+        */
 
         public async Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto)
         {
