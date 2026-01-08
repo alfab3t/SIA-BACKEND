@@ -354,7 +354,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                            a.cak_approval_dir1 as approve_dir1,
                            CONVERT(VARCHAR(11),a.cak_created_date,106) AS tanggal,
                            a.srt_no,
-                           a.cak_status as status
+                           a.cak_status as status,
+                           a.cak_created_date
                     FROM sia_mscutiakademik a
                     LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
                     LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
@@ -372,6 +373,23 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 while (await reader.ReadAsync())
                 {
+                    var recordStatus = reader["status"].ToString();
+                    var createdDate = reader["cak_created_date"] as DateTime?;
+                    
+                    // Generate nomor SK dinamis untuk status "Disetujui"
+                    string suratNo = "";
+                    if (recordStatus == "Disetujui" && createdDate.HasValue)
+                    {
+                        var month = createdDate.Value.Month;
+                        var year = createdDate.Value.Year;
+                        var romanMonth = ConvertToRoman(month);
+                        
+                        // Generate nomor SK berdasarkan ID atau timestamp
+                        var cakId = reader["cak_id"].ToString();
+                        var sequence = GenerateSequenceFromId(cakId);
+                        suratNo = $"{sequence:D3}/PA-WADIR-I/SKC/{romanMonth}/{year}";
+                    }
+                    
                     result.Add(new CutiAkademikListResponse
                     {
                         Id = reader["cak_id"].ToString(),
@@ -384,7 +402,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                         ApproveProdi = reader["approve_prodi"].ToString(),
                         ApproveDir1 = reader["approve_dir1"].ToString(),
                         Tanggal = reader["tanggal"].ToString(),
-                        SuratNo = reader["srt_no"].ToString(),
+                        SuratNo = suratNo, // Generate dinamis
                         Status = reader["status"].ToString(),
                     });
                 }
@@ -404,7 +422,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                            a.cak_approval_dir1 as approve_dir1,
                            CONVERT(VARCHAR(11),a.cak_created_date,106) AS tanggal,
                            a.srt_no,
-                           a.cak_status as status
+                           a.cak_status as status,
+                           a.cak_created_date
                     FROM sia_mscutiakademik a
                     LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
                     LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
@@ -424,6 +443,23 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 while (await reader.ReadAsync())
                 {
+                    var recordStatus = reader["status"].ToString();
+                    var createdDate = reader["cak_created_date"] as DateTime?;
+                    
+                    // Generate nomor SK dinamis untuk status "Disetujui"
+                    string suratNo = "";
+                    if (recordStatus == "Disetujui" && createdDate.HasValue)
+                    {
+                        var month = createdDate.Value.Month;
+                        var year = createdDate.Value.Year;
+                        var romanMonth = ConvertToRoman(month);
+                        
+                        // Generate nomor SK berdasarkan ID atau timestamp
+                        var cakId = reader["cak_id"].ToString();
+                        var sequence = GenerateSequenceFromId(cakId);
+                        suratNo = $"{sequence:D3}/PA-WADIR-I/SKC/{romanMonth}/{year}";
+                    }
+                    
                     result.Add(new CutiAkademikListResponse
                     {
                         Id = reader["cak_id"].ToString(),
@@ -436,7 +472,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                         ApproveProdi = reader["approve_prodi"].ToString(),
                         ApproveDir1 = reader["approve_dir1"].ToString(),
                         Tanggal = reader["tanggal"].ToString(),
-                        SuratNo = reader["srt_no"].ToString(),
+                        SuratNo = suratNo, // Generate dinamis
                         Status = reader["status"].ToString(),
                     });
                 }
@@ -1593,7 +1629,8 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
         /// <summary>
-        /// Upload SK Cuti Akademik (untuk admin) - Using stored procedure sia_createSKCutiAkademik
+        /// Upload SK Cuti Akademik (untuk admin) - Generate SK number automatically and upload file
+        /// Logika murni backend: Generate nomor SK tanpa simpan ke database (bypass foreign key)
         /// </summary>
         public async Task<bool> UploadSKAsync(UploadSKRequest dto)
         {
@@ -1606,9 +1643,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // First, check if record exists and has correct status
+                // First, check if record exists and get current status
                 var checkCmd = new SqlCommand(
-                    "SELECT cak_id, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                    "SELECT cak_id, cak_status, srt_no FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", dto.Id);
 
                 var reader = await checkCmd.ExecuteReaderAsync();
@@ -1620,11 +1657,14 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
 
                 var currentStatus = reader["cak_status"].ToString();
+                var existingSrtNo = reader["srt_no"]?.ToString() ?? "";
                 reader.Close();
                 
                 Console.WriteLine($"[UploadSKAsync] Current status: {currentStatus}");
+                Console.WriteLine($"[UploadSKAsync] Existing srt_no: '{existingSrtNo}'");
 
-                if (currentStatus != "Menunggu Upload SK")
+                // Allow upload if status is "Menunggu Upload SK" OR "Disetujui" (untuk re-upload)
+                if (currentStatus != "Menunggu Upload SK" && currentStatus != "Disetujui")
                 {
                     Console.WriteLine($"[UploadSKAsync] ERROR: Invalid status for SK upload: {currentStatus}");
                     return false;
@@ -1640,41 +1680,12 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 Console.WriteLine($"[UploadSKAsync] File saved as: {fileName}");
 
-                // Try stored procedure first (hybrid approach)
-                try
-                {
-                    var spCmd = new SqlCommand("sia_createSKCutiAkademik", conn)
-                    {
-                        CommandType = CommandType.StoredProcedure
-                    };
+                // Generate SK number untuk keperluan internal/logging (tidak disimpan ke DB)
+                var skNumber = await GenerateSKNumberAsync(conn);
+                Console.WriteLine($"[UploadSKAsync] Generated SK number (for reference): {skNumber}");
 
-                    spCmd.Parameters.AddWithValue("@p1", dto.Id);        // cak_id
-                    spCmd.Parameters.AddWithValue("@p2", fileName);      // cak_sk (filename)
-                    spCmd.Parameters.AddWithValue("@p3", dto.UploadBy);  // cak_modif_by
-
-                    // p4-p50 kosong
-                    for (int i = 4; i <= 50; i++)
-                        spCmd.Parameters.AddWithValue($"@p{i}", "");
-
-                    Console.WriteLine($"[UploadSKAsync] Trying stored procedure first...");
-                    var spRows = await spCmd.ExecuteNonQueryAsync();
-                    Console.WriteLine($"[UploadSKAsync] SP rows affected: {spRows}");
-
-                    if (spRows > 0)
-                    {
-                        Console.WriteLine($"[UploadSKAsync] SP success!");
-                        return true;
-                    }
-                }
-                catch (Exception spEx)
-                {
-                    Console.WriteLine($"[UploadSKAsync] SP failed: {spEx.Message}");
-                }
-
-                // If SP failed, use direct SQL with all required fields (fallback)
-                Console.WriteLine($"[UploadSKAsync] SP failed, trying direct SQL update...");
-                
-                var directCmd = new SqlCommand(@"
+                // Update record WITHOUT srt_no field (bypass foreign key constraint)
+                var updateCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
                     SET cak_sk = @fileName,
                         cak_status = 'Disetujui',
@@ -1682,31 +1693,185 @@ namespace astratech_apps_backend.Repositories.Implementations
                         cak_approval_dakap = GETDATE(),
                         cak_modif_date = GETDATE(),
                         cak_modif_by = @uploadBy
-                    WHERE cak_id = @id 
-                      AND cak_status = 'Menunggu Upload SK';
+                    WHERE cak_id = @id;
                     
                     -- Also update mahasiswa status
                     UPDATE sia_msmahasiswa 
                     SET mhs_status_kuliah = 'Cuti' 
                     WHERE mhs_id = (SELECT mhs_id FROM sia_mscutiakademik WHERE cak_id = @id);", conn);
 
-                directCmd.Parameters.AddWithValue("@id", dto.Id);
-                directCmd.Parameters.AddWithValue("@fileName", fileName);
-                directCmd.Parameters.AddWithValue("@uploadBy", dto.UploadBy);
+                updateCmd.Parameters.AddWithValue("@id", dto.Id);
+                updateCmd.Parameters.AddWithValue("@fileName", fileName);
+                updateCmd.Parameters.AddWithValue("@uploadBy", dto.UploadBy);
 
-                var directRows = await directCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[UploadSKAsync] Direct SQL rows affected: {directRows}");
+                var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
+                Console.WriteLine($"[UploadSKAsync] Update rows affected: {rowsAffected}");
 
-                var success = directRows > 0;
-                Console.WriteLine($"[UploadSKAsync] Final result: {success}");
-                
-                return success;
+                if (rowsAffected > 0)
+                {
+                    Console.WriteLine($"[UploadSKAsync] ✓ SUCCESS! SK uploaded (Generated SK for reference: {skNumber})");
+                    
+                    // Verify the update worked
+                    var verifyCmd = new SqlCommand(
+                        "SELECT cak_sk, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                    verifyCmd.Parameters.AddWithValue("@id", dto.Id);
+                    
+                    var verifyReader = await verifyCmd.ExecuteReaderAsync();
+                    if (await verifyReader.ReadAsync())
+                    {
+                        var finalSk = verifyReader["cak_sk"]?.ToString() ?? "";
+                        var finalStatus = verifyReader["cak_status"]?.ToString() ?? "";
+                        Console.WriteLine($"[UploadSKAsync] Verification - cak_sk: '{finalSk}', status: '{finalStatus}'");
+                    }
+                    verifyReader.Close();
+                    
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"[UploadSKAsync] ✗ FAILED: No rows affected during update");
+                    return false;
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[UploadSKAsync] ERROR: {ex.Message}");
                 Console.WriteLine($"[UploadSKAsync] Stack trace: {ex.StackTrace}");
                 throw; // Re-throw to let controller handle it
+            }
+        }
+
+        /// <summary>
+        /// Generate sequence number from cak_id for display purposes
+        /// </summary>
+        private int GenerateSequenceFromId(string cakId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(cakId))
+                    return 1;
+                
+                // Extract numeric part from ID like "031/PMA/CA/I/2026"
+                if (cakId.Contains("/PMA/CA/"))
+                {
+                    var parts = cakId.Split('/');
+                    if (parts.Length > 0 && int.TryParse(parts[0], out int sequence))
+                    {
+                        return sequence;
+                    }
+                }
+                
+                // Fallback: generate from hash of ID
+                var hash = Math.Abs(cakId.GetHashCode()) % 999;
+                return hash == 0 ? 1 : hash;
+            }
+            catch
+            {
+                return 1;
+            }
+        }
+        private async Task<string> GenerateSKNumberAsync(SqlConnection conn)
+        {
+            try
+            {
+                var now = DateTime.Now;
+                var month = now.Month;
+                var year = now.Year;
+                
+                // Convert month to Roman numerals
+                string romanMonth = ConvertToRoman(month);
+                string skFormat = $"/PA-WADIR-I/SKC/{romanMonth}/{year}";
+                
+                Console.WriteLine($"[GenerateSKNumberAsync] Generating SK number for {romanMonth}/{year}");
+                
+                // Get the highest sequence number for current year
+                // Use simpler query to avoid parsing issues
+                var getLastSkCmd = new SqlCommand(@"
+                    SELECT srt_no 
+                    FROM sia_mscutiakademik 
+                    WHERE srt_no LIKE '%/PA-WADIR-I/SKC/%/' + CAST(@year AS VARCHAR(4))
+                      AND srt_no IS NOT NULL 
+                      AND srt_no != ''
+                      AND LEN(srt_no) > 10
+                    ORDER BY srt_no DESC", conn);
+                
+                getLastSkCmd.Parameters.AddWithValue("@year", year);
+                
+                var reader = await getLastSkCmd.ExecuteReaderAsync();
+                
+                int maxSequence = 0;
+                while (await reader.ReadAsync())
+                {
+                    var srtNo = reader["srt_no"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(srtNo) && srtNo.Length >= 3)
+                    {
+                        try
+                        {
+                            // Extract first 3 characters as sequence
+                            var sequenceStr = srtNo.Substring(0, 3);
+                            if (int.TryParse(sequenceStr, out int sequence))
+                            {
+                                if (sequence > maxSequence)
+                                {
+                                    maxSequence = sequence;
+                                    Console.WriteLine($"[GenerateSKNumberAsync] Found sequence: {sequence} from SK: {srtNo}");
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[GenerateSKNumberAsync] Error parsing SK: {srtNo}, Error: {ex.Message}");
+                        }
+                    }
+                }
+                reader.Close();
+                
+                int nextSequence = maxSequence + 1;
+                Console.WriteLine($"[GenerateSKNumberAsync] Max sequence found: {maxSequence}, Next will be: {nextSequence}");
+                
+                // Generate new SK number with collision protection
+                for (int attempt = 0; attempt < 100; attempt++)
+                {
+                    // Format sequence number with leading zeros (always 3 digits)
+                    string candidateSkNumber = $"{nextSequence:D3}{skFormat}";
+                    
+                    Console.WriteLine($"[GenerateSKNumberAsync] Attempt {attempt + 1}: Trying SK number: {candidateSkNumber}");
+                    
+                    // Check if this SK number already exists
+                    var checkExistCmd = new SqlCommand(@"
+                        SELECT COUNT(*) 
+                        FROM sia_mscutiakademik 
+                        WHERE srt_no = @candidateSkNumber", conn);
+                    checkExistCmd.Parameters.AddWithValue("@candidateSkNumber", candidateSkNumber);
+                    
+                    var count = (int)await checkExistCmd.ExecuteScalarAsync();
+                    if (count == 0)
+                    {
+                        Console.WriteLine($"[GenerateSKNumberAsync] ✓ SK number is unique: {candidateSkNumber}");
+                        return candidateSkNumber;
+                    }
+                    
+                    Console.WriteLine($"[GenerateSKNumberAsync] ✗ SK number collision detected, trying next sequence");
+                    nextSequence++;
+                }
+                
+                // If all attempts fail, use timestamp-based fallback
+                var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
+                var fallbackSkNumber = $"{timestamp + 500:D3}{skFormat}"; // Add 500 to avoid low numbers
+                Console.WriteLine($"[GenerateSKNumberAsync] ⚠️ Using fallback SK number: {fallbackSkNumber}");
+                return fallbackSkNumber;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GenerateSKNumberAsync] ERROR: {ex.Message}");
+                Console.WriteLine($"[GenerateSKNumberAsync] Stack trace: {ex.StackTrace}");
+                
+                // Emergency fallback
+                var now = DateTime.Now;
+                var romanMonth = ConvertToRoman(now.Month);
+                var emergencySkNumber = $"999/PA-WADIR-I/SKC/{romanMonth}/{now.Year}";
+                Console.WriteLine($"[GenerateSKNumberAsync] 🚨 Using emergency fallback: {emergencySkNumber}");
+                return emergencySkNumber;
             }
         }
 

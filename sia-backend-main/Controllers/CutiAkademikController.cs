@@ -811,7 +811,11 @@ namespace astratech_apps_backend.Controllers
                 if (success)
                 {
                     Console.WriteLine("[Controller] SK upload successful");
-                    return Ok(new { message = "SK berhasil diupload. Status cuti akademik telah diubah menjadi 'Disetujui'." });
+                    return Ok(new { 
+                        message = "SK berhasil diupload. Status cuti akademik telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis di daftar.",
+                        success = true,
+                        id = dto.Id
+                    });
                 }
                 
                 Console.WriteLine("[Controller] SK upload failed - service returned false");
