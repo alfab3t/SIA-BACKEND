@@ -11,7 +11,7 @@ namespace astratech_apps_backend.DTOs.Mahasiswa
         public string MhsId { get; set; } = string.Empty;
 
         /// <summary>
-        /// Nama mahasiswa dengan format: "ID - Nama"
+        /// Nama mahasiswa
         /// </summary>
         public string MhsNama { get; set; } = string.Empty;
     }

@@ -169,7 +169,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var sql = @"
                     SELECT 
                         mhs_id, 
-                        mhs_id + ' - ' + mhs_nama as mhs_nama
+                        mhs_nama
                     FROM sia_msmahasiswa
                     WHERE mhs_status = 'Aktif' 
                       AND (mhs_status_kuliah = 'Aktif' OR mhs_status_kuliah = 'Menunggu Yudisium') 

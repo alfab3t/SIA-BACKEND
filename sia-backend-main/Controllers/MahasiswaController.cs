@@ -21,27 +21,7 @@ namespace astratech_apps_backend.Controllers
             _mahasiswaRepository = mahasiswaRepository;
         }
 
-        /// <summary>
-        /// Mendapatkan daftar Program Studi yang unik
-        /// </summary>
-        /// <returns>List Program Studi dengan kon_id dan kon_nama</returns>
-        /// <response code="200">Berhasil mendapatkan daftar prodi</response>
-        /// <remarks>
-        /// Endpoint ini membaca data unik kon_id dan kon_nama dari sia_msmahasiswa
-        /// untuk menampilkan daftar Program Studi yang tersedia.
-        /// 
-        /// Contoh response:
-        /// [
-        ///   {
-        ///     "konId": "001",
-        ///     "konNama": "Teknik Informatika"
-        ///   },
-        ///   {
-        ///     "konId": "002", 
-        ///     "konNama": "Sistem Informasi"
-        ///   }
-        /// ]
-        /// </remarks>
+        
         [HttpGet("GetProdiList")]
         [ProducesResponseType(typeof(IEnumerable<ProdiListResponse>), 200)]
         public async Task<IActionResult> GetProdiList()
@@ -89,30 +69,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Mendapatkan daftar Mahasiswa berdasarkan Program Studi
-        /// </summary>
-        /// <param name="konId">ID Konsentrasi/Program Studi</param>
-        /// <returns>List Mahasiswa dengan mhs_id dan mhs_nama</returns>
-        /// <response code="200">Berhasil mendapatkan daftar mahasiswa</response>
-        /// <response code="400">Parameter konId tidak valid</response>
-        /// <remarks>
-        /// Endpoint ini membaca data mhs_id dan mhs_nama dari sia_msmahasiswa 
-        /// berdasarkan kon_id untuk menampilkan mahasiswa yang sesuai dengan prodi yang dipilih.
-        /// 
-        /// Contoh penggunaan:
-        /// GET /api/Mahasiswa/GetByProdi?konId=001
-        /// 
-        /// Contoh response:
-        /// [
-        ///   {
-        ///     "mhsId": "0420240001",
-        ///     "mhsNama": "John Doe",
-        ///     "angkatan": "2024",
-        ///     "konNama": "Teknik Informatika"
-        ///   }
-        /// ]
-        /// </remarks>
+       
         [HttpGet("GetByProdi")]
         [ProducesResponseType(typeof(IEnumerable<MahasiswaListResponse>), 200)]
         [ProducesResponseType(400)]
@@ -170,36 +127,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Mendapatkan detail profil mahasiswa berdasarkan mhs_id
-        /// </summary>
-        /// <param name="mhsId">ID Mahasiswa</param>
-        /// <returns>Detail profil mahasiswa lengkap</returns>
-        /// <response code="200">Berhasil mendapatkan detail mahasiswa</response>
-        /// <response code="400">Parameter mhsId tidak valid</response>
-        /// <response code="404">Mahasiswa tidak ditemukan</response>
-        /// <remarks>
-        /// Endpoint ini menggunakan stored procedure sia_detailMahasiswa untuk mendapatkan
-        /// informasi lengkap profil mahasiswa termasuk data pribadi, orang tua/wali, 
-        /// informasi akademik, dan data rekening.
-        /// 
-        /// Contoh penggunaan:
-        /// GET /api/Mahasiswa/GetDetail?mhsId=0320210077
-        /// 
-        /// Contoh response:
-        /// {
-        ///   "dulNoPendaftaran": "2021001",
-        ///   "mhsNama": "John Doe",
-        ///   "konNama": "Teknik Informatika (TI)",
-        ///   "mhsTempatLahir": "Jakarta",
-        ///   "mhsTglLahir": "2000-01-01",
-        ///   "mhsJenisKelamin": "L",
-        ///   "mhsAlamat": "Jl. Contoh No. 123",
-        ///   "mhsAngkatan": 2021,
-        ///   "mhsStatusKuliah": "Aktif",
-        ///   "mhsJenis": "Reguler"
-        /// }
-        /// </remarks>
+       
         [HttpGet("GetDetail")]
         [ProducesResponseType(typeof(MahasiswaDetailResponse), 200)]
         [ProducesResponseType(400)]
@@ -235,33 +163,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Mendapatkan daftar konsentrasi berdasarkan username sekprodi
-        /// </summary>
-        /// <param name="username">Username sekprodi</param>
-        /// <returns>List konsentrasi dengan id dan nama</returns>
-        /// <response code="200">Berhasil mendapatkan daftar konsentrasi</response>
-        /// <response code="400">Parameter username tidak valid</response>
-        /// <remarks>
-        /// Endpoint ini menggunakan direct SQL query untuk mendapatkan daftar konsentrasi 
-        /// yang dapat diakses oleh sekprodi berdasarkan username. Query menggabungkan tabel
-        /// sia_mskonsentrasi, sia_msprodi, dan ess_mskaryawan untuk filter berdasarkan username.
-        /// 
-        /// Contoh penggunaan:
-        /// GET /api/Mahasiswa/GetKonsentrasiList?username=sekprodi_user
-        /// 
-        /// Contoh response:
-        /// [
-        ///   {
-        ///     "id": "001",
-        ///     "nama": "Teknik Informatika (TI)"
-        ///   },
-        ///   {
-        ///     "id": "002", 
-        ///     "nama": "Sistem Informasi (SI)"
-        ///   }
-        /// ]
-        /// </remarks>
+       
         [HttpGet("GetKonsentrasiList")]
         [ProducesResponseType(typeof(IEnumerable<KonsentrasiListResponse>), 200)]
         [ProducesResponseType(400)]
@@ -291,32 +193,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Mendapatkan daftar mahasiswa berdasarkan konsentrasi
-        /// </summary>
-        /// <param name="konId">ID Konsentrasi</param>
-        /// <returns>List mahasiswa dengan id dan nama</returns>
-        /// <response code="200">Berhasil mendapatkan daftar mahasiswa</response>
-        /// <response code="400">Parameter konId tidak valid</response>
-        /// <remarks>
-        /// Endpoint ini menggunakan direct SQL query untuk mendapatkan daftar mahasiswa 
-        /// berdasarkan konsentrasi dengan status aktif dan status kuliah aktif atau menunggu yudisium.
-        /// 
-        /// Contoh penggunaan:
-        /// GET /api/Mahasiswa/GetByKonsentrasi?konId=3
-        /// 
-        /// Contoh response:
-        /// [
-        ///   {
-        ///     "mhsId": "0320240001",
-        ///     "mhsNama": "0320240001 - John Doe"
-        ///   },
-        ///   {
-        ///     "mhsId": "0320240002", 
-        ///     "mhsNama": "0320240002 - Jane Smith"
-        ///   }
-        /// ]
-        /// </remarks>
+       
         [HttpGet("GetByKonsentrasi")]
         [ProducesResponseType(typeof(IEnumerable<MahasiswaByKonsentrasiResponse>), 200)]
         [ProducesResponseType(400)]
