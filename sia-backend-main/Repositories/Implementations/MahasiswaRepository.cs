@@ -148,5 +148,56 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw;
             }
         }
+
+        /// <summary>
+        /// Mendapatkan daftar mahasiswa berdasarkan konsentrasi menggunakan direct SQL query
+        /// </summary>
+        /// <param name="konId">ID Konsentrasi</param>
+        /// <returns>List mahasiswa dengan id dan nama</returns>
+        public async Task<List<MahasiswaByKonsentrasiResponse>> GetMahasiswaByKonsentrasiAsync(string konId)
+        {
+            try
+            {
+                Console.WriteLine($"[GetMahasiswaByKonsentrasiAsync] Starting to fetch mahasiswa list for konId: {konId}");
+
+                var result = new List<MahasiswaByKonsentrasiResponse>();
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                // Direct SQL query based on the stored procedure logic
+                var sql = @"
+                    SELECT 
+                        mhs_id, 
+                        mhs_id + ' - ' + mhs_nama as mhs_nama
+                    FROM sia_msmahasiswa
+                    WHERE mhs_status = 'Aktif' 
+                      AND (mhs_status_kuliah = 'Aktif' OR mhs_status_kuliah = 'Menunggu Yudisium') 
+                      AND kon_id = @konId
+                    ORDER BY mhs_id ASC";
+
+                await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@konId", konId);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new MahasiswaByKonsentrasiResponse
+                    {
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? ""
+                    });
+                }
+
+                Console.WriteLine($"[GetMahasiswaByKonsentrasiAsync] Found {result.Count} mahasiswa for konId: {konId}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetMahasiswaByKonsentrasiAsync] ERROR: {ex.Message}");
+                throw;
+            }
+        }
     }
 }

@@ -290,5 +290,60 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Mendapatkan daftar mahasiswa berdasarkan konsentrasi
+        /// </summary>
+        /// <param name="konId">ID Konsentrasi</param>
+        /// <returns>List mahasiswa dengan id dan nama</returns>
+        /// <response code="200">Berhasil mendapatkan daftar mahasiswa</response>
+        /// <response code="400">Parameter konId tidak valid</response>
+        /// <remarks>
+        /// Endpoint ini menggunakan direct SQL query untuk mendapatkan daftar mahasiswa 
+        /// berdasarkan konsentrasi dengan status aktif dan status kuliah aktif atau menunggu yudisium.
+        /// 
+        /// Contoh penggunaan:
+        /// GET /api/Mahasiswa/GetByKonsentrasi?konId=3
+        /// 
+        /// Contoh response:
+        /// [
+        ///   {
+        ///     "mhsId": "0320240001",
+        ///     "mhsNama": "0320240001 - John Doe"
+        ///   },
+        ///   {
+        ///     "mhsId": "0320240002", 
+        ///     "mhsNama": "0320240002 - Jane Smith"
+        ///   }
+        /// ]
+        /// </remarks>
+        [HttpGet("GetByKonsentrasi")]
+        [ProducesResponseType(typeof(IEnumerable<MahasiswaByKonsentrasiResponse>), 200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> GetByKonsentrasi([FromQuery] string konId)
+        {
+            try
+            {
+                Console.WriteLine($"[GetByKonsentrasi] Starting to fetch mahasiswa list for konId: {konId}");
+                
+                if (string.IsNullOrEmpty(konId))
+                {
+                    return BadRequest(new { message = "Parameter konId harus diisi." });
+                }
+
+                var result = await _mahasiswaRepository.GetMahasiswaByKonsentrasiAsync(konId);
+
+                Console.WriteLine($"[GetByKonsentrasi] Successfully retrieved {result.Count} mahasiswa for konId: {konId}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetByKonsentrasi] ERROR: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengambil daftar mahasiswa.", 
+                    error = ex.Message 
+                });
+            }
+        }
     }
 }

@@ -17,5 +17,12 @@ namespace astratech_apps_backend.Repositories.Interfaces
         /// <param name="username">Username sekprodi</param>
         /// <returns>List konsentrasi dengan id dan nama</returns>
         Task<List<KonsentrasiListResponse>> GetKonsentrasiListBySekprodiAsync(string username);
+
+        /// <summary>
+        /// Mendapatkan daftar mahasiswa berdasarkan konsentrasi
+        /// </summary>
+        /// <param name="konId">ID Konsentrasi</param>
+        /// <returns>List mahasiswa dengan id dan nama</returns>
+        Task<List<MahasiswaByKonsentrasiResponse>> GetMahasiswaByKonsentrasiAsync(string konId);
     }
 }
