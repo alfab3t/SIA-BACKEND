@@ -222,5 +222,41 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
+
+      
+        [HttpGet("GetByNIM")]
+        [ProducesResponseType(typeof(MahasiswaByNIMResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> GetByNIM([FromQuery] string nim)
+        {
+            try
+            {
+                Console.WriteLine($"[GetByNIM] Starting to fetch mahasiswa data for NIM: {nim}");
+                
+                if (string.IsNullOrEmpty(nim))
+                {
+                    return BadRequest(new { message = "Parameter nim harus diisi." });
+                }
+
+                var result = await _mahasiswaRepository.GetMahasiswaByNIMAsync(nim);
+
+                if (result == null)
+                {
+                    return NotFound(new { message = $"Mahasiswa dengan NIM {nim} tidak ditemukan atau tidak aktif." });
+                }
+
+                Console.WriteLine($"[GetByNIM] Successfully retrieved mahasiswa data for NIM: {nim}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetByNIM] ERROR: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengambil data mahasiswa.", 
+                    error = ex.Message 
+                });
+            }
+        }
     }
 }

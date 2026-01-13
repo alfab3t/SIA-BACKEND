@@ -199,5 +199,62 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw;
             }
         }
+
+        /// <summary>
+        /// Mendapatkan data mahasiswa berdasarkan NIM menggunakan direct SQL query
+        /// </summary>
+        /// <param name="nim">NIM Mahasiswa</param>
+        /// <returns>Data mahasiswa dengan nama, konsentrasi, angkatan, dan kelas</returns>
+        public async Task<MahasiswaByNIMResponse?> GetMahasiswaByNIMAsync(string nim)
+        {
+            try
+            {
+                Console.WriteLine($"[GetMahasiswaByNIMAsync] Starting to fetch mahasiswa data for NIM: {nim}");
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                // Direct SQL query based on the stored procedure logic
+                var sql = @"
+                    SELECT TOP 1 
+                        a.mhs_nama,
+                        d.pro_nama + ' (' + b.kon_singkatan + ')' as kon_nama,
+                        a.mhs_angkatan,
+                        c.kel_id as kelas
+                    FROM sia_msmahasiswa a
+                    INNER JOIN sia_mskonsentrasi b ON a.kon_id = b.kon_id
+                    INNER JOIN sia_mskelas c ON a.kel_id = c.kel_id
+                    INNER JOIN sia_msprodi d ON d.pro_id = b.pro_id
+                    WHERE a.mhs_id = @nim 
+                      AND a.mhs_status = 'Aktif'";
+
+                await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@nim", nim);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    var result = new MahasiswaByNIMResponse
+                    {
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                        KonNama = reader["kon_nama"]?.ToString() ?? "",
+                        MhsAngkatan = Convert.ToInt32(reader["mhs_angkatan"] ?? 0),
+                        Kelas = reader["kelas"]?.ToString() ?? ""
+                    };
+
+                    Console.WriteLine($"[GetMahasiswaByNIMAsync] Successfully found mahasiswa data for NIM: {nim}");
+                    return result;
+                }
+
+                Console.WriteLine($"[GetMahasiswaByNIMAsync] No data found for NIM: {nim}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetMahasiswaByNIMAsync] ERROR: {ex.Message}");
+                throw;
+            }
+        }
     }
 }

@@ -24,5 +24,12 @@ namespace astratech_apps_backend.Repositories.Interfaces
         /// <param name="konId">ID Konsentrasi</param>
         /// <returns>List mahasiswa dengan id dan nama</returns>
         Task<List<MahasiswaByKonsentrasiResponse>> GetMahasiswaByKonsentrasiAsync(string konId);
+
+        /// <summary>
+        /// Mendapatkan data mahasiswa berdasarkan NIM
+        /// </summary>
+        /// <param name="nim">NIM Mahasiswa</param>
+        /// <returns>Data mahasiswa dengan nama, konsentrasi, angkatan, dan kelas</returns>
+        Task<MahasiswaByNIMResponse?> GetMahasiswaByNIMAsync(string nim);
     }
 }
