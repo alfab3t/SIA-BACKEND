@@ -1875,7 +1875,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        public async Task<string> DetectUserRoleAsync(string username)
+        public async Task<string> DetectUserRoleAsync(string username)  
         {
             try
             {

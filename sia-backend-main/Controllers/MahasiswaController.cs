@@ -234,5 +234,61 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Mendapatkan daftar konsentrasi berdasarkan username sekprodi
+        /// </summary>
+        /// <param name="username">Username sekprodi</param>
+        /// <returns>List konsentrasi dengan id dan nama</returns>
+        /// <response code="200">Berhasil mendapatkan daftar konsentrasi</response>
+        /// <response code="400">Parameter username tidak valid</response>
+        /// <remarks>
+        /// Endpoint ini menggunakan direct SQL query untuk mendapatkan daftar konsentrasi 
+        /// yang dapat diakses oleh sekprodi berdasarkan username. Query menggabungkan tabel
+        /// sia_mskonsentrasi, sia_msprodi, dan ess_mskaryawan untuk filter berdasarkan username.
+        /// 
+        /// Contoh penggunaan:
+        /// GET /api/Mahasiswa/GetKonsentrasiList?username=sekprodi_user
+        /// 
+        /// Contoh response:
+        /// [
+        ///   {
+        ///     "id": "001",
+        ///     "nama": "Teknik Informatika (TI)"
+        ///   },
+        ///   {
+        ///     "id": "002", 
+        ///     "nama": "Sistem Informasi (SI)"
+        ///   }
+        /// ]
+        /// </remarks>
+        [HttpGet("GetKonsentrasiList")]
+        [ProducesResponseType(typeof(IEnumerable<KonsentrasiListResponse>), 200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> GetKonsentrasiList([FromQuery] string username)
+        {
+            try
+            {
+                Console.WriteLine($"[GetKonsentrasiList] Starting to fetch konsentrasi list for username: {username}");
+                
+                if (string.IsNullOrEmpty(username))
+                {
+                    return BadRequest(new { message = "Parameter username harus diisi." });
+                }
+
+                var result = await _mahasiswaRepository.GetKonsentrasiListBySekprodiAsync(username);
+
+                Console.WriteLine($"[GetKonsentrasiList] Successfully retrieved {result.Count} konsentrasi for username: {username}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetKonsentrasiList] ERROR: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengambil daftar konsentrasi.", 
+                    error = ex.Message 
+                });
+            }
+        }
     }
 }

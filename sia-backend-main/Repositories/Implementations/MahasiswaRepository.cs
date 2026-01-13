@@ -96,5 +96,57 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw;
             }
         }
+
+        /// <summary>
+        /// Mendapatkan daftar konsentrasi berdasarkan username sekprodi menggunakan direct SQL query
+        /// </summary>
+        /// <param name="username">Username sekprodi</param>
+        /// <returns>List konsentrasi dengan id dan nama</returns>
+        public async Task<List<KonsentrasiListResponse>> GetKonsentrasiListBySekprodiAsync(string username)
+        {
+            try
+            {
+                Console.WriteLine($"[GetKonsentrasiListBySekprodiAsync] Starting to fetch konsentrasi list for username: {username}");
+
+                var result = new List<KonsentrasiListResponse>();
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                // Direct SQL query based on the stored procedure logic
+                var sql = @"
+                    SELECT 
+                        a.kon_id as id,
+                        b.pro_nama + ' (' + RTRIM(a.kon_singkatan) + ')' as nama
+                    FROM sia_mskonsentrasi a
+                    INNER JOIN sia_msprodi b ON a.pro_id = b.pro_id
+                    INNER JOIN ess_mskaryawan c ON a.kon_npk = c.kry_id
+                    WHERE a.kon_status = 'Aktif' 
+                      AND c.kry_username = @username
+                    ORDER BY b.pro_nama";
+
+                await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@username", username);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new KonsentrasiListResponse
+                    {
+                        Id = reader["id"]?.ToString() ?? "",
+                        Nama = reader["nama"]?.ToString() ?? ""
+                    });
+                }
+
+                Console.WriteLine($"[GetKonsentrasiListBySekprodiAsync] Found {result.Count} konsentrasi for username: {username}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetKonsentrasiListBySekprodiAsync] ERROR: {ex.Message}");
+                throw;
+            }
+        }
     }
 }
