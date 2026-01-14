@@ -35,7 +35,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = System.Data.CommandType.StoredProcedure
                 };
                 
-                cmd.Parameters.AddWithValue("@mhs_id", mhsId);
+                cmd.Parameters.AddWithValue("@MahasiswaId", mhsId);
 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -43,6 +43,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 {
                     var result = new MahasiswaDetailResponse
                     {
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
                         DulNoPendaftaran = reader["dul_no_pendaftaran"]?.ToString() ?? "",
                         MhsNama = reader["mhs_nama"]?.ToString() ?? "",
                         KonNama = reader["kon_nama"]?.ToString() ?? "",
@@ -80,7 +81,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                         NamaBank = reader["namabank"]?.ToString() ?? "",
                         DulNisn = reader["dul_nisn"]?.ToString() ?? "",
                         KelId = reader["kel_id"]?.ToString() ?? "",
-                        DulNik = reader["dul_nik"]?.ToString() ?? ""
+                        DulNik = reader["dul_nik"]?.ToString() ?? "",
+                        RfidAktif = reader["rfid_aktif"]?.ToString() ?? ""
                     };
 
                     Console.WriteLine($"[GetDetailAsync] Successfully found detail for mhsId: {mhsId}");

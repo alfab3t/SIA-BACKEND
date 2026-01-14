@@ -194,5 +194,15 @@ namespace astratech_apps_backend.DTOs.Mahasiswa
         /// NIK
         /// </summary>
         public string DulNik { get; set; } = "";
+        
+        /// <summary>
+        /// ID Mahasiswa
+        /// </summary>
+        public string MhsId { get; set; } = "";
+        
+        /// <summary>
+        /// RFID Aktif
+        /// </summary>
+        public string RfidAktif { get; set; } = "";
     }
 }
