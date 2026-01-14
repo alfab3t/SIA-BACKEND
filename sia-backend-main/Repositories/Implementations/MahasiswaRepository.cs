@@ -258,5 +258,39 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw;
             }
         }
+
+        /// <summary>
+        /// Check bebas tanggungan mahasiswa menggunakan stored procedure sia_checkBebasTanggungan
+        /// </summary>
+        /// <param name="userId">User ID / NIM Mahasiswa</param>
+        /// <returns>Status bebas tanggungan: "OK" atau "NOK"</returns>
+        public async Task<string> CheckBebasTanggunganAsync(string userId)
+        {
+            try
+            {
+                Console.WriteLine($"[CheckBebasTanggunganAsync] Starting to check bebas tanggungan for userId: {userId}");
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                await using var cmd = new SqlCommand("sia_checkBebasTanggungan", conn)
+                {
+                    CommandType = System.Data.CommandType.StoredProcedure
+                };
+                
+                cmd.Parameters.AddWithValue("@UserId", userId);
+
+                var result = await cmd.ExecuteScalarAsync();
+                var status = result?.ToString() ?? "NOK";
+
+                Console.WriteLine($"[CheckBebasTanggunganAsync] Status for userId {userId}: {status}");
+                return status;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CheckBebasTanggunganAsync] ERROR: {ex.Message}");
+                throw;
+            }
+        }
     }
 }

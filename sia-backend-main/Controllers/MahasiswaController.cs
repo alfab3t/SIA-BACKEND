@@ -258,5 +258,39 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Check bebas tanggungan mahasiswa
+        /// </summary>
+        /// <param name="userId">User ID / NIM Mahasiswa</param>
+        /// <returns>Status bebas tanggungan</returns>
+        [HttpGet("CheckBebasTanggungan")]
+        [ProducesResponseType(typeof(BebasTanggunganResponse), 200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> CheckBebasTanggungan([FromQuery] string userId)
+        {
+            try
+            {
+                Console.WriteLine($"[CheckBebasTanggungan] Starting to check bebas tanggungan for userId: {userId}");
+                
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return BadRequest(new { message = "Parameter userId harus diisi." });
+                }
+
+                var status = await _mahasiswaRepository.CheckBebasTanggunganAsync(userId);
+
+                Console.WriteLine($"[CheckBebasTanggungan] Status for userId {userId}: {status}");
+                return Ok(new BebasTanggunganResponse { Status = status });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CheckBebasTanggungan] ERROR: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat mengecek bebas tanggungan.", 
+                    error = ex.Message 
+                });
+            }
+        }
     }
 }
