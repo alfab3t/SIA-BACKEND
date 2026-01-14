@@ -292,5 +292,45 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Get profil lengkap mahasiswa
+        /// </summary>
+        /// <param name="nim">NIM Mahasiswa</param>
+        /// <returns>Profil lengkap mahasiswa</returns>
+            [HttpGet("GetProfil")]
+            [ProducesResponseType(typeof(ProfilMahasiswaResponse), 200)]
+            [ProducesResponseType(400)]
+            [ProducesResponseType(404)]
+            public async Task<IActionResult> GetProfil([FromQuery] string nim)
+            {
+                try
+                {
+                    Console.WriteLine($"[GetProfil] Starting to fetch profil for NIM: {nim}");
+                
+                    if (string.IsNullOrEmpty(nim))
+                    {
+                        return BadRequest(new { message = "Parameter nim harus diisi." });
+                    }
+
+                    var result = await _mahasiswaRepository.GetProfilMahasiswaAsync(nim);
+
+                    if (result == null)
+                    {
+                        return NotFound(new { message = $"Profil mahasiswa dengan NIM {nim} tidak ditemukan." });
+                    }
+
+                    Console.WriteLine($"[GetProfil] Successfully retrieved profil for NIM: {nim}");
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GetProfil] ERROR: {ex.Message}");
+                    return BadRequest(new { 
+                        message = "Terjadi kesalahan saat mengambil profil mahasiswa.", 
+                        error = ex.Message 
+                    });
+                }
+            }
     }
 }

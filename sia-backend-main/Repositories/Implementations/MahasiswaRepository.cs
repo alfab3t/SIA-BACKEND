@@ -292,5 +292,150 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw;
             }
         }
+
+        /// <summary>
+        /// Mendapatkan profil lengkap mahasiswa menggunakan stored procedure sia_getProfilMahasiswa
+        /// </summary>
+        /// <param name="nim">NIM Mahasiswa</param>
+        /// <returns>Profil lengkap mahasiswa</returns>
+        public async Task<ProfilMahasiswaResponse?> GetProfilMahasiswaAsync(string nim)
+        {
+            try
+            {
+                Console.WriteLine($"[GetProfilMahasiswaAsync] Starting to fetch profil for NIM: {nim}");
+
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                await using var cmd = new SqlCommand("sia_getProfilMahasiswa", conn)
+                {
+                    CommandType = System.Data.CommandType.StoredProcedure
+                };
+                
+                cmd.Parameters.AddWithValue("@NIM", nim);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    var result = new ProfilMahasiswaResponse
+                    {
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                        MhsJenisKelamin = reader["mhs_jenis_kelamin"]?.ToString() ?? "",
+                        Ttl = reader["ttl"]?.ToString() ?? "",
+                        Prodi = reader["prodi"]?.ToString() ?? "",
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        Awal = reader["awal"]?.ToString() ?? "",
+                        DulJalur = reader["dul_jalur"]?.ToString() ?? "",
+                        MhsStatusKuliah = reader["mhs_status_kuliah"]?.ToString() ?? "",
+                        StatusBeasiswa = reader["statusBeasiswa"]?.ToString() ?? "",
+                        MhsVaWisuda = reader["mhs_va_wisuda"]?.ToString() ?? "",
+                        MhsVaCuti = reader["mhs_va_cuti"]?.ToString() ?? "",
+                        MhsVaIdcard = reader["mhs_va_idcard"]?.ToString() ?? "",
+                        MhsVaLainnya = reader["mhs_va_lainnya"]?.ToString() ?? "",
+                        DulNik = reader["dul_nik"]?.ToString() ?? "",
+                        DulAgama = reader["dul_agama"]?.ToString() ?? "",
+                        DulKewarganegaraan = reader["dul_kewarganegaraan"]?.ToString() ?? "",
+                        DulGolonganDarah = reader["dul_golongan_darah"]?.ToString() ?? "",
+                        DulAlamat = reader["dul_alamat"]?.ToString() ?? "",
+                        DulKodepos = reader["dul_kodepos"]?.ToString() ?? "",
+                        DulHp = reader["dul_hp"]?.ToString() ?? "",
+                        DulSd = reader["dul_sd"]?.ToString() ?? "",
+                        DulSdTahunLulus = reader["dul_sd_tahun_lulus"]?.ToString() ?? "",
+                        DulSmp = reader["dul_smp"]?.ToString() ?? "",
+                        DulSmpTahunLulus = reader["dul_smp_tahun_lulus"]?.ToString() ?? "",
+                        DulSma = reader["dul_sma"]?.ToString() ?? "",
+                        DulSmaTahunLulus = reader["dul_sma_tahun_lulus"]?.ToString() ?? "",
+                        DulPt = reader["dul_pt"]?.ToString() ?? "",
+                        DulPtTahunLulus = reader["dul_pt_tahun_lulus"]?.ToString() ?? "",
+                        DulKursus = reader["dul_kursus"]?.ToString() ?? "",
+                        DulHobby = reader["dul_hobby"]?.ToString() ?? "",
+                        DulPengalamanKerja = reader["dul_pengalaman_kerja"]?.ToString() ?? "",
+                        DulOrganisasi = reader["dul_organisasi"]?.ToString() ?? "",
+                        DulStatusKawin = reader["dul_status_kawin"]?.ToString() ?? "",
+                        DulUkuranSepatu = reader["dul_ukuran_sepatu"]?.ToString() ?? "",
+                        DulUkuranKemeja = reader["dul_ukuran_kemeja"]?.ToString() ?? "",
+                        DulTinggiBadan = reader["dul_tinggi_badan"]?.ToString() ?? "",
+                        DulBeratBadan = reader["dul_berat_badan"]?.ToString() ?? "",
+                        DulNamaAyah = reader["dul_nama_ayah"]?.ToString() ?? "",
+                        DulNikAyah = reader["dul_nik_ayah"]?.ToString() ?? "",
+                        DulStatusAyah = reader["dul_status_ayah"]?.ToString() ?? "",
+                        DulKewarganegaraanAyah = reader["dul_kewarganegaraan_ayah"]?.ToString() ?? "",
+                        DulAgamaAyah = reader["dul_agama_ayah"]?.ToString() ?? "",
+                        DulAlamatAyah = reader["dul_alamat_ayah"]?.ToString() ?? "",
+                        DulKodeposAyah = reader["dul_kodepos_ayah"]?.ToString() ?? "",
+                        DulHpAyah = reader["dul_hp_ayah"]?.ToString() ?? "",
+                        DulPendidikanAyah = reader["dul_pendidikan_ayah"]?.ToString() ?? "",
+                        DulPekerjaanAyah = reader["dul_pekerjaan_ayah"]?.ToString() ?? "",
+                        DulPerusahaanAyah = reader["dul_perusahaan_ayah"]?.ToString() ?? "",
+                        DulAlamatPerusahaanAyah = reader["dul_alamat_perusahaan_ayah"]?.ToString() ?? "",
+                        DulPenghasilanAyah = reader["dul_penghasilan_ayah"]?.ToString() ?? "",
+                        DulNamaIbu = reader["dul_nama_ibu"]?.ToString() ?? "",
+                        DulNikIbu = reader["dul_nik_ibu"]?.ToString() ?? "",
+                        DulStatusIbu = reader["dul_status_ibu"]?.ToString() ?? "",
+                        DulKewarganegaraanIbu = reader["dul_kewarganegaraan_ibu"]?.ToString() ?? "",
+                        DulAgamaIbu = reader["dul_agama_ibu"]?.ToString() ?? "",
+                        DulAlamatIbu = reader["dul_alamat_ibu"]?.ToString() ?? "",
+                        DulKodeposIbu = reader["dul_kodepos_ibu"]?.ToString() ?? "",
+                        DulHpIbu = reader["dul_hp_ibu"]?.ToString() ?? "",
+                        DulPendidikanIbu = reader["dul_pendidikan_ibu"]?.ToString() ?? "",
+                        DulPekerjaanIbu = reader["dul_pekerjaan_ibu"]?.ToString() ?? "",
+                        DulPerusahaanIbu = reader["dul_perusahaan_ibu"]?.ToString() ?? "",
+                        DulAlamatPerusahaanIbu = reader["dul_alamat_perusahaan_ibu"]?.ToString() ?? "",
+                        DulPenghasilanIbu = reader["dul_penghasilan_ibu"]?.ToString() ?? "",
+                        DulNamaWali = reader["dul_nama_wali"]?.ToString() ?? "",
+                        DulNikWali = reader["dul_nik_wali"]?.ToString() ?? "",
+                        DulStatusWali = reader["dul_status_wali"]?.ToString() ?? "",
+                        DulKewarganegaraanWali = reader["dul_kewarganegaraan_wali"]?.ToString() ?? "",
+                        DulAgamaWali = reader["dul_agama_wali"]?.ToString() ?? "",
+                        DulAlamatWali = reader["dul_alamat_wali"]?.ToString() ?? "",
+                        DulKodeposWali = reader["dul_kodepos_wali"]?.ToString() ?? "",
+                        DulHpWali = reader["dul_hp_wali"]?.ToString() ?? "",
+                        DulPendidikanWali = reader["dul_pendidikan_wali"]?.ToString() ?? "",
+                        DulPekerjaanWali = reader["dul_pekerjaan_wali"]?.ToString() ?? "",
+                        DulPerusahaanWali = reader["dul_perusahaan_wali"]?.ToString() ?? "",
+                        DulAlamatPerusahaanWali = reader["dul_alamat_perusahaan_wali"]?.ToString() ?? "",
+                        DulPenghasilanWali = reader["dul_penghasilan_wali"]?.ToString() ?? "",
+                        DulJumlahSaudara = reader["dul_jumlah_saudara"]?.ToString() ?? "",
+                        DulJumlahKakak = reader["dul_jumlah_kakak"]?.ToString() ?? "",
+                        DulJumlahAdik = reader["dul_jumlah_adik"]?.ToString() ?? "",
+                        DulSaudaraSekolah = reader["dul_saudara_sekolah"]?.ToString() ?? "",
+                        DulSaudaraBekerja = reader["dul_saudara_bekerja"]?.ToString() ?? "",
+                        DulAstraGrup = reader["dul_astra_grup"]?.ToString() ?? "",
+                        DulAstraHubungan = reader["dul_astra_hubungan"]?.ToString() ?? "",
+                        DulAstraPerusahaan = reader["dul_astra_perusahaan"]?.ToString() ?? "",
+                        DulPasFoto = reader["dul_pas_foto"]?.ToString() ?? "",
+                        DulKtpSim = reader["dul_ktp_sim"]?.ToString() ?? "",
+                        DulAktaKelahiran = reader["dul_akta_kelahiran"]?.ToString() ?? "",
+                        DulKartuKeluarga = reader["dul_kartu_keluarga"]?.ToString() ?? "",
+                        DulIjazah = reader["dul_ijazah"]?.ToString() ?? "",
+                        DulSkhun = reader["dul_skhun"]?.ToString() ?? "",
+                        DulBebasNarkoba = reader["dul_bebas_narkoba"]?.ToString() ?? "",
+                        DulSanggupBayar = reader["dul_sanggup_bayar"]?.ToString() ?? "",
+                        DulBuktiBayar = reader["dul_bukti_bayar"]?.ToString() ?? "",
+                        DulEmail = reader["dul_email"]?.ToString() ?? "",
+                        DulVaSumbangan = reader["dul_va_sumbangan"]?.ToString() ?? "",
+                        DulVaSpp = reader["dul_va_spp"]?.ToString() ?? "",
+                        DulStatus = reader["dul_status"]?.ToString() ?? "",
+                        AtasNama = reader["atasnama"]?.ToString() ?? "",
+                        NoRek = reader["norek"]?.ToString() ?? "",
+                        NamaBank = reader["namabank"]?.ToString() ?? "",
+                        MhsDosenAkademik = reader["mhs_dosen_akademik"]?.ToString() ?? "",
+                        DulNisn = reader["dul_nisn"]?.ToString() ?? ""
+                    };
+
+                    Console.WriteLine($"[GetProfilMahasiswaAsync] Successfully found profil for NIM: {nim}");
+                    return result;
+                }
+
+                Console.WriteLine($"[GetProfilMahasiswaAsync] No data found for NIM: {nim}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetProfilMahasiswaAsync] ERROR: {ex.Message}");
+                throw;
+            }
+        }
     }
 }

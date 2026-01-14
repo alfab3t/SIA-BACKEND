@@ -38,5 +38,12 @@ namespace astratech_apps_backend.Repositories.Interfaces
         /// <param name="userId">User ID / NIM Mahasiswa</param>
         /// <returns>Status bebas tanggungan: "OK" atau "NOK"</returns>
         Task<string> CheckBebasTanggunganAsync(string userId);
+
+        /// <summary>
+        /// Mendapatkan profil lengkap mahasiswa
+        /// </summary>
+        /// <param name="nim">NIM Mahasiswa</param>
+        /// <returns>Profil lengkap mahasiswa</returns>
+        Task<ProfilMahasiswaResponse?> GetProfilMahasiswaAsync(string nim);
     }
 }
