@@ -377,153 +377,57 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
         // ============================================================
-        // GET DETAIL (Hybrid: SP untuk final ID, Direct SQL untuk draft ID)
+        // GET DETAIL - Menggunakan Stored Procedure
         // ============================================================
         public async Task<CutiAkademikDetailResponse?> GetDetailAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
 
-            // Tentukan apakah ini draft ID atau final ID
-            bool isDraftId = !id.Contains("PMA") && !id.Contains("CA");
-
-            if (isDraftId)
+            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
+            await using var cmd = new SqlCommand("sia_detailCutiAkademik", conn)
             {
-                // Untuk draft ID, gunakan direct SQL query
-                var sql = @"
-                    SELECT a.cak_id, a.mhs_id, b.mhs_nama, c.kon_nama, b.mhs_angkatan,
-                           c.kon_singkatan, a.cak_tahunajaran, a.cak_semester,
-                           a.cak_lampiran_suratpengajuan, a.cak_lampiran, a.cak_status,
-                           a.cak_created_by, 
-                           a.cak_created_date,
-                           FORMAT(a.cak_created_date, 'dd MMMM yyyy', 'id-ID') as tgl,
-                           a.cak_sk, a.srt_no, d.pro_nama, '' as kaprod,
-                           CASE 
-                               WHEN a.cak_app_prodi_date IS NOT NULL THEN FORMAT(a.cak_app_prodi_date, 'dd MMMM yyyy', 'id-ID')
-                               ELSE ''
-                           END as cak_app_prodi_date,
-                           a.cak_approval_prodi, 
-                           CASE 
-                               WHEN a.cak_app_dir1_date IS NOT NULL THEN FORMAT(a.cak_app_dir1_date, 'dd MMMM yyyy', 'id-ID')
-                               ELSE ''
-                           END as cak_app_dir1_date,
-                           a.cak_approval_dir1, b.mhs_alamat, a.cak_menimbang, '' as BulanCuti,
-                           '' as direktur, '' as wadir1, '' as wadir2, '' as wadir3, b.mhs_kodepos
-                    FROM sia_mscutiakademik a
-                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                    LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
-                    WHERE a.cak_id = @id";
+                CommandType = CommandType.StoredProcedure
+            };
 
-                var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@id", id);
+            cmd.Parameters.AddWithValue("@CutiAkademikId", id);
 
-                var reader = await cmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync())
-                    return null;
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+                return null;
 
-                return new CutiAkademikDetailResponse
-                {
-                    Id = reader["cak_id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                Mahasiswa = reader["mhs_nama"].ToString(),
-                Konsentrasi = reader["kon_nama"].ToString(),
-                Angkatan = reader["mhs_angkatan"].ToString(),
-                KonsentrasiSingkatan = reader["kon_singkatan"].ToString(),
-                TahunAjaran = reader["cak_tahunajaran"].ToString(),
-                Semester = reader["cak_semester"].ToString(),
-                LampiranSP = reader["cak_lampiran_suratpengajuan"].ToString(),
-                Lampiran = reader["cak_lampiran"].ToString(),
-                Status = reader["cak_status"].ToString(),
-                CreatedBy = reader["cak_created_by"].ToString(),
-                TglPengajuan = reader["tgl"].ToString(),
-                Sk = reader["cak_sk"].ToString(),
-                SrtNo = reader["srt_no"].ToString(),
-                ProdiNama = reader["pro_nama"].ToString(),
-                Kaprodi = reader["kaprod"].ToString(),
-                    AppProdiDate = reader["cak_app_prodi_date"].ToString(),
-                    ApprovalProdi = reader["cak_approval_prodi"].ToString(),
-                    AppDir1Date = reader["cak_app_dir1_date"].ToString(),
-                    ApprovalDir1 = reader["cak_approval_dir1"].ToString(),
-                    Alamat = reader["mhs_alamat"].ToString(),
-                    Menimbang = reader["cak_menimbang"].ToString(),
-                    BulanCuti = reader["BulanCuti"].ToString(),
-                    Direktur = reader["direktur"].ToString(),
-                    Wadir1 = reader["wadir1"].ToString(),
-                    Wadir2 = reader["wadir2"].ToString(),
-                    Wadir3 = reader["wadir3"].ToString(),
-                    KodePos = reader["mhs_kodepos"].ToString(),
-                };
-            }
-            else
+            return new CutiAkademikDetailResponse
             {
-                // Untuk final ID, gunakan direct SQL query (sama seperti draft) 
-                // karena stored procedure mungkin return data yang salah
-                var sql = @"
-                    SELECT a.cak_id, a.mhs_id, b.mhs_nama, c.kon_nama, b.mhs_angkatan,
-                           c.kon_singkatan, a.cak_tahunajaran, a.cak_semester,
-                           a.cak_lampiran_suratpengajuan, a.cak_lampiran, a.cak_status,
-                           a.cak_created_by, 
-                           a.cak_created_date,
-                           FORMAT(a.cak_created_date, 'dd MMMM yyyy', 'id-ID') as tgl,
-                           a.cak_sk, a.srt_no, d.pro_nama, '' as kaprod,
-                           CASE 
-                               WHEN a.cak_app_prodi_date IS NOT NULL THEN FORMAT(a.cak_app_prodi_date, 'dd MMMM yyyy', 'id-ID')
-                               ELSE ''
-                           END as cak_app_prodi_date,
-                           a.cak_approval_prodi, 
-                           CASE 
-                               WHEN a.cak_app_dir1_date IS NOT NULL THEN FORMAT(a.cak_app_dir1_date, 'dd MMMM yyyy', 'id-ID')
-                               ELSE ''
-                           END as cak_app_dir1_date,
-                           a.cak_approval_dir1, b.mhs_alamat, a.cak_menimbang, '' as BulanCuti,
-                           '' as direktur, '' as wadir1, '' as wadir2, '' as wadir3, b.mhs_kodepos
-                    FROM sia_mscutiakademik a
-                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                    LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
-                    WHERE a.cak_id = @id";
-
-                var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@id", id);
-
-                var reader = await cmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync())
-                    return null;
-
-                return new CutiAkademikDetailResponse
-                {
-                    Id = reader["cak_id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                    Mahasiswa = reader["mhs_nama"].ToString(),
-                    Konsentrasi = reader["kon_nama"].ToString(),
-                    Angkatan = reader["mhs_angkatan"].ToString(),
-                    KonsentrasiSingkatan = reader["kon_singkatan"].ToString(),
-                    TahunAjaran = reader["cak_tahunajaran"].ToString(),
-                    Semester = reader["cak_semester"].ToString(),
-                    LampiranSP = reader["cak_lampiran_suratpengajuan"].ToString(),
-                    Lampiran = reader["cak_lampiran"].ToString(),
-                    Status = reader["cak_status"].ToString(),
-                    CreatedBy = reader["cak_created_by"].ToString(),
-                    TglPengajuan = reader["tgl"].ToString(),
-                    Sk = reader["cak_sk"].ToString(),
-                    SrtNo = reader["srt_no"].ToString(),
-                    ProdiNama = reader["pro_nama"].ToString(),
-                    Kaprodi = reader["kaprod"].ToString(),
-                    AppProdiDate = reader["cak_app_prodi_date"].ToString(),
-                    ApprovalProdi = reader["cak_approval_prodi"].ToString(),
-                    AppDir1Date = reader["cak_app_dir1_date"].ToString(),
-                    ApprovalDir1 = reader["cak_approval_dir1"].ToString(),
-                    Alamat = reader["mhs_alamat"].ToString(),
-                    Menimbang = reader["cak_menimbang"].ToString(),
-                    BulanCuti = reader["BulanCuti"].ToString(),
-                    Direktur = reader["direktur"].ToString(),
-                    Wadir1 = reader["wadir1"].ToString(),
-                    Wadir2 = reader["wadir2"].ToString(),
-                    Wadir3 = reader["wadir3"].ToString(),
-                    KodePos = reader["mhs_kodepos"].ToString(),
-                };
-            }
+                Id = reader["cak_id"].ToString(),
+                MhsId = reader["mhs_id"].ToString(),
+                Mahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                Angkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                KonsentrasiSingkatan = reader["kon_singkatan"]?.ToString() ?? "",
+                TahunAjaran = reader["cak_tahunajaran"]?.ToString() ?? "",
+                Semester = reader["cak_semester"]?.ToString() ?? "",
+                LampiranSP = reader["cak_lampiran_suratpengajuan"]?.ToString() ?? "",
+                Lampiran = reader["cak_lampiran"]?.ToString() ?? "",
+                Status = reader["cak_status"]?.ToString() ?? "",
+                CreatedBy = reader["cak_created_by"]?.ToString() ?? "",
+                TglPengajuan = reader["tgl"]?.ToString() ?? "",
+                Sk = reader["cak_sk"]?.ToString() ?? "",
+                SrtNo = reader["srt_no"]?.ToString() ?? "",
+                ProdiNama = reader["pro_nama"]?.ToString() ?? "",
+                Kaprodi = reader["kaprod"]?.ToString() ?? "",
+                AppProdiDate = reader["cak_app_prodi_date"]?.ToString() ?? "",
+                ApprovalProdi = reader["cak_approval_prodi"]?.ToString() ?? "",
+                AppDir1Date = reader["cak_app_dir1_date"]?.ToString() ?? "",
+                ApprovalDir1 = reader["cak_approval_dir1"]?.ToString() ?? "",
+                Alamat = reader["mhs_alamat"]?.ToString() ?? "",
+                Menimbang = reader["cak_menimbang"]?.ToString() ?? "",
+                BulanCuti = reader["BulanCuti"]?.ToString() ?? "",
+                Direktur = reader["direktur"]?.ToString() ?? "",
+                Wadir1 = reader["wadir1"]?.ToString() ?? "",
+                Wadir2 = reader["wadir2"]?.ToString() ?? "",
+                Wadir3 = reader["wadir3"]?.ToString() ?? "",
+                KodePos = reader["mhs_kodepos"]?.ToString() ?? "",
+            };
         }
 
 
