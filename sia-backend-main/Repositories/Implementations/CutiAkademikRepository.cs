@@ -455,25 +455,23 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var fileLampiran = SaveFile(dto.Lampiran);
 
                 // =============================
-                // Gunakan SP khusus untuk prodi: sia_createCutiAkademikByProdi
+                // Gunakan SP khusus untuk prodi dengan parameter yang sudah di-ALTER
                 // =============================
                 var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                cmd.Parameters.AddWithValue("@p1", "STEP1");
-                cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran ?? "");
-                cmd.Parameters.AddWithValue("@p3", dto.Semester ?? "");
-                cmd.Parameters.AddWithValue("@p4", fileSP ?? "");
-                cmd.Parameters.AddWithValue("@p5", fileLampiran ?? "");
-                cmd.Parameters.AddWithValue("@p6", dto.MhsId ?? "");
-                cmd.Parameters.AddWithValue("@p7", dto.Menimbang ?? "");
-                cmd.Parameters.AddWithValue("@p8", dto.ApprovalProdi ?? "");
-
-                // p9–p50 kosong
-                for (int i = 9; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                cmd.Parameters.AddWithValue("@Step", "STEP1");
+                cmd.Parameters.AddWithValue("@TahunAjaran", dto.TahunAjaran ?? "");
+                cmd.Parameters.AddWithValue("@Semester", dto.Semester ?? "");
+                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileSP ?? "");
+                cmd.Parameters.AddWithValue("@Lampiran", fileLampiran ?? "");
+                cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId ?? "");
+                cmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
+                cmd.Parameters.AddWithValue("@ApprovalProdi", dto.ApprovalProdi ?? "");
+                cmd.Parameters.AddWithValue("@DraftId", ""); // Tidak digunakan di STEP1
+                cmd.Parameters.AddWithValue("@ModifiedBy", ""); // Tidak digunakan di STEP1
 
                 await cmd.ExecuteNonQueryAsync();
 
@@ -573,19 +571,22 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             try
             {
-                // Gunakan SP khusus prodi untuk generate final ID
+                // Gunakan SP khusus prodi untuk generate final ID dengan parameter yang sudah di-ALTER
                 var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                cmd.Parameters.AddWithValue("@p1", "STEP2");
-                cmd.Parameters.AddWithValue("@p2", dto.DraftId ?? "");
-                cmd.Parameters.AddWithValue("@p3", dto.ModifiedBy ?? "");
-
-                // p4..p50 kosong
-                for (int i = 4; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                cmd.Parameters.AddWithValue("@Step", "STEP2");
+                cmd.Parameters.AddWithValue("@TahunAjaran", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@Semester", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@Lampiran", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@MahasiswaId", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@Menimbang", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@ApprovalProdi", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@DraftId", dto.DraftId ?? "");
+                cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy ?? "");
 
                 await cmd.ExecuteNonQueryAsync();
 
