@@ -338,144 +338,39 @@ namespace astratech_apps_backend.Repositories.Implementations
             var result = new List<CutiAkademikListResponse>();
 
             await using var conn = new SqlConnection(_conn);
+            await conn.OpenAsync();
             
-            // If status is empty, use direct query to show all data (similar to riwayat logic)
-            if (string.IsNullOrEmpty(status))
+            // Gunakan stored procedure dengan parameter yang sudah di-ALTER (tidak disingkat)
+            await using var cmd = new SqlCommand("sia_getDataCutiAkademik", conn)
             {
-                var sql = @"
-                    SELECT a.cak_id,
-                           (case when CHARINDEX('PMA',a.cak_id) > 0 then a.cak_id else 'DRAFT' end) as id,
-                           a.mhs_id,
-                           ISNULL(b.mhs_nama, '') as mhs_nama,
-                           ISNULL(c.kon_nama, '') as kon_nama,
-                           a.cak_tahunajaran,
-                           a.cak_semester,
-                           a.cak_approval_prodi as approve_prodi,
-                           a.cak_approval_dir1 as approve_dir1,
-                           CONVERT(VARCHAR(11),a.cak_created_date,106) AS tanggal,
-                           a.srt_no,
-                           a.cak_status as status,
-                           a.cak_created_date
-                    FROM sia_mscutiakademik a
-                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                    WHERE a.cak_status != 'Dihapus'
-                      AND (@mhsId = '%' OR a.mhs_id LIKE '%' + @mhsId + '%')
-                      AND (@search = '' OR a.mhs_id LIKE '%' + @search + '%' OR a.cak_id LIKE '%' + @search + '%')
-                    ORDER BY a.cak_created_date DESC";
+                CommandType = CommandType.StoredProcedure
+            };
 
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@mhsId", mhsId ?? "%");
-                cmd.Parameters.AddWithValue("@search", search ?? "");
+            // Parameter sesuai dengan SP yang sudah di-ALTER
+            cmd.Parameters.AddWithValue("@MahasiswaId", mhsId ?? "");
+            cmd.Parameters.AddWithValue("@Status", status ?? "");
+            cmd.Parameters.AddWithValue("@UserId", userId ?? "");
+            cmd.Parameters.AddWithValue("@Search", search ?? "");
 
-                await conn.OpenAsync();
-                await using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
-                while (await reader.ReadAsync())
-                {
-                    var recordStatus = reader["status"].ToString();
-                    var createdDate = reader["cak_created_date"] as DateTime?;
-                    
-                    // Generate nomor SK dinamis untuk status "Disetujui"
-                    string suratNo = "";
-                    if (recordStatus == "Disetujui" && createdDate.HasValue)
-                    {
-                        var month = createdDate.Value.Month;
-                        var year = createdDate.Value.Year;
-                        var romanMonth = ConvertToRoman(month);
-                        
-                        // Generate nomor SK berdasarkan ID atau timestamp
-                        var cakId = reader["cak_id"].ToString();
-                        var sequence = GenerateSequenceFromId(cakId);
-                        suratNo = $"{sequence:D3}/PA-WADIR-I/SKC/{romanMonth}/{year}";
-                    }
-                    
-                    result.Add(new CutiAkademikListResponse
-                    {
-                        Id = reader["cak_id"].ToString(),
-                        IdDisplay = reader["id"].ToString(),
-                        MhsId = reader["mhs_id"].ToString(),
-                        NamaMahasiswa = reader["mhs_nama"].ToString(),
-                        Prodi = reader["kon_nama"].ToString(),
-                        TahunAjaran = reader["cak_tahunajaran"].ToString(),
-                        Semester = reader["cak_semester"].ToString(),
-                        ApproveProdi = reader["approve_prodi"].ToString(),
-                        ApproveDir1 = reader["approve_dir1"].ToString(),
-                        Tanggal = reader["tanggal"].ToString(),
-                        SuratNo = suratNo, // Generate dinamis
-                        Status = reader["status"].ToString(),
-                    });
-                }
-            }
-            else
+            while (await reader.ReadAsync())
             {
-                // Use direct SQL query instead of stored procedure to avoid parameter issues
-                var sql = @"
-                    SELECT a.cak_id,
-                           (case when CHARINDEX('PMA',a.cak_id) > 0 then a.cak_id else 'DRAFT' end) as id,
-                           a.mhs_id,
-                           ISNULL(b.mhs_nama, '') as mhs_nama,
-                           ISNULL(c.kon_nama, '') as kon_nama,
-                           a.cak_tahunajaran,
-                           a.cak_semester,
-                           a.cak_approval_prodi as approve_prodi,
-                           a.cak_approval_dir1 as approve_dir1,
-                           CONVERT(VARCHAR(11),a.cak_created_date,106) AS tanggal,
-                           a.srt_no,
-                           a.cak_status as status,
-                           a.cak_created_date
-                    FROM sia_mscutiakademik a
-                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                    WHERE a.cak_status != 'Dihapus'
-                      AND (@mhsId = '%' OR a.mhs_id LIKE '%' + @mhsId + '%')
-                      AND (@status = '' OR a.cak_status = @status)
-                      AND (@search = '' OR a.mhs_id LIKE '%' + @search + '%' OR a.cak_id LIKE '%' + @search + '%')
-                    ORDER BY a.cak_created_date DESC";
-
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@mhsId", mhsId ?? "%");
-                cmd.Parameters.AddWithValue("@status", status ?? "");
-                cmd.Parameters.AddWithValue("@search", search ?? "");
-
-                await conn.OpenAsync();
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                while (await reader.ReadAsync())
+                result.Add(new CutiAkademikListResponse
                 {
-                    var recordStatus = reader["status"].ToString();
-                    var createdDate = reader["cak_created_date"] as DateTime?;
-                    
-                    // Generate nomor SK dinamis untuk status "Disetujui"
-                    string suratNo = "";
-                    if (recordStatus == "Disetujui" && createdDate.HasValue)
-                    {
-                        var month = createdDate.Value.Month;
-                        var year = createdDate.Value.Year;
-                        var romanMonth = ConvertToRoman(month);
-                        
-                        // Generate nomor SK berdasarkan ID atau timestamp
-                        var cakId = reader["cak_id"].ToString();
-                        var sequence = GenerateSequenceFromId(cakId);
-                        suratNo = $"{sequence:D3}/PA-WADIR-I/SKC/{romanMonth}/{year}";
-                    }
-                    
-                    result.Add(new CutiAkademikListResponse
-                    {
-                        Id = reader["cak_id"].ToString(),
-                        IdDisplay = reader["id"].ToString(),
-                        MhsId = reader["mhs_id"].ToString(),
-                        NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                        Prodi = reader["kon_nama"]?.ToString() ?? "",
-                        TahunAjaran = reader["cak_tahunajaran"].ToString(),
-                        Semester = reader["cak_semester"].ToString(),
-                        ApproveProdi = reader["approve_prodi"].ToString(),
-                        ApproveDir1 = reader["approve_dir1"].ToString(),
-                        Tanggal = reader["tanggal"].ToString(),
-                        SuratNo = suratNo, // Generate dinamis
-                        Status = reader["status"].ToString(),
-                    });
-                }
+                    Id = reader["cak_id"].ToString(),
+                    IdDisplay = reader["id"].ToString(),
+                    MhsId = reader["mhs_id"].ToString(),
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Prodi = reader["kon_nama"]?.ToString() ?? "",
+                    TahunAjaran = reader["cak_tahunajaran"].ToString(),
+                    Semester = reader["cak_semester"].ToString(),
+                    ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
+                    ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
+                    Tanggal = reader["tanggal"].ToString(),
+                    SuratNo = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["status"].ToString(),
+                });
             }
 
             return result;
