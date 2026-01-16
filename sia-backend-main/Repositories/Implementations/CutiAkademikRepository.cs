@@ -1175,6 +1175,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
 
                 // Use stored procedure sia_createSKCutiAkademik to finalize SK
+                // (Backend yang generate nomor SK, SP hanya simpan)
                 try
                 {
                     var spCmd = new SqlCommand("sia_createSKCutiAkademik", conn)
@@ -1182,13 +1183,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                         CommandType = CommandType.StoredProcedure
                     };
 
-                    spCmd.Parameters.AddWithValue("@p1", dto.Id);        // cak_id
-                    spCmd.Parameters.AddWithValue("@p2", noSK);          // cak_sk (nomor SK)
-                    spCmd.Parameters.AddWithValue("@p3", dto.CreatedBy); // cak_modif_by
-
-                    // p4-p50 kosong
-                    for (int i = 4; i <= 50; i++)
-                        spCmd.Parameters.AddWithValue($"@p{i}", "");
+                    spCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+                    spCmd.Parameters.AddWithValue("@NomorSK", noSK);
+                    spCmd.Parameters.AddWithValue("@ModifiedBy", dto.CreatedBy);
 
                     Console.WriteLine($"[CreateSKAsync] Executing stored procedure with SK: {noSK}");
                     var spRows = await spCmd.ExecuteNonQueryAsync();
