@@ -390,22 +390,18 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             else
             {
-                // Untuk final ID, gunakan stored procedure
+                // Untuk final ID, gunakan stored procedure dengan parameter yang sudah di-ALTER
                 var cmd = new SqlCommand("sia_editCutiAkademik", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                cmd.Parameters.AddWithValue("@p1", id);
-                cmd.Parameters.AddWithValue("@p2", dto.TahunAjaran ?? "");
-                cmd.Parameters.AddWithValue("@p3", dto.Semester ?? "");
-                cmd.Parameters.AddWithValue("@p4", fileSP ?? "");
-                cmd.Parameters.AddWithValue("@p5", fileLampiran ?? "");
-                cmd.Parameters.AddWithValue("@p6", dto.ModifiedBy ?? "");
-
-                // p7 – p50 kosong sesuai kebutuhan SP
-                for (int i = 7; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                cmd.Parameters.AddWithValue("@CutiAkademikId", id);
+                cmd.Parameters.AddWithValue("@TahunAjaran", dto.TahunAjaran ?? "");
+                cmd.Parameters.AddWithValue("@Semester", dto.Semester ?? "");
+                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileSP ?? "");
+                cmd.Parameters.AddWithValue("@Lampiran", fileLampiran ?? "");
+                cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy ?? "");
 
                 var rows = await cmd.ExecuteNonQueryAsync();
                 return rows > 0;
