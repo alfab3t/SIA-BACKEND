@@ -39,71 +39,125 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // STEP 1 — Create Draft (SP: sia_createCutiAkademik)
+        // STEP 1 — Create Draft (Menggunakan SP sia_createCutiAkademik)
         // ============================================================
         public async Task<string?> CreateDraftAsync(CreateDraftCutiRequest dto)
         {
             using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
 
-            // =============================
-            // Generate unique draft ID dengan retry mechanism
-            // =============================
-            string newDraftId = await GenerateUniqueDraftIdAsync(conn);
-
-            // =============================
             // Simpan file terlebih dahulu
-            // =============================
             var fileSP = SaveFile(dto.LampiranSuratPengajuan);
             var fileLampiran = SaveFile(dto.Lampiran);
 
-            // =============================
-            // Insert langsung ke tabel (bypass SP untuk draft)
-            // =============================
-            var insertSql = @"
-                INSERT INTO sia_mscutiakademik (
-                    cak_id, 
-                    mhs_id, 
-                    cak_tahunajaran, 
-                    cak_semester, 
-                    cak_lampiran_suratpengajuan, 
-                    cak_lampiran, 
-                    cak_status, 
-                    cak_created_date, 
-                    cak_created_by
-                ) VALUES (
-                    @cak_id, 
-                    @mhs_id, 
-                    @tahunajaran, 
-                    @semester, 
-                    @lampiran_sp, 
-                    @lampiran, 
-                    'Draft', 
-                    GETDATE(), 
-                    @created_by
-                )";
+            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
+            await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
-            var cmd = new SqlCommand(insertSql, conn);
-            cmd.Parameters.AddWithValue("@cak_id", newDraftId);
-            cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
-            cmd.Parameters.AddWithValue("@tahunajaran", dto.TahunAjaran ?? "");
-            cmd.Parameters.AddWithValue("@semester", dto.Semester ?? "");
-            cmd.Parameters.AddWithValue("@lampiran_sp", fileSP ?? "");
-            cmd.Parameters.AddWithValue("@lampiran", fileLampiran ?? "");
-            cmd.Parameters.AddWithValue("@created_by", dto.MhsId);
+            cmd.Parameters.AddWithValue("@Step", "STEP1");
+            cmd.Parameters.AddWithValue("@TahunAjaran", dto.TahunAjaran ?? "");
+            cmd.Parameters.AddWithValue("@Semester", dto.Semester ?? "");
+            cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileSP ?? "");
+            cmd.Parameters.AddWithValue("@Lampiran", fileLampiran ?? "");
+            cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId);
+            cmd.Parameters.AddWithValue("@DraftId", ""); // Tidak digunakan di STEP1
+            cmd.Parameters.AddWithValue("@ModifiedBy", ""); // Tidak digunakan di STEP1
 
+            await cmd.ExecuteNonQueryAsync();
+
+            // Ambil draft ID yang baru dibuat
+            var getDraftIdCmd = new SqlCommand(@"
+                SELECT TOP 1 cak_id 
+                FROM sia_mscutiakademik 
+                WHERE cak_created_by = @mhs_id 
+                  AND cak_status = 'Draft'
+                  AND cak_id NOT LIKE '%CA%'
+                ORDER BY cak_created_date DESC", conn);
+            getDraftIdCmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
+
+            var draftId = await getDraftIdCmd.ExecuteScalarAsync();
+            return draftId?.ToString();
+        }
+
+
+
+
+        // ============================================================
+        // STEP 2 — Generate Final ID (Menggunakan SP sia_createCutiAkademik)
+        // ============================================================
+        public async Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto)
+        {
             try
             {
+                Console.WriteLine($"[Repository] GenerateIdAsync - DraftId: '{dto.DraftId}', ModifiedBy: '{dto.ModifiedBy}'");
+                
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                // Validate draft record exists and is in Draft status
+                var checkCmd = new SqlCommand(@"
+                    SELECT cak_id, cak_status, mhs_id
+                    FROM sia_mscutiakademik 
+                    WHERE cak_id = @draftId", conn);
+                checkCmd.Parameters.AddWithValue("@draftId", dto.DraftId);
+                
+                var reader = await checkCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    reader.Close();
+                    throw new Exception($"Draft record dengan ID '{dto.DraftId}' tidak ditemukan.");
+                }
+                
+                var status = reader["cak_status"].ToString();
+                reader.Close();
+                
+                if (status != "Draft")
+                {
+                    throw new Exception($"Record dengan ID '{dto.DraftId}' bukan dalam status Draft (status: {status}).");
+                }
+                
+                // Gunakan stored procedure dengan parameter yang sudah di-ALTER
+                await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@Step", "STEP2");
+                cmd.Parameters.AddWithValue("@TahunAjaran", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@Semester", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@Lampiran", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@MahasiswaId", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@DraftId", dto.DraftId);
+                cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy);
+
                 await cmd.ExecuteNonQueryAsync();
-                return newDraftId;
+                
+                // Ambil final ID yang baru dibuat
+                var getFinalIdCmd = new SqlCommand(@"
+                    SELECT cak_id 
+                    FROM sia_mscutiakademik 
+                    WHERE cak_id LIKE '%/PMA/CA/%'
+                      AND cak_modif_by = @modifiedBy
+                    ORDER BY cak_modif_date DESC", conn);
+                getFinalIdCmd.Parameters.AddWithValue("@modifiedBy", dto.ModifiedBy);
+
+                var finalId = await getFinalIdCmd.ExecuteScalarAsync();
+                
+                if (finalId == null)
+                {
+                    throw new Exception("Gagal mengambil final ID setelah generate.");
+                }
+                
+                Console.WriteLine($"[Repository] Successfully generated final ID: {finalId}");
+                return finalId.ToString();
             }
-            catch (SqlException ex) when (ex.Number == 2627) // Primary key violation
+            catch (Exception ex)
             {
-                // Jika masih ada collision, coba generate ID baru
-                newDraftId = await GenerateUniqueDraftIdAsync(conn);
-                cmd.Parameters["@cak_id"].Value = newDraftId;
-                await cmd.ExecuteNonQueryAsync();
-                return newDraftId;
+                Console.WriteLine($"[Repository] ERROR in GenerateIdAsync: {ex.Message}");
+                throw;
             }
         }
 
@@ -132,177 +186,6 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             // Fallback: gunakan GUID jika semua attempt gagal
             return Guid.NewGuid().ToString("N")[..10];
-        }
-
-
-
-
-        // ============================================================
-        // STEP 2 — Generate Final ID (FIXED: Bypass Buggy SP)
-        // ============================================================
-        public async Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto)
-        {
-            try
-            {
-                Console.WriteLine($"[Repository] GenerateIdAsync - DraftId: '{dto.DraftId}', ModifiedBy: '{dto.ModifiedBy}'");
-                
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-                
-                // Validate draft record exists and is in Draft status
-                var checkCmd = new SqlCommand(@"
-                    SELECT cak_id, cak_status, mhs_id
-                    FROM sia_mscutiakademik 
-                    WHERE cak_id = @draftId", conn);
-                checkCmd.Parameters.AddWithValue("@draftId", dto.DraftId);
-                
-                var reader = await checkCmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync())
-                {
-                    reader.Close();
-                    throw new Exception($"Draft record dengan ID '{dto.DraftId}' tidak ditemukan.");
-                }
-                
-                var status = reader["cak_status"].ToString();
-                var mhsId = reader["mhs_id"].ToString();
-                reader.Close();
-                
-                if (status != "Draft")
-                {
-                    throw new Exception($"Record dengan ID '{dto.DraftId}' bukan dalam status Draft (status: {status}).");
-                }
-                
-                // Generate unique final ID using SAFE logic (not buggy SP)
-                string finalId = await GenerateUniqueFinalIdSafeAsync(conn);
-                Console.WriteLine($"[Repository] Generated unique final ID: {finalId}");
-                
-                // Update draft record to final ID with proper status
-                var updateCmd = new SqlCommand(@"
-                    UPDATE sia_mscutiakademik 
-                    SET cak_id = @finalId,
-                        cak_status = 'Belum Disetujui Prodi',
-                        cak_modif_date = GETDATE(),
-                        cak_modif_by = @modifiedBy
-                    WHERE cak_id = @draftId", conn);
-                
-                updateCmd.Parameters.AddWithValue("@finalId", finalId);
-                updateCmd.Parameters.AddWithValue("@modifiedBy", dto.ModifiedBy);
-                updateCmd.Parameters.AddWithValue("@draftId", dto.DraftId);
-                
-                var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
-                
-                if (rowsAffected == 0)
-                {
-                    throw new Exception("Gagal mengupdate draft record ke final ID.");
-                }
-                
-                Console.WriteLine($"[Repository] Successfully updated draft to final ID: {finalId}");
-                return finalId;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Repository] ERROR in GenerateIdAsync: {ex.Message}");
-                throw;
-            }
-        }
-
-        // ============================================================
-        // Helper: Generate Unique Final ID (SAFE - No SP Dependency)
-        // ============================================================
-        private async Task<string> GenerateUniqueFinalIdSafeAsync(SqlConnection conn)
-        {
-            try
-            {
-                // Get current month in Roman numerals (same as SP logic)
-                var now = DateTime.Now;
-                var month = now.Month;
-                var year = now.Year;
-                
-                // Convert month to Roman using same logic as SP function
-                string romanMonth = ConvertToRoman(month);
-                string kode = $"/PMA/CA/{romanMonth}/{year}";
-                
-                Console.WriteLine($"[Repository] Generating ID with kode: {kode}");
-                
-                // Get the HIGHEST sequence number for current year (FIXED: order by cak_id, not created_date)
-                var getLastIdCmd = new SqlCommand(@"
-                    SELECT TOP 1 cak_id 
-                    FROM sia_mscutiakademik 
-                    WHERE cak_id LIKE '%/PMA/CA/%' 
-                      AND cak_id LIKE '%/' + CAST(@year AS VARCHAR(4))
-                    ORDER BY CAST(LEFT(cak_id, 3) AS INT) DESC", conn);
-                
-                getLastIdCmd.Parameters.AddWithValue("@year", year);
-                
-                var lastId = await getLastIdCmd.ExecuteScalarAsync() as string;
-                Console.WriteLine($"[Repository] Last ID found: {lastId}");
-                
-                int nextSequence = 1;
-                
-                if (!string.IsNullOrEmpty(lastId))
-                {
-                    // Extract sequence number from ID like "052/PMA/CA/XII/2025"
-                    try
-                    {
-                        var sequenceStr = lastId.Substring(0, 3);
-                        if (int.TryParse(sequenceStr, out int currentSequence))
-                        {
-                            nextSequence = currentSequence + 1;
-                        }
-                    }
-                    catch
-                    {
-                        // If parsing fails, start from 1
-                        nextSequence = 1;
-                    }
-                }
-                
-                Console.WriteLine($"[Repository] Next sequence: {nextSequence}");
-                
-                // Generate new ID with collision protection
-                for (int attempt = 0; attempt < 20; attempt++)
-                {
-                    string candidateId;
-                    
-                    // Format sequence number with leading zeros (same as SP)
-                    if (nextSequence < 10)
-                        candidateId = $"00{nextSequence}{kode}";
-                    else if (nextSequence < 100)
-                        candidateId = $"0{nextSequence}{kode}";
-                    else
-                        candidateId = $"{nextSequence}{kode}";
-                    
-                    Console.WriteLine($"[Repository] Trying candidate ID: {candidateId}");
-                    
-                    // Check if this ID already exists
-                    var checkExistCmd = new SqlCommand(@"
-                        SELECT COUNT(*) 
-                        FROM sia_mscutiakademik 
-                        WHERE cak_id = @candidateId", conn);
-                    checkExistCmd.Parameters.AddWithValue("@candidateId", candidateId);
-                    
-                    var count = (int)await checkExistCmd.ExecuteScalarAsync();
-                    if (count == 0)
-                    {
-                        Console.WriteLine($"[Repository] ID is unique: {candidateId}");
-                        return candidateId;
-                    }
-                    
-                    Console.WriteLine($"[Repository] ID collision detected, trying next sequence");
-                    nextSequence++;
-                }
-                
-                // If all attempts fail, use timestamp fallback
-                var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 1000;
-                var fallbackId = $"{timestamp:D3}{kode}";
-                Console.WriteLine($"[Repository] Using fallback ID: {fallbackId}");
-                return fallbackId;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Repository] ERROR in GenerateUniqueFinalIdSafeAsync: {ex.Message}");
-                throw;
-            }
         }
 
         // ============================================================
