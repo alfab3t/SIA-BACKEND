@@ -939,19 +939,15 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 Console.WriteLine($"[ApproveProdiCutiAsync] Current status: {currentStatus}");
 
-                // Try stored procedure first
+                // Try stored procedure first dengan parameter yang sudah di-ALTER
                 var spCmd = new SqlCommand("sia_setujuiCutiAkademikProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                spCmd.Parameters.AddWithValue("@p1", dto.Id);
-                spCmd.Parameters.AddWithValue("@p2", dto.Menimbang ?? "");
-                spCmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
-
-                // p4-p50 kosong
-                for (int i = 4; i <= 50; i++)
-                    spCmd.Parameters.AddWithValue($"@p{i}", "");
+                spCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+                spCmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
+                spCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
 
                 Console.WriteLine($"[ApproveProdiCutiAsync] Trying stored procedure first...");
                 var spRows = await spCmd.ExecuteNonQueryAsync();
