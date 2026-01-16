@@ -745,10 +745,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 Console.WriteLine($"[ApproveCutiAsync] Current status: '{currentStatus}'");
                 Console.WriteLine($"[ApproveCutiAsync] MHS ID: '{mhsId}'");
 
-                // Handle finance approval specifically
+                // Handle finance approval - now using stored procedure for auto nomor surat generation
                 if (dto.Role.ToLower() == "finance" || dto.Role.ToLower() == "karyawan")
                 {
-                    Console.WriteLine($"[ApproveCutiAsync] Processing finance approval...");
+                    Console.WriteLine($"[ApproveCutiAsync] Processing finance approval using SP...");
                     
                     // Finance approval should change status from "Belum Disetujui Finance" to "Menunggu Upload SK"
                     if (currentStatus != "Belum Disetujui Finance")
@@ -759,56 +759,61 @@ namespace astratech_apps_backend.Repositories.Implementations
                         return false;
                     }
 
-                    Console.WriteLine($"[ApproveCutiAsync] Status validation passed, executing finance approval update...");
+                    Console.WriteLine($"[ApproveCutiAsync] Status validation passed, executing finance approval via SP...");
 
-                    var financeCmd = new SqlCommand(@"
-                        UPDATE sia_mscutiakademik 
-                        SET cak_approval_dakap = @approvedBy,
-                            cak_status = 'Menunggu Upload SK',
-                            cak_app_dakap_date = GETDATE(),
-                            cak_modif_date = GETDATE(),
-                            cak_modif_by = @approvedBy
-                        WHERE cak_id = @id", conn);
-
-                    financeCmd.Parameters.AddWithValue("@id", dto.Id);
-                    financeCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
-
-                    Console.WriteLine($"[ApproveCutiAsync] Executing SQL update...");
-                    Console.WriteLine($"[ApproveCutiAsync] Parameters: @id='{dto.Id}', @approvedBy='{dto.ApprovedBy}'");
-
-                    var financeRows = await financeCmd.ExecuteNonQueryAsync();
-                    Console.WriteLine($"[ApproveCutiAsync] Finance approval rows affected: {financeRows}");
-                    
-                    if (financeRows > 0)
+                    // Use stored procedure for finance approval (will auto-generate nomor surat)
+                    var financeSpCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
                     {
-                        Console.WriteLine($"[ApproveCutiAsync] Finance approval successful!");
+                        CommandType = CommandType.StoredProcedure
+                    };
+
+                    financeSpCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+                    financeSpCmd.Parameters.AddWithValue("@Role", "finance");
+                    financeSpCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
+
+                    Console.WriteLine($"[ApproveCutiAsync] Executing SP for finance approval...");
+                    var financeRows = await financeSpCmd.ExecuteNonQueryAsync();
+                    Console.WriteLine($"[ApproveCutiAsync] Finance approval SP executed, rows affected: {financeRows}");
+                    
+                    // Verify the update by checking the new status and nomor surat
+                    // (Don't rely on rows affected because SP may return 0 due to internal SELECT statements)
+                    var verifyCmd = new SqlCommand(
+                        "SELECT cak_status, cak_approval_dakap, srt_no FROM sia_mscutiakademik WHERE cak_id = @id", conn);
+                    verifyCmd.Parameters.AddWithValue("@id", dto.Id);
+                    
+                    var verifyReader = await verifyCmd.ExecuteReaderAsync();
+                    if (await verifyReader.ReadAsync())
+                    {
+                        var updatedStatus = verifyReader["cak_status"].ToString();
+                        var updatedApproval = verifyReader["cak_approval_dakap"].ToString();
+                        var nomorSurat = verifyReader["srt_no"].ToString();
+                        Console.WriteLine($"[ApproveCutiAsync] Verification - New status: '{updatedStatus}'");
+                        Console.WriteLine($"[ApproveCutiAsync] Verification - New approval: '{updatedApproval}'");
+                        Console.WriteLine($"[ApproveCutiAsync] Verification - Nomor Surat: '{nomorSurat}'");
                         
-                        // Verify the update by checking the new status
-                        var verifyCmd = new SqlCommand(
-                            "SELECT cak_status, cak_approval_dakap FROM sia_mscutiakademik WHERE cak_id = @id", conn);
-                        verifyCmd.Parameters.AddWithValue("@id", dto.Id);
-                        
-                        var verifyReader = await verifyCmd.ExecuteReaderAsync();
-                        if (await verifyReader.ReadAsync())
-                        {
-                            var updatedStatus = verifyReader["cak_status"].ToString();
-                            var updatedApproval = verifyReader["cak_approval_dakap"].ToString();
-                            Console.WriteLine($"[ApproveCutiAsync] Verification - New status: '{updatedStatus}'");
-                            Console.WriteLine($"[ApproveCutiAsync] Verification - New approval: '{updatedApproval}'");
-                        }
                         verifyReader.Close();
                         
-                        return true;
+                        // Check if status actually changed to "Menunggu Upload SK"
+                        if (updatedStatus == "Menunggu Upload SK")
+                        {
+                            Console.WriteLine($"[ApproveCutiAsync] Finance approval successful - status changed to 'Menunggu Upload SK'!");
+                            return true;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[ApproveCutiAsync] Finance approval failed - status did not change to expected value");
+                            return false;
+                        }
                     }
                     else
                     {
-                        Console.WriteLine($"[ApproveCutiAsync] Finance approval failed - no rows affected");
-                        Console.WriteLine($"[ApproveCutiAsync] This might indicate the WHERE condition didn't match any records");
+                        verifyReader.Close();
+                        Console.WriteLine($"[ApproveCutiAsync] Finance approval failed - record not found after SP execution");
                         return false;
                     }
                 }
 
-                // For other roles, try stored procedure first
+                // For other roles (prodi/wadir1), use stored procedure
                 Console.WriteLine($"[ApproveCutiAsync] Processing non-finance approval for role: {dto.Role}");
                 
                 var spCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
@@ -816,13 +821,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                spCmd.Parameters.AddWithValue("@p1", dto.Id);
-                spCmd.Parameters.AddWithValue("@p2", dto.Role.ToLower());
-                spCmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
-
-                // p4-p50 kosong
-                for (int i = 4; i <= 50; i++)
-                    spCmd.Parameters.AddWithValue($"@p{i}", "");
+                spCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+                spCmd.Parameters.AddWithValue("@Role", dto.Role.ToLower());
+                spCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
 
                 Console.WriteLine($"[ApproveCutiAsync] Trying stored procedure for role: {dto.Role}");
                 var spRows = await spCmd.ExecuteNonQueryAsync();
