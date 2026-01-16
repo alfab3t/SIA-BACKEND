@@ -653,27 +653,16 @@ namespace astratech_apps_backend.Repositories.Implementations
             var result = new List<CutiAkademikRiwayatExcelResponse>();
 
             await using var conn = new SqlConnection(_conn);
-            
-            // Use direct SQL query to filter only "Disetujui" status
-            var sql = @"
-                SELECT 
-                    b.mhs_id as NIM,
-                    b.mhs_nama as [Nama Mahasiswa],
-                    c.kon_nama as Konsentrasi,
-                    FORMAT(a.cak_created_date, 'dd MMMM yyyy', 'id-ID') as [Tanggal Pengajuan],
-                    ISNULL(a.srt_no, '') as [No SK],
-                    a.cak_id as [No Pengajuan]
-                FROM sia_mscutiakademik a
-                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                WHERE a.cak_status = 'Disetujui'
-                  AND (@userId = '' OR a.mhs_id = @userId)
-                ORDER BY a.cak_created_date DESC";
-
-            await using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@userId", userId ?? "");
-
             await conn.OpenAsync();
+            
+            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
+            await using var cmd = new SqlCommand("sia_getDataRiwayatCutiAkademikExcel", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@UserId", userId ?? "");
+
             await using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
