@@ -426,11 +426,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                cmd.Parameters.AddWithValue("@p1", id);
-                cmd.Parameters.AddWithValue("@p2", modifiedBy);
-
-                for (int i = 3; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                // Gunakan parameter yang sudah di-ALTER (tidak disingkat)
+                cmd.Parameters.AddWithValue("@CutiAkademikId", id);
+                cmd.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
 
                 await conn.OpenAsync();
                 await cmd.ExecuteNonQueryAsync();
