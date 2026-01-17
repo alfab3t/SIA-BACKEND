@@ -715,14 +715,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                spCmd.Parameters.AddWithValue("@p1", id);         // mdu_id
-                spCmd.Parameters.AddWithValue("@p2", updatedBy);   // mdu_modif_by
-
-                // @p3 - @p50 harus tetap dikirim
-                for (int i = 3; i <= 50; i++)
-                {
-                    spCmd.Parameters.AddWithValue($"@p{i}", "");
-                }
+                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+                spCmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+                spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
 
                 var spRows = await spCmd.ExecuteNonQueryAsync();
                 Console.WriteLine($"[SoftDeleteAsync] SP - ID: {id}, UpdatedBy: {updatedBy}, Rows affected: {spRows}");
