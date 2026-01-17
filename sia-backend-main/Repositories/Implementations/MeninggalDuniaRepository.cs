@@ -1336,15 +1336,12 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                cmd.Parameters.AddWithValue("@p1", id);               // mdu_id
-                cmd.Parameters.AddWithValue("@p2", dto.Role ?? "");   // jenis penolak
-                cmd.Parameters.AddWithValue("@p3", dto.Username ?? ""); // username
+                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+                cmd.Parameters.AddWithValue("@Role", dto.Role ?? "");
+                cmd.Parameters.AddWithValue("@Username", dto.Username ?? "");
                 
-                Console.WriteLine($"[RejectAsync] Parameters - @p1: '{id}', @p2: '{dto.Role}', @p3: '{dto.Username}'");
-
-                // sisa parameter p4 - p50 = NULL
-                for (int i = 4; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", DBNull.Value);
+                Console.WriteLine($"[RejectAsync] Parameters - @MeninggalDuniaId: '{id}', @Role: '{dto.Role}', @Username: '{dto.Username}'");
 
                 Console.WriteLine($"[RejectAsync] Executing stored procedure...");
                 
