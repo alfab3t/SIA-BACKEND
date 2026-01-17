@@ -370,45 +370,42 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
-        //public async Task<IEnumerable<MeninggalDuniaListResponse>> GetAllAsync(string status, string roleId)
-        //{
-        //    var list = new List<MeninggalDuniaListResponse>();
+        public async Task<IEnumerable<MeninggalDuniaListResponse>> GetAllAsync(string status, string roleId)
+        {
+            var list = new List<MeninggalDuniaListResponse>();
 
-        //    await using var conn = new SqlConnection(_conn);
-        //    await using var cmd = new SqlCommand("sia_getDataMeninggalDunia", conn)
-        //    {
-        //        CommandType = CommandType.StoredProcedure
-        //    };
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("sia_getDataMeninggalDunia", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
-        //    // SP punya 50 parameter, tapi hanya p2 & p3 yang dipakai
-        //    cmd.Parameters.AddWithValue("@p1", "");
-        //    cmd.Parameters.AddWithValue("@p2", status ?? "");
-        //    cmd.Parameters.AddWithValue("@p3", roleId ?? "");
+            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+            cmd.Parameters.AddWithValue("@Status", status ?? "");
+            cmd.Parameters.AddWithValue("@RoleId", roleId ?? "");
 
-        //    // sisanya dummy agar SP tidak error
-        //    for (int i = 4; i <= 50; i++)
-        //        cmd.Parameters.AddWithValue($"@p{i}", "");
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
-        //    await conn.OpenAsync();
-        //    await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new MeninggalDuniaListResponse
+                {
+                    Id = reader["mdu_id"]?.ToString() ?? "",
+                    IdAlternative = reader["mdu_id_alternative"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
+                    ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
+                    CreatedDate = reader["mdu_created_date"]?.ToString() ?? "",   // varchar(11)
+                    TanggalBuat = reader["tanggal_buat"] as DateTime? ?? DateTime.MinValue,
+                    SuratNo = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["mdu_status"]?.ToString() ?? ""
+                    // Field tambahan (mhs_nama, nim, pro_nama) tersedia di SP tapi tidak di-map ke DTO ini
+                    // karena DTO tidak memiliki property tersebut
+                });
+            }
 
-        //    while (await reader.ReadAsync())
-        //    {
-        //        list.Add(new MeninggalDuniaListResponse
-        //        {
-        //            Id = reader["mdu_id"].ToString(),
-        //            IdAlternative = reader["mdu_id_alternative"].ToString(),
-        //            MhsId = reader["mhs_id"].ToString(),
-        //            ApproveDir1By = reader["mdu_approve_dir1_by"].ToString(),
-        //            CreatedDate = reader["mdu_created_date"].ToString(),   // varchar(11)
-        //            TanggalBuat = reader["tanggal_buat"] as DateTime? ?? DateTime.MinValue,
-        //            SuratNo = reader["srt_no"].ToString(),
-        //            Status = reader["mdu_status"].ToString(),
-        //        });
-        //    }
-
-        //    return list;
-        //}
+            return list;
+        }
 
 
         public async Task<(IEnumerable<MeninggalDuniaListDto> Data, int TotalData)>
