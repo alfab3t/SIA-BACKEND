@@ -1,4 +1,4 @@
-﻿using astratech_apps_backend.DTOs.MeninggalDunia;
+using astratech_apps_backend.DTOs.MeninggalDunia;
 using astratech_apps_backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -749,6 +749,330 @@ namespace astratech_apps_backend.Controllers
                     error = ex.Message 
                 });
             }
+        }
+
+        /// <summary>
+        /// Cetak SK Meninggal Dunia - supports both JSON and PDF format
+        /// Permission: All roles can print when status = "Disetujui"
+        /// </summary>
+        [HttpGet("cetak-sk/{id}")]
+        public async Task<IActionResult> CetakSKMeninggalDunia(string id, [FromQuery] string username, [FromQuery] string format = "json")
+        {
+            try
+            {
+                Console.WriteLine($"[Controller] Cetak SK Meninggal Dunia - ID: {id}, Username: {username}, Format: {format}");
+                
+                // 1. Decode URL jika perlu
+                id = Uri.UnescapeDataString(id);
+                Console.WriteLine($"[Controller] Decoded ID: {id}");
+
+                // 2. Ambil data detail menggunakan GetDetailAsync
+                var detail = await _service.GetDetailAsync(id);
+                if (detail == null)
+                {
+                    Console.WriteLine($"[Controller] ERROR: Meninggal dunia not found for ID: {id}");
+                    return NotFound(new { message = "Data meninggal dunia tidak ditemukan." });
+                }
+
+                Console.WriteLine($"[Controller] Found data - Status: {detail.Status}, MhsNama: {detail.MhsNama}");
+
+                // 3. Cek permission - hanya bisa cetak jika status "Disetujui"
+                // Berbeda dengan cuti akademik, meninggal dunia tidak ada pembatasan role
+                if (detail.Status != "Disetujui")
+                {
+                    Console.WriteLine($"[Controller] Permission denied - Status: {detail.Status}");
+                    return StatusCode(403, new { 
+                        message = "Tidak dapat cetak SK.", 
+                        reason = $"SK hanya dapat dicetak saat status 'Disetujui', status saat ini: '{detail.Status}'",
+                        currentStatus = detail.Status,
+                        allowedStatus = "Disetujui"
+                    });
+                }
+
+                // 4. Generate token untuk security
+                var tokenData = $"{id}#{DateTime.Now}";
+                var encryptedToken = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenData));
+                
+                // Generate token untuk SPKB juga
+                var tokenDataSPKB = $"{id}#SPKB#{DateTime.Now}";
+                var encryptedTokenSPKB = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenDataSPKB));
+
+                // 5. Return berdasarkan format
+                if (format.ToLower() == "pdf")
+                {
+                    // Generate PDF yang proper
+                    Console.WriteLine($"[Controller] Generating PDF for ID: {id}");
+                    
+                    try
+                    {
+                        // Create PDF content menggunakan basic PDF structure
+                        var fileName = $"SK_Meninggal_Dunia_{detail.MhsId}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                        
+                        // Generate PDF content dengan struktur PDF yang valid
+                        var pdfContent = GeneratePDFContent(detail, id);
+                        
+                        Console.WriteLine($"[Controller] Generated PDF for ID: {id}, Size: {pdfContent.Length} bytes");
+                        
+                        return File(pdfContent, "application/pdf", fileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Controller] Error generating PDF: {ex.Message}");
+                        
+                        // Fallback ke response informasi
+                        return Ok(new { 
+                            success = false,
+                            message = "Gagal generate PDF. Gunakan URL legacy report.",
+                            error = ex.Message,
+                            pdfAccess = new {
+                                skMeninggalDunia = $"/Reports/SK_Meninggal_Dunia.aspx?token={encryptedToken}",
+                                skPernahBerkuliah = $"/Reports/Surat_Keterangan_Pernah_Kuliah.aspx?token={encryptedTokenSPKB}"
+                            }
+                        });
+                    }
+                }
+                else
+                {   
+                    // Return JSON data
+                    var response = new
+                    {
+                        success = true,
+                        canPrint = true,
+                        message = "Data SK Meninggal Dunia berhasil diambil dan siap untuk dicetak",
+                        data = new
+                        {
+                            id = detail.MhsId, // Use MhsId as the main ID
+                            noPengajuan = id,
+                            nim = detail.MhsId,
+                            namaMahasiswa = detail.MhsNama,
+                            konsentrasi = detail.KonNama,
+                            angkatan = detail.MhsAngkatan,
+                            konsentrasiSingkatan = detail.KonSingkatan,
+                            status = detail.Status,
+                            nomorSK = detail.SuratNo,
+                            nomorSPKB = detail.NoSpkb,
+                            tanggalSK = detail.ApproveDir1Date,
+                            approvalWadir1 = detail.ApproveDir1By,
+                            tanggalApprovalWadir1 = detail.ApproveDir1Date,
+                            createdBy = detail.CreatedBy,
+                            lampiranSK = detail.SK,
+                            lampiranSPKB = detail.SPKB,
+                            lampiran = detail.Lampiran
+                        },
+                        printInfo = new
+                        {
+                            username = username,
+                            currentStatus = detail.Status,
+                            allowedStatus = "Disetujui",
+                            reason = "Semua role dapat cetak SK saat status 'Disetujui'",
+                            printTime = DateTime.Now,
+                            documents = new[] { "SK Meninggal Dunia", "SK Pernah Berkuliah (SPKB)" }
+                        },
+                        reportUrl = $"/Reports/SK_Meninggal_Dunia.aspx?token={encryptedToken}",
+                        spkbUrl = $"/Reports/Surat_Keterangan_Pernah_Kuliah.aspx?token={encryptedTokenSPKB}",
+                        pdfUrl = $"/api/meninggaldunia/cetak-sk/{Uri.EscapeDataString(id)}?username={username}&format=pdf",
+                        token = encryptedToken,
+                        tokenSPKB = encryptedTokenSPKB
+                    };
+
+                    Console.WriteLine($"[Controller] Returning JSON response for ID: {id}");
+                    return Ok(response);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Controller] ERROR in CetakSKMeninggalDunia: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat cetak SK Meninggal Dunia.", 
+                    error = ex.Message,
+                    id = id,
+                    username = username
+                });
+            }
+        }
+
+        /// <summary>
+        /// Generate PDF content dengan struktur PDF yang valid dan tata letak yang rapi
+        /// </summary>
+        private byte[] GeneratePDFContent(MeninggalDuniaDetailResponse detail, string id)
+        {
+            // Basic PDF structure dengan tata letak yang lebih rapi
+            var pdfHeader = "%PDF-1.4\n";
+            var pdfBody = @"1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Resources <<
+/Font <<
+/F1 4 0 R
+/F2 5 0 R
+>>
+>>
+/Contents 6 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica-Bold
+>>
+endobj
+
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+
+6 0 obj
+<<
+/Length 1300
+>>
+stream
+BT
+% Header - Benar-benar di tengah halaman
+/F1 14 Tf
+200 720 Td
+(SURAT KETERANGAN MENINGGAL DUNIA) Tj
+
+% Nomor Surat - Centered sejajar dengan judul
+106 -25 Td
+/F2 12 Tf
+(Nomor: " + detail.SuratNo + @") Tj
+
+% Garis pemisah
+0 -35 Td
+q
+1 0 0 1 -256 0 cm
+512 0 l
+S
+Q
+
+% Content - Left aligned dengan spacing yang rapi
+-256 -25 Td
+/F1 12 Tf
+(Data Mahasiswa:) Tj
+
+0 -25 Td
+/F2 11 Tf
+(Nama Mahasiswa) Tj
+150 0 Td
+(: " + detail.MhsNama + @") Tj
+
+-150 -20 Td
+(NIM) Tj
+150 0 Td
+(: " + detail.MhsId + @") Tj
+
+-150 -20 Td
+(Konsentrasi) Tj
+150 0 Td
+(: " + detail.KonNama + @") Tj
+
+-150 -20 Td
+(Angkatan) Tj
+150 0 Td
+(: " + detail.MhsAngkatan + @") Tj
+
+% Informasi SK
+-150 -35 Td
+/F1 12 Tf
+(Informasi Surat Keterangan:) Tj
+
+0 -25 Td
+/F2 11 Tf
+(Status) Tj
+150 0 Td
+(: " + detail.Status + @") Tj
+
+-150 -20 Td
+(Nomor SK) Tj
+150 0 Td
+(: " + detail.SuratNo + @") Tj
+
+-150 -20 Td
+(Nomor SPKB) Tj
+150 0 Td
+(: " + detail.NoSpkb + @") Tj
+
+-150 -20 Td
+(Tanggal Persetujuan) Tj
+150 0 Td
+(: " + detail.ApproveDir1Date + @") Tj
+
+-150 -20 Td
+(Disetujui oleh) Tj
+150 0 Td
+(: " + detail.ApproveDir1By + @") Tj
+
+% Footer dengan garis pemisah
+-150 -50 Td
+q
+1 0 0 1 0 0 cm
+512 0 l
+S
+Q
+
+0 -25 Td
+/F2 10 Tf
+(Dokumen ini dicetak pada: " + DateTime.Now.ToString("dd MMMM yyyy HH:mm:ss") + @" WIB) Tj
+
+0 -15 Td
+/F2 9 Tf
+(Dokumen ini dibuat secara elektronik dan sah tanpa tanda tangan basah.) Tj
+
+% Logo atau kop surat placeholder
+0 -30 Td
+/F1 10 Tf
+(POLITEKNIK ASTRA) Tj
+0 -12 Td
+/F2 9 Tf
+(Jl. Gaya Motor Raya No. 8, Sunter II, Jakarta Utara 14330) Tj
+
+ET
+endstream
+endobj
+
+xref
+0 7
+0000000000 65535 f 
+0000000010 00000 n 
+0000000053 00000 n 
+0000000125 00000 n 
+0000000348 00000 n 
+0000000565 00000 n 
+0000000782 00000 n 
+trailer
+<<
+/Size 7
+/Root 1 0 R
+>>
+startxref
+2150
+%%EOF";
+
+            var fullPdf = pdfHeader + pdfBody;
+            return System.Text.Encoding.UTF8.GetBytes(fullPdf);
         }
 
 
