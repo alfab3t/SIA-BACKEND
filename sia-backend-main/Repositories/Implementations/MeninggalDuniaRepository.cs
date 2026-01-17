@@ -1003,62 +1003,46 @@ namespace astratech_apps_backend.Repositories.Implementations
             };
         }
 
-        //        public async Task<IEnumerable<GetRiwayatMeninggalDuniaResponse>> GetRiwayatAsync(
-        //    string keyword,
-        //    string sort,
-        //    string konsentrasi,
-        //    string roleId
-        //)
-        //        {
-        //            var list = new List<GetRiwayatMeninggalDuniaResponse>();
+        public async Task<IEnumerable<RiwayatMeninggalDuniaListDto>> GetRiwayatAsync(
+            string keyword,
+            string sort,
+            string konsentrasi,
+            string roleId
+        )
+        {
+            var list = new List<RiwayatMeninggalDuniaListDto>();
 
-        //            await using var conn = new SqlConnection(_conn);
-        //            await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDunia", conn)
-        //            {
-        //                CommandType = CommandType.StoredProcedure
-        //            };
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDunia", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
-        //            // p1 tidak dipakai
-        //            cmd.Parameters.AddWithValue("@p1", "");
+            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+            cmd.Parameters.AddWithValue("@Keyword", keyword ?? "");
+            cmd.Parameters.AddWithValue("@Sort", sort ?? "mdu_created_date desc");
+            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? "");
+            cmd.Parameters.AddWithValue("@RoleId", roleId ?? "");
 
-        //            // p2 = "" → MODE PRODI (sesuai SP lama)
-        //            cmd.Parameters.AddWithValue("@p2", "");
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
 
-        //            // p3 = kon_npk / roleId
-        //            cmd.Parameters.AddWithValue("@p3", roleId ?? "");
+            while (await reader.ReadAsync())
+            {
+                list.Add(new RiwayatMeninggalDuniaListDto
+                {
+                    Id = reader["mdu_id"]?.ToString() ?? "",
+                    NoPengajuan = reader["mdu_id"]?.ToString() ?? "",
+                    TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Prodi = reader["pro_nama"]?.ToString() ?? "",
+                    NomorSK = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["mdu_status"]?.ToString() ?? ""
+                });
+            }
 
-        //            // p4 = keyword
-        //            cmd.Parameters.AddWithValue("@p4", keyword ?? "");
-
-        //            // p5 = sort
-        //            cmd.Parameters.AddWithValue("@p5", sort ?? "mdu_created_date desc");
-
-        //            // p6 = konsentrasi
-        //            cmd.Parameters.AddWithValue("@p6", konsentrasi ?? "");
-
-        //            // p7 – p50 = dummy
-        //            for (int i = 7; i <= 50; i++)
-        //                cmd.Parameters.AddWithValue($"@p{i}", "");
-
-        //            await conn.OpenAsync();
-        //            using var reader = await cmd.ExecuteReaderAsync();
-
-        //            while (await reader.ReadAsync())
-        //            {
-        //                list.Add(new GetRiwayatMeninggalDuniaResponse
-        //                {
-        //                    mdu_id = reader["mdu_id"].ToString(),
-        //                    mhs_id = reader["mhs_id"].ToString(),
-        //                    tanggal_buat = reader["tanggal_buat"].ToString(),
-        //                    srt_no = reader["srt_no"].ToString(),
-        //                    mhs_nama = reader["mhs_nama"].ToString(),
-        //                    mdu_status = reader["mdu_status"].ToString(),
-        //                    kon_singkatan = reader["kon_singkatan"].ToString()
-        //                });
-        //            }
-
-        //            return list;
-        //        }
+            return list;
+        }
 
         public async Task<(IEnumerable<RiwayatMeninggalDuniaListDto> Data, int TotalData)>
         GetRiwayatAsync(GetRiwayatMeninggalDuniaRequest req)
