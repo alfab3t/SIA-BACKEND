@@ -1147,34 +1147,18 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             await using var conn = new SqlConnection(_conn);
             
-            // Use direct SQL query to filter only "Disetujui" status
-            var sql = @"
-                SELECT 
-                    a.mhs_id as NIM,
-                    b.mhs_nama as [Nama Mahasiswa],
-                    d.pro_nama + ' (' + c.kon_singkatan + ')' as Konsentrasi,
-                    FORMAT(a.mdu_created_date, 'dd MMMM yyyy', 'id-ID') AS [Tanggal Pengajuan],
-                    ISNULL(a.srt_no, '') as [No SK],
-                    a.mdu_id as [No Pengajuan]
-                FROM sia_msmeninggaldunia a
-                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
-                WHERE a.mdu_status = 'Disetujui'
-                  AND (@konsentrasi = '' OR b.kon_id = @konsentrasi)
-                ORDER BY 
-                    CASE WHEN @sort = 'mhs_id asc' THEN a.mhs_id END ASC,
-                    CASE WHEN @sort = 'mhs_id desc' THEN a.mhs_id END DESC,
-                    CASE WHEN @sort = 'mdu_created_date asc' THEN a.mdu_created_date END ASC,
-                    CASE WHEN @sort = 'mdu_created_date desc' THEN a.mdu_created_date END DESC,
-                    a.mdu_created_date DESC"; // Default sort
+            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
+            await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDuniaExcel", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
-            await using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@sort", sort ?? "");
-            cmd.Parameters.AddWithValue("@konsentrasi", konsentrasi ?? "");
+            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+            cmd.Parameters.AddWithValue("@Sort", sort ?? "");
+            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? "");
 
             await conn.OpenAsync();
-            var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
