@@ -465,9 +465,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var recordStatus = reader["mdu_status"]?.ToString() ?? "";
                 var createdDate = reader["tanggal_buat"] as DateTime?;
                 
-                // Generate nomor SK dinamis untuk status "Disetujui"
-                string nomorSK = "";
-                if (recordStatus == "Disetujui" && createdDate.HasValue)
+                // Baca nomor SK dari database (srt_no) yang sudah di-generate oleh SP
+                string nomorSK = reader["srt_no"]?.ToString() ?? "";
+                
+                // Jika srt_no kosong dan status "Disetujui", generate dinamis sebagai fallback
+                if (string.IsNullOrEmpty(nomorSK) && recordStatus == "Disetujui" && createdDate.HasValue)
                 {
                     var month = createdDate.Value.Month;
                     var year = createdDate.Value.Year;
@@ -487,7 +489,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
                     Nim = reader["nim"]?.ToString() ?? "",
                     Prodi = reader["pro_nama"]?.ToString() ?? "",
-                    NomorSK = nomorSK, // Generate dinamis
+                    NomorSK = nomorSK, // Baca dari database atau generate dinamis
                     Status = reader["mdu_status"]?.ToString() ?? ""
                 });
             }
@@ -1261,15 +1263,12 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                cmd.Parameters.AddWithValue("@p1", id);          // mdu_id
-                cmd.Parameters.AddWithValue("@p2", dto.Role);    // 'wadir1'
-                cmd.Parameters.AddWithValue("@p3", dto.Username); // approver
+                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+                cmd.Parameters.AddWithValue("@Role", dto.Role);
+                cmd.Parameters.AddWithValue("@Username", dto.Username);
                 
-                Console.WriteLine($"[ApproveAsync] Parameters - @p1: '{id}', @p2: '{dto.Role}', @p3: '{dto.Username}'");
-                
-                // p4–p50 tidak dipakai → kirim NULL
-                for (int i = 4; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", DBNull.Value);
+                Console.WriteLine($"[ApproveAsync] Parameters - @MeninggalDuniaId: '{id}', @Role: '{dto.Role}', @Username: '{dto.Username}'");
 
                 Console.WriteLine($"[ApproveAsync] Executing stored procedure...");
                 
