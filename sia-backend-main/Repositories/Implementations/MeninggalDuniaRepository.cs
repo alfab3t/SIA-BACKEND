@@ -1009,6 +1009,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     NoPengajuan = reader["mdu_id"]?.ToString() ?? "",
                     TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Nim = reader["mhs_id"]?.ToString() ?? "",
                     Prodi = reader["pro_nama"]?.ToString() ?? "",
                     NomorSK = reader["srt_no"]?.ToString() ?? "",
                     Status = reader["mdu_status"]?.ToString() ?? ""
@@ -1096,6 +1097,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     NoPengajuan = reader["mdu_id"].ToString(),
                     TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Nim = reader["mhs_id"]?.ToString() ?? "",
                     Prodi = reader["pro_nama"]?.ToString() ?? "",
                     NomorSK = reader["srt_no"]?.ToString() ?? "",
                     Status = reader["mdu_status"]?.ToString() ?? ""
