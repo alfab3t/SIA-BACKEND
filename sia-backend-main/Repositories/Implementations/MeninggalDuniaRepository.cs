@@ -1191,33 +1191,14 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 await using var conn = new SqlConnection(_conn);
                 
-                // Gunakan query langsung yang sesuai dengan stored procedure
-                var sql = @"
-                    SELECT 
-                        a.mhs_id,
-                        ISNULL(b.mhs_nama, '') as mhs_nama,
-                        ISNULL(d.pro_nama + ' (' + c.kon_singkatan + ')', '') as kon_nama,
-                        ISNULL(b.mhs_angkatan, '') as mhs_angkatan,
-                        ISNULL(d.pro_singkatan + ' (' + c.kon_singkatan + ')', '') as kon_singkatan,
-                        ISNULL(a.mdu_lampiran, '') as mdu_lampiran,
-                        ISNULL(a.mdu_status, '') as mdu_status,
-                        ISNULL(a.mdu_created_by, '') as mdu_created_by,
-                        ISNULL(CONVERT(VARCHAR(11), a.mdu_approve_dir1_date, 106), '') as mdu_approve_dir1_date,
-                        ISNULL((SELECT RTRIM(kry_nama_depan + ' ' + kry_nama_blkg) 
-                               FROM ess_mskaryawan 
-                               WHERE kry_username = a.mdu_approve_dir1_by), '') as mdu_approve_dir1_by,
-                        ISNULL(a.srt_no, '-') as srt_no,
-                        ISNULL(a.mdu_no_spkb, '') as mdu_no_spkb,
-                        ISNULL(a.mdu_sk, '') as mdu_sk,
-                        ISNULL(a.mdu_spkb, '') as mdu_spkb
-                    FROM sia_msmeninggaldunia a
-                    LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                    LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                    LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
-                    WHERE a.mdu_id = @id";
+                // Gunakan stored procedure dengan parameter yang sudah di-ALTER
+                await using var cmd = new SqlCommand("sia_getDetailMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@id", id);
+                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
 
                 await conn.OpenAsync();
 
