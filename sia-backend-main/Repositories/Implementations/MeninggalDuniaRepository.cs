@@ -659,15 +659,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                spCmd.Parameters.AddWithValue("@p1", id);
-                spCmd.Parameters.AddWithValue("@p2", lampiranValue);
-                spCmd.Parameters.AddWithValue("@p3", updatedBy);
-
-                // @p4 - @p50 dummy
-                for (int i = 4; i <= 50; i++)
-                {
-                    spCmd.Parameters.AddWithValue($"@p{i}", "");
-                }
+                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+                spCmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+                spCmd.Parameters.AddWithValue("@Lampiran", lampiranValue);
+                spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
 
                 var spRows = await spCmd.ExecuteNonQueryAsync();
                 Console.WriteLine($"[UpdateAsync] SP - ID: {id}, Rows affected: {spRows}");
