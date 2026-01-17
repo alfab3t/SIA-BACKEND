@@ -30,23 +30,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // STEP1: Create Draft dengan temporary numeric ID
-            cmd.Parameters.AddWithValue("@p1", "STEP1");
-
-            // @p2 = Lampiran (filename)
-            cmd.Parameters.AddWithValue("@p2", lampiranFileName ?? "");
-
-            // @p3 = mhs_id
-            cmd.Parameters.AddWithValue("@p3", mhsId ?? "");
-
-            // @p4 = createdBy
-            cmd.Parameters.AddWithValue("@p4", createdBy ?? "");
-
-            // @p5 - @p50 harus tetap dikirim
-            for (int i = 5; i <= 50; i++)
-            {
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-            }
+            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+            cmd.Parameters.AddWithValue("@Step", "STEP1");
+            cmd.Parameters.AddWithValue("@Lampiran", lampiranFileName ?? "");
+            cmd.Parameters.AddWithValue("@MahasiswaId", mhsId ?? "");
+            cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? "");
 
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
