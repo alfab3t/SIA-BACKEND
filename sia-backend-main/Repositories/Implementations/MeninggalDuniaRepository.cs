@@ -355,14 +355,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP menerima 50 parameter tapi hanya @p1 - @p4 yang dipakai
-            cmd.Parameters.AddWithValue("@p1", id);        // mdu_id
-            cmd.Parameters.AddWithValue("@p2", sk);        // mdu_sk
-            cmd.Parameters.AddWithValue("@p3", spkb);      // mdu_spkb
-            cmd.Parameters.AddWithValue("@p4", updatedBy); // mdu_modif_by
-
-            for (int i = 5; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", DBNull.Value);
+            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
+            cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+            cmd.Parameters.AddWithValue("@SuratKeteranganMeninggalDunia", sk);
+            cmd.Parameters.AddWithValue("@SuratKeteranganPernahBerkuliah", spkb);
+            cmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
 
             await conn.OpenAsync();
             var rows = await cmd.ExecuteNonQueryAsync();
