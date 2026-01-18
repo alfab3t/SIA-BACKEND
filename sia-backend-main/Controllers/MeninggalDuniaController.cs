@@ -776,16 +776,16 @@ namespace astratech_apps_backend.Controllers
 
                 Console.WriteLine($"[Controller] Found data - Status: {detail.Status}, MhsNama: {detail.MhsNama}");
 
-                // 3. Cek permission - hanya bisa cetak jika status "Disetujui"
+                // 3. Cek permission - bisa cetak jika status "Disetujui" atau "Menunggu Upload SK"
                 // Berbeda dengan cuti akademik, meninggal dunia tidak ada pembatasan role
-                if (detail.Status != "Disetujui")
+                if (detail.Status != "Disetujui" && detail.Status != "Menunggu Upload SK")
                 {
                     Console.WriteLine($"[Controller] Permission denied - Status: {detail.Status}");
                     return StatusCode(403, new { 
                         message = "Tidak dapat cetak SK.", 
-                        reason = $"SK hanya dapat dicetak saat status 'Disetujui', status saat ini: '{detail.Status}'",
+                        reason = $"SK hanya dapat dicetak saat status 'Disetujui' atau 'Menunggu Upload SK', status saat ini: '{detail.Status}'",
                         currentStatus = detail.Status,
-                        allowedStatus = "Disetujui"
+                        allowedStatus = new[] { "Disetujui", "Menunggu Upload SK" }
                     });
                 }
 
@@ -863,8 +863,8 @@ namespace astratech_apps_backend.Controllers
                         {
                             username = username,
                             currentStatus = detail.Status,
-                            allowedStatus = "Disetujui",
-                            reason = "Semua role dapat cetak SK saat status 'Disetujui'",
+                            allowedStatus = new[] { "Disetujui", "Menunggu Upload SK" },
+                            reason = "Semua role dapat cetak SK saat status 'Disetujui' atau 'Menunggu Upload SK'",
                             printTime = DateTime.Now,
                             documents = new[] { "SK Meninggal Dunia", "SK Pernah Berkuliah (SPKB)" }
                         },
