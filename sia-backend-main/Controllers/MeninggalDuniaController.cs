@@ -753,7 +753,7 @@ namespace astratech_apps_backend.Controllers
 
         /// <summary>
         /// Cetak SK Meninggal Dunia - supports both JSON and PDF format
-        /// Permission: All roles can print when status = "Disetujui"
+        /// Permission: All roles can print when status = "Disetujui and Menunggu Upload SK"
         /// </summary>
         [HttpGet("cetak-sk/{id}")]
         public async Task<IActionResult> CetakSKMeninggalDunia(string id, [FromQuery] string username, [FromQuery] string format = "json")
