@@ -53,8 +53,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"CreateDraftByProdi - MhsId: {dto.MhsId}, ApprovalProdi: {dto.ApprovalProdi}");
-                
                 var id = await _service.CreateDraftByProdiAsync(dto);
                 
                 if (string.IsNullOrEmpty(id))
@@ -62,12 +60,10 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "Gagal membuat draft cuti akademik." });
                 }
                 
-                Console.WriteLine($"Draft created successfully with ID: {id}");
                 return Ok(new { draftId = id });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in CreateDraftByProdi: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat draft.", 
                     error = ex.Message 
@@ -86,8 +82,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"GenerateIdByProdi - DraftId: {dto.DraftId}, ModifiedBy: {dto.ModifiedBy}");
-                
                 var id = await _service.GenerateIdByProdiAsync(dto);
                 
                 if (string.IsNullOrEmpty(id))
@@ -95,12 +89,10 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "Gagal generate id final (prodi)." });
                 }
                 
-                Console.WriteLine($"Final ID generated successfully: {id}");
                 return Ok(new { finalId = id });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GenerateIdByProdi: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat generate final ID.", 
                     error = ex.Message 
@@ -151,34 +143,23 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                // Debug logging
-                Console.WriteLine($"Update request for ID: {id}");
-                Console.WriteLine($"TahunAjaran: {dto.TahunAjaran}");
-                Console.WriteLine($"Semester: {dto.Semester}");
-                Console.WriteLine($"ModifiedBy: {dto.ModifiedBy}");
-
                 // Set ModifiedBy dari context jika tidak ada
                 if (string.IsNullOrEmpty(dto.ModifiedBy))
                 {
                     dto.ModifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
-                    Console.WriteLine($"Auto-set ModifiedBy to: {dto.ModifiedBy}");
                 }
 
                 var success = await _service.UpdateAsync(id, dto);
 
                 if (success)
                 {
-                    Console.WriteLine("Update successful");
                     return Ok(new { message = "Cuti Akademik berhasil diupdate." });
                 }
                 
-                Console.WriteLine("Update failed - no rows affected");
                 return BadRequest(new { message = "Gagal mengupdate Cuti Akademik. Data mungkin tidak ditemukan." });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Update error: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengupdate data.", 
                     error = ex.Message,
@@ -286,203 +267,9 @@ namespace astratech_apps_backend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error generating Excel: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat file Excel.", 
                     error = ex.Message 
-                });
-            }
-        }
-
-        
-        [HttpGet("debug/check-record/{id}")]
-        [ProducesResponseType(200)]
-        public async Task<IActionResult> DebugCheckRecord(string id)
-        {
-            try
-            {
-                Console.WriteLine($"[DEBUG] === RECORD CHECK ===");
-                Console.WriteLine($"[DEBUG] ID: '{id}'");
-                
-                
-                var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
-                    HttpContext.RequestServices.GetRequiredService<IConfiguration>()
-                        .GetConnectionString("DefaultConnection")!,
-                    Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
-                );
-                
-                using var conn = new Microsoft.Data.SqlClient.SqlConnection(connString);
-                await conn.OpenAsync();
-                
-                
-                var checkCmd = new Microsoft.Data.SqlClient.SqlCommand(@"
-                    SELECT cak_id, cak_status, mhs_id, cak_menimbang, cak_approval_prodi, 
-                           cak_app_prodi_date, cak_created_date, cak_created_by,
-                           CONVERT(VARCHAR(50), cak_created_date, 120) as created_date_raw,
-                           CONVERT(VARCHAR(50), cak_app_prodi_date, 120) as app_prodi_date_raw
-                    FROM sia_mscutiakademik 
-                    WHERE cak_id = @id", conn);
-                checkCmd.Parameters.AddWithValue("@id", id);
-                
-                var reader = await checkCmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync())
-                {
-                    reader.Close();
-                    return Ok(new { 
-                        exists = false,
-                        message = "Record tidak ditemukan di database",
-                        id = id
-                    });
-                }
-                
-                var record = new {
-                    cak_id = reader["cak_id"].ToString(),
-                    cak_status = reader["cak_status"].ToString(),
-                    mhs_id = reader["mhs_id"].ToString(),
-                    cak_menimbang = reader["cak_menimbang"].ToString(),
-                    cak_approval_prodi = reader["cak_approval_prodi"].ToString(),
-                    cak_app_prodi_date = reader["cak_app_prodi_date"].ToString(),
-                    cak_created_date = reader["cak_created_date"].ToString(),
-                    cak_created_by = reader["cak_created_by"].ToString(),
-                    created_date_raw = reader["created_date_raw"].ToString(),
-                    app_prodi_date_raw = reader["app_prodi_date_raw"].ToString()
-                };
-                reader.Close();
-                
-                Console.WriteLine($"[DEBUG] Record found - Status: {record.cak_status}");
-                Console.WriteLine($"[DEBUG] Created Date Raw: {record.created_date_raw}");
-                Console.WriteLine($"[DEBUG] Created By: {record.cak_created_by}");
-                
-                return Ok(new { 
-                    exists = true,
-                    record = record,
-                    message = $"Record ditemukan dengan status: {record.cak_status}",
-                    analysis = new {
-                        created_date_looks_like_user_id = record.created_date_raw == record.cak_created_by,
-                        created_date_is_valid = DateTime.TryParse(record.created_date_raw, out _),
-                        app_prodi_date_is_valid = DateTime.TryParse(record.app_prodi_date_raw, out _),
-                        problem_description = record.created_date_raw == record.cak_created_by ? 
-                            "PROBLEM: cak_created_date contains user ID instead of actual date!" : 
-                            "Date field looks normal"
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DEBUG] Exception: {ex.Message}");
-                return Ok(new { 
-                    exists = false,
-                    error = ex.Message,
-                    stackTrace = ex.StackTrace
-                });
-            }
-        }
-
-        
-        [HttpPost("debug/test-sp-approval")]
-        [ProducesResponseType(200)]
-        public async Task<IActionResult> DebugTestSpApproval([FromBody] ApproveProdiCutiRequest dto)
-        {
-            try
-            {
-                Console.WriteLine($"[DEBUG] === SP APPROVAL TEST ===");
-                Console.WriteLine($"[DEBUG] ID: '{dto.Id}'");
-                Console.WriteLine($"[DEBUG] Menimbang: '{dto.Menimbang}' (Length: {dto.Menimbang?.Length ?? 0})");
-                Console.WriteLine($"[DEBUG] ApprovedBy: '{dto.ApprovedBy}'");
-                
-                
-                var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
-                    HttpContext.RequestServices.GetRequiredService<IConfiguration>()
-                        .GetConnectionString("DefaultConnection")!,
-                    Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
-                );
-                
-                using var conn = new Microsoft.Data.SqlClient.SqlConnection(connString);
-                await conn.OpenAsync();
-                
-                
-                var cmd = new Microsoft.Data.SqlClient.SqlCommand("sia_setujuiCutiAkademikProdi", conn)
-                {
-                    CommandType = System.Data.CommandType.StoredProcedure
-                };
-
-                cmd.Parameters.AddWithValue("@p1", dto.Id);
-                cmd.Parameters.AddWithValue("@p2", dto.Menimbang ?? "");
-                cmd.Parameters.AddWithValue("@p3", dto.ApprovedBy);
-
-               
-                for (int i = 4; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
-
-                Console.WriteLine($"[DEBUG] Executing SP with params: @p1='{dto.Id}', @p2='{dto.Menimbang}', @p3='{dto.ApprovedBy}'");
-                
-                var rowsAffected = await cmd.ExecuteNonQueryAsync();
-                
-                Console.WriteLine($"[DEBUG] SP executed - Rows affected: {rowsAffected}");
-                
-                return Ok(new { 
-                    success = rowsAffected > 0,
-                    rowsAffected = rowsAffected,
-                    message = rowsAffected > 0 ? "SP berhasil dieksekusi" : "SP tidak mengupdate record apapun",
-                    parameters = new {
-                        p1 = dto.Id,
-                        p2 = dto.Menimbang,
-                        p3 = dto.ApprovedBy
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DEBUG] SP Exception: {ex.Message}");
-                return Ok(new { 
-                    success = false,
-                    error = ex.Message,
-                    stackTrace = ex.StackTrace
-                });
-            }
-        }
-
-        
-        [HttpPost("debug/test-finance-approval")]
-        [ProducesResponseType(200)]
-        public async Task<IActionResult> DebugTestFinanceApproval([FromBody] ApproveCutiAkademikRequest dto)
-        {
-            try
-            {
-                Console.WriteLine($"[DEBUG] === FINANCE APPROVAL TEST ===");
-                Console.WriteLine($"[DEBUG] ID: '{dto.Id}'");
-                Console.WriteLine($"[DEBUG] Role: '{dto.Role}'");
-                Console.WriteLine($"[DEBUG] ApprovedBy: '{dto.ApprovedBy}'");
-                
-                // Map KARYAWAN role to finance for approval logic
-                if (dto.Role.ToUpper() == "KARYAWAN")
-                {
-                    Console.WriteLine("[DEBUG] Mapping KARYAWAN role to finance");
-                    dto.Role = "finance";
-                }
-                
-                Console.WriteLine($"[DEBUG] Mapped Role: '{dto.Role}'");
-                
-                var success = await _service.ApproveCutiAsync(dto);
-                
-                return Ok(new { 
-                    success = success,
-                    message = success ? "Finance approval berhasil" : "Finance approval gagal",
-                    originalRole = dto.Role,
-                    parameters = new {
-                        id = dto.Id,
-                        role = dto.Role,
-                        approvedBy = dto.ApprovedBy
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DEBUG] Finance Approval Exception: {ex.Message}");
-                return Ok(new { 
-                    success = false,
-                    error = ex.Message,
-                    stackTrace = ex.StackTrace
                 });
             }
         }
@@ -514,31 +301,23 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[Approve] Starting approval for ID: {dto.Id}, Username: {dto.ApprovedBy}");
-                
                 // Auto-detect role based on username using stored procedure
                 var detectedRole = await _service.DetectUserRoleAsync(dto.ApprovedBy);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
-                    Console.WriteLine($"[Approve] Could not detect role for username: {dto.ApprovedBy}");
                     return BadRequest(new { 
                         message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
                         username = dto.ApprovedBy
                     });
                 }
                 
-                Console.WriteLine($"[Approve] Detected role: {detectedRole} for username: {dto.ApprovedBy}");
-                
                 // Override role dengan hasil deteksi
                 dto.Role = detectedRole;
-                
-                Console.WriteLine($"Approve request - ID: {dto.Id}, Role: {dto.Role}, ApprovedBy: {dto.ApprovedBy}");
                 
                 var success = await _service.ApproveCutiAsync(dto);
                 
                 if (success)
                 {
-                    Console.WriteLine("Approval successful");
                     return Ok(new { 
                         approved = true,
                         id = dto.Id,
@@ -548,7 +327,6 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                Console.WriteLine($"[Approve] Approval failed for ID: {dto.Id}");
                 return BadRequest(new { 
                     message = "Gagal menyetujui cuti akademik. Data mungkin tidak ditemukan atau sudah diproses.",
                     id = dto.Id,
@@ -558,7 +336,6 @@ namespace astratech_apps_backend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in ApproveCuti: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
                     error = ex.Message,
@@ -575,44 +352,33 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[Controller] Approve Prodi - ID: {dto.Id}, Menimbang: '{dto.Menimbang}', ApprovedBy: {dto.ApprovedBy}");
-                
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
-                    Console.WriteLine("[Controller] ERROR: ID is required");
                     return BadRequest(new { message = "ID cuti akademik harus diisi." });
                 }
                 
                 if (string.IsNullOrEmpty(dto.ApprovedBy))
                 {
-                    Console.WriteLine("[Controller] ERROR: ApprovedBy is required");
                     return BadRequest(new { message = "ApprovedBy harus diisi." });
                 }
                 
                 if (string.IsNullOrWhiteSpace(dto.Menimbang))
                 {
-                    Console.WriteLine("[Controller] ERROR: Menimbang is required");
                     return BadRequest(new { message = "Menimbang/pertimbangan harus diisi dan tidak boleh kosong." });
                 }
                 
-                Console.WriteLine("[Controller] Calling service...");
                 var success = await _service.ApproveProdiCutiAsync(dto);
-                Console.WriteLine($"[Controller] Service returned: {success}");
                 
                 if (success)
                 {
-                    Console.WriteLine("[Controller] Prodi approval successful");
                     return Ok(new { message = "Cuti akademik berhasil disetujui oleh prodi." });
                 }
                 
-                Console.WriteLine("[Controller] Prodi approval failed - service returned false");
                 return BadRequest(new { message = "Gagal menyetujui cuti akademik. Periksa apakah ID valid dan data dapat diupdate." });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Controller] ERROR in ApproveProdiCuti: {ex.Message}");
-                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
                     error = ex.Message,
@@ -629,18 +395,14 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[Reject] Starting rejection for ID: {dto.Id}, Username: {dto.Username}");
-                
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
-                    Console.WriteLine("[Reject] ERROR: ID is required");
                     return BadRequest(new { message = "ID cuti akademik harus diisi." });
                 }
                 
                 if (string.IsNullOrEmpty(dto.Username))
                 {
-                    Console.WriteLine("[Reject] ERROR: Username is required");
                     return BadRequest(new { message = "Username harus diisi." });
                 }
                 
@@ -648,27 +410,19 @@ namespace astratech_apps_backend.Controllers
                 var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
-                    Console.WriteLine($"[Reject] Could not detect role for username: {dto.Username}");
                     return BadRequest(new { 
                         message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
                         username = dto.Username
                     });
                 }
                 
-                Console.WriteLine($"[Reject] Detected role: {detectedRole} for username: {dto.Username}");
-                
                 // Override role dengan hasil deteksi
                 dto.Role = detectedRole;
                 
-                Console.WriteLine($"[Controller] Reject request - ID: {dto.Id}, Role: {dto.Role}");
-                
-                Console.WriteLine("[Controller] Calling service...");
                 var success = await _service.RejectCutiAsync(dto);
-                Console.WriteLine($"[Controller] Service returned: {success}");
                 
                 if (success)    
                 {
-                    Console.WriteLine("[Controller] Rejection successful");
                     return Ok(new { 
                         rejected = true,
                         id = dto.Id,
@@ -678,7 +432,6 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                Console.WriteLine("[Controller] Rejection failed - service returned false");
                 return BadRequest(new { 
                     message = "Gagal menolak cuti akademik. Data mungkin tidak ditemukan atau sudah diproses.",
                     id = dto.Id,
@@ -688,8 +441,6 @@ namespace astratech_apps_backend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Controller] ERROR in RejectCuti: {ex.Message}");
-                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menolak cuti akademik.", 
                     error = ex.Message,
@@ -712,28 +463,21 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[Controller] Create SK - ID: {dto.Id}, NoSK: {dto.NoSK}, CreatedBy: {dto.CreatedBy}");
-                
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
-                    Console.WriteLine("[Controller] ERROR: ID is required");
                     return BadRequest(new { message = "ID cuti akademik harus diisi." });
                 }
                 
                 if (string.IsNullOrEmpty(dto.CreatedBy))
                 {
-                    Console.WriteLine("[Controller] ERROR: CreatedBy is required");
                     return BadRequest(new { message = "CreatedBy harus diisi." });
                 }
                 
-                Console.WriteLine("[Controller] Calling service...");
                 var noSK = await _service.CreateSKAsync(dto);
-                Console.WriteLine($"[Controller] Service returned: {noSK}");
                 
                 if (!string.IsNullOrEmpty(noSK))
                 {
-                    Console.WriteLine("[Controller] SK creation successful");
                     return Ok(new { 
                         message = "SK berhasil dibuat dan siap untuk diupload.", 
                         noSK = noSK,
@@ -741,13 +485,10 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                Console.WriteLine("[Controller] SK creation failed - service returned null");
                 return BadRequest(new { message = "Gagal membuat SK. Periksa apakah ID valid dan status cuti sudah disetujui finance." });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Controller] ERROR in CreateSK: {ex.Message}");
-                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat SK.", 
                     error = ex.Message,
@@ -766,24 +507,19 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[Controller] Upload SK - ID: {dto.Id}, File: {dto.FileSK?.FileName}, UploadBy: {dto.UploadBy}");
-                
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
-                    Console.WriteLine("[Controller] ERROR: ID is required");
                     return BadRequest(new { message = "ID cuti akademik harus diisi." });
                 }
                 
                 if (dto.FileSK == null || dto.FileSK.Length == 0)
                 {
-                    Console.WriteLine("[Controller] ERROR: File SK is required");
                     return BadRequest(new { message = "File SK harus diupload." });
                 }
                 
                 if (string.IsNullOrEmpty(dto.UploadBy))
                 {
-                    Console.WriteLine("[Controller] ERROR: UploadBy is required");
                     return BadRequest(new { message = "UploadBy harus diisi." });
                 }
 
@@ -793,24 +529,19 @@ namespace astratech_apps_backend.Controllers
                 
                 if (!allowedExtensions.Contains(fileExtension))
                 {
-                    Console.WriteLine($"[Controller] ERROR: Invalid file type: {fileExtension}");
                     return BadRequest(new { message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
                 }
 
                 // Validate file size (max 10MB)
                 if (dto.FileSK.Length > 10 * 1024 * 1024)
                 {
-                    Console.WriteLine($"[Controller] ERROR: File too large: {dto.FileSK.Length} bytes");
                     return BadRequest(new { message = "Ukuran file maksimal 10MB." });
                 }
                 
-                Console.WriteLine("[Controller] Calling service...");
                 var success = await _service.UploadSKAsync(dto);
-                Console.WriteLine($"[Controller] Service returned: {success}");
                 
                 if (success)
                 {
-                    Console.WriteLine("[Controller] SK upload successful");
                     return Ok(new { 
                         message = "SK berhasil diupload. Status cuti akademik telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis di daftar.",
                         success = true,
@@ -818,13 +549,10 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                Console.WriteLine("[Controller] SK upload failed - service returned false");
                 return BadRequest(new { message = "Gagal mengupload SK. Periksa apakah ID valid dan status cuti adalah 'Menunggu Upload SK'." });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Controller] ERROR in UploadSK: {ex.Message}");
-                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengupload SK.", 
                     error = ex.Message,
@@ -852,22 +580,17 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[Controller] Cetak SK - ID: {id}, Username: {username}, Role: {role}, Format: {format}");
-                
                 // 1. Validasi input
                 if (string.IsNullOrEmpty(id))
                 {
-                    Console.WriteLine("[Controller] ERROR: ID is required");
                     return BadRequest(new { message = "ID cuti akademik harus diisi." });
                 }
                 
                 // Decode URL untuk handle karakter seperti %2F (/)
                 id = Uri.UnescapeDataString(id);
-                Console.WriteLine($"[Controller] Decoded ID: {id}");
                 
                 if (string.IsNullOrEmpty(username))
                 {
-                    Console.WriteLine("[Controller] ERROR: Username is required");
                     return BadRequest(new { message = "Username harus diisi." });
                 }
 
@@ -875,12 +598,10 @@ namespace astratech_apps_backend.Controllers
                 if (string.IsNullOrEmpty(role))
                 {
                     role = await _service.DetectUserRoleAsync(username);
-                    Console.WriteLine($"[Controller] Auto-detected role: {role} for username: {username}");
                 }
 
                 if (string.IsNullOrEmpty(role))
                 {
-                    Console.WriteLine($"[Controller] ERROR: Could not detect role for username: {username}");
                     return BadRequest(new { 
                         message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
                         username = username
@@ -891,11 +612,8 @@ namespace astratech_apps_backend.Controllers
                 var cutiDetail = await _service.GetDetailAsync(id);
                 if (cutiDetail == null)
                 {
-                    Console.WriteLine($"[Controller] ERROR: Cuti akademik not found for ID: {id}");
                     return NotFound(new { message = "Data cuti akademik tidak ditemukan." });
                 }
-
-                Console.WriteLine($"[Controller] Found cuti akademik with status: {cutiDetail.Status}");
 
                 // 4. Cek permission berdasarkan role dan status
                 bool canPrint = false;
@@ -923,7 +641,6 @@ namespace astratech_apps_backend.Controllers
 
                 if (!canPrint)
                 {
-                    Console.WriteLine($"[Controller] Permission denied: {reason}");
                     return StatusCode(403, new { 
                         message = "Tidak memiliki akses untuk cetak SK.", 
                         reason = reason,
@@ -933,8 +650,6 @@ namespace astratech_apps_backend.Controllers
                         canPrint = false
                     });
                 }
-
-                Console.WriteLine("[Controller] Permission granted");
 
                 // 5. Generate token untuk security (mirip dengan legacy system)
                 var tokenData = $"{id}#{DateTime.Now}";
@@ -982,8 +697,6 @@ namespace astratech_apps_backend.Controllers
                 // 7. Return berdasarkan format yang diminta
                 if (format.ToLower() == "pdf")
                 {
-                    Console.WriteLine("[Controller] Generating PDF file for download");
-                    
                     // Generate PDF file
                     var fileName = $"SK_Cuti_Akademik_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
                     
@@ -1090,13 +803,10 @@ startxref
 
                     var pdfBytes = System.Text.Encoding.UTF8.GetBytes(pdfContent);
                     
-                    Console.WriteLine($"[Controller] Returning PDF file: {fileName}");
                     return File(pdfBytes, "application/pdf", fileName);
                 }
                 else
                 {
-                    Console.WriteLine("[Controller] Returning JSON data for print");
-                    
                     // Return JSON data untuk cetak SK
                     return Ok(new { 
                         success = true,
@@ -1121,8 +831,6 @@ startxref
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Controller] ERROR in CetakSK: {ex.Message}");
-                Console.WriteLine($"[Controller] Stack trace: {ex.StackTrace}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat cetak SK.", 
                     error = ex.Message,

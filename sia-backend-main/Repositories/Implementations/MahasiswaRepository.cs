@@ -25,7 +25,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[GetDetailAsync] Starting to fetch detail for mhsId: {mhsId}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -85,16 +84,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                         RfidAktif = reader["rfid_aktif"]?.ToString() ?? ""
                     };
 
-                    Console.WriteLine($"[GetDetailAsync] Successfully found detail for mhsId: {mhsId}");
                     return result;
                 }
 
-                Console.WriteLine($"[GetDetailAsync] No data found for mhsId: {mhsId}");
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetDetailAsync] ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -108,7 +104,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[GetKonsentrasiListBySekprodiAsync] Starting to fetch konsentrasi list for username: {username}");
 
                 var result = new List<KonsentrasiListResponse>();
 
@@ -141,12 +136,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                     });
                 }
 
-                Console.WriteLine($"[GetKonsentrasiListBySekprodiAsync] Found {result.Count} konsentrasi for username: {username}");
                 return result;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetKonsentrasiListBySekprodiAsync] ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -160,7 +153,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[GetMahasiswaByKonsentrasiAsync] Starting to fetch mahasiswa list for konId: {konId}");
 
                 var result = new List<MahasiswaByKonsentrasiResponse>();
 
@@ -192,12 +184,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                     });
                 }
 
-                Console.WriteLine($"[GetMahasiswaByKonsentrasiAsync] Found {result.Count} mahasiswa for konId: {konId}");
                 return result;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetMahasiswaByKonsentrasiAsync] ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -211,7 +201,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[GetMahasiswaByNIMAsync] Starting to fetch mahasiswa data for NIM: {nim}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -245,16 +234,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                         Kelas = reader["kelas"]?.ToString() ?? ""
                     };
 
-                    Console.WriteLine($"[GetMahasiswaByNIMAsync] Successfully found mahasiswa data for NIM: {nim}");
                     return result;
                 }
 
-                Console.WriteLine($"[GetMahasiswaByNIMAsync] No data found for NIM: {nim}");
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetMahasiswaByNIMAsync] ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -268,7 +254,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[CheckBebasTanggunganAsync] Starting to check bebas tanggungan for userId: {userId}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -283,12 +268,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var result = await cmd.ExecuteScalarAsync();
                 var status = result?.ToString() ?? "NOK";
 
-                Console.WriteLine($"[CheckBebasTanggunganAsync] Status for userId {userId}: {status}");
                 return status;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CheckBebasTanggunganAsync] ERROR: {ex.Message}");
                 throw;
             }
         }
@@ -302,7 +285,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[GetProfilMahasiswaAsync] Starting to fetch profil for NIM: {nim}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -424,16 +406,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                         DulNisn = reader["dul_nisn"]?.ToString() ?? ""
                     };
 
-                    Console.WriteLine($"[GetProfilMahasiswaAsync] Successfully found profil for NIM: {nim}");
                     return result;
                 }
 
-                Console.WriteLine($"[GetProfilMahasiswaAsync] No data found for NIM: {nim}");
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetProfilMahasiswaAsync] ERROR: {ex.Message}");
                 throw;
             }
         }

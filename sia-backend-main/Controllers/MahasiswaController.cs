@@ -28,7 +28,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine("[GetProdiList] Starting to fetch prodi list");
                 
                 var result = new List<ProdiListResponse>();
 
@@ -56,12 +55,10 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
 
-                Console.WriteLine($"[GetProdiList] Found {result.Count} prodi");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetProdiList] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengambil daftar prodi.", 
                     error = ex.Message 
@@ -77,7 +74,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[GetByProdi] Starting to fetch mahasiswa for konId: {konId}");
                 
                 if (string.IsNullOrEmpty(konId))
                 {
@@ -114,12 +110,10 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
 
-                Console.WriteLine($"[GetByProdi] Found {result.Count} mahasiswa for konId: {konId}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetByProdi] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengambil daftar mahasiswa.", 
                     error = ex.Message 
@@ -136,7 +130,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[GetDetail] Starting to fetch detail for mhsId: {mhsId}");
                 
                 if (string.IsNullOrEmpty(mhsId))
                 {
@@ -150,12 +143,10 @@ namespace astratech_apps_backend.Controllers
                     return NotFound(new { message = $"Mahasiswa dengan ID {mhsId} tidak ditemukan." });
                 }
 
-                Console.WriteLine($"[GetDetail] Successfully retrieved detail for mhsId: {mhsId}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetDetail] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengambil detail mahasiswa.", 
                     error = ex.Message 
@@ -171,7 +162,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[GetKonsentrasiList] Starting to fetch konsentrasi list for username: {username}");
                 
                 if (string.IsNullOrEmpty(username))
                 {
@@ -180,12 +170,10 @@ namespace astratech_apps_backend.Controllers
 
                 var result = await _mahasiswaRepository.GetKonsentrasiListBySekprodiAsync(username);
 
-                Console.WriteLine($"[GetKonsentrasiList] Successfully retrieved {result.Count} konsentrasi for username: {username}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetKonsentrasiList] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengambil daftar konsentrasi.", 
                     error = ex.Message 
@@ -201,7 +189,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[GetByKonsentrasi] Starting to fetch mahasiswa list for konId: {konId}");
                 
                 if (string.IsNullOrEmpty(konId))
                 {
@@ -210,12 +197,10 @@ namespace astratech_apps_backend.Controllers
 
                 var result = await _mahasiswaRepository.GetMahasiswaByKonsentrasiAsync(konId);
 
-                Console.WriteLine($"[GetByKonsentrasi] Successfully retrieved {result.Count} mahasiswa for konId: {konId}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetByKonsentrasi] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengambil daftar mahasiswa.", 
                     error = ex.Message 
@@ -232,7 +217,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[GetByNIM] Starting to fetch mahasiswa data for NIM: {nim}");
                 
                 if (string.IsNullOrEmpty(nim))
                 {
@@ -246,12 +230,10 @@ namespace astratech_apps_backend.Controllers
                     return NotFound(new { message = $"Mahasiswa dengan NIM {nim} tidak ditemukan atau tidak aktif." });
                 }
 
-                Console.WriteLine($"[GetByNIM] Successfully retrieved mahasiswa data for NIM: {nim}");
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetByNIM] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengambil data mahasiswa.", 
                     error = ex.Message 
@@ -271,7 +253,6 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                Console.WriteLine($"[CheckBebasTanggungan] Starting to check bebas tanggungan for userId: {userId}");
                 
                 if (string.IsNullOrEmpty(userId))
                 {
@@ -280,12 +261,10 @@ namespace astratech_apps_backend.Controllers
 
                 var status = await _mahasiswaRepository.CheckBebasTanggunganAsync(userId);
 
-                Console.WriteLine($"[CheckBebasTanggungan] Status for userId {userId}: {status}");
                 return Ok(new BebasTanggunganResponse { Status = status });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CheckBebasTanggungan] ERROR: {ex.Message}");
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengecek bebas tanggungan.", 
                     error = ex.Message 
@@ -306,7 +285,6 @@ namespace astratech_apps_backend.Controllers
             {
                 try
                 {
-                    Console.WriteLine($"[GetProfil] Starting to fetch profil for NIM: {nim}");
                 
                     if (string.IsNullOrEmpty(nim))
                     {
@@ -320,12 +298,10 @@ namespace astratech_apps_backend.Controllers
                         return NotFound(new { message = $"Profil mahasiswa dengan NIM {nim} tidak ditemukan." });
                     }
 
-                    Console.WriteLine($"[GetProfil] Successfully retrieved profil for NIM: {nim}");
                     return Ok(result);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[GetProfil] ERROR: {ex.Message}");
                     return BadRequest(new { 
                         message = "Terjadi kesalahan saat mengambil profil mahasiswa.", 
                         error = ex.Message 

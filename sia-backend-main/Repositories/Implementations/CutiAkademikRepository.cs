@@ -1,4 +1,4 @@
-﻿using astratech_apps_backend.DTOs.CutiAkademik;
+using astratech_apps_backend.DTOs.CutiAkademik;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -18,7 +18,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
         // ============================================================
-        // 🔍 Helper: Cari mhs_id berdasarkan input FE (nim/nama/mhs_id)
+        // ?? Helper: Cari mhs_id berdasarkan input FE (nim/nama/mhs_id)
         // ============================================================
         private async Task<string?> ResolveMhsIdAsync(string input)
         {
@@ -39,7 +39,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // STEP 1 — Create Draft (Menggunakan SP sia_createCutiAkademik)
+        // STEP 1 � Create Draft (Menggunakan SP sia_createCutiAkademik)
         // ============================================================
         public async Task<string?> CreateDraftAsync(CreateDraftCutiRequest dto)
         {
@@ -85,14 +85,12 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // STEP 2 — Generate Final ID (Menggunakan SP sia_createCutiAkademik)
+        // STEP 2 � Generate Final ID (Menggunakan SP sia_createCutiAkademik)
         // ============================================================
         public async Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto)
         {
             try
             {
-                Console.WriteLine($"[Repository] GenerateIdAsync - DraftId: '{dto.DraftId}', ModifiedBy: '{dto.ModifiedBy}'");
-                
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
@@ -151,12 +149,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                     throw new Exception("Gagal mengambil final ID setelah generate.");
                 }
                 
-                Console.WriteLine($"[Repository] Successfully generated final ID: {finalId}");
                 return finalId.ToString();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Repository] ERROR in GenerateIdAsync: {ex.Message}");
                 throw;
             }
         }
@@ -323,7 +319,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             await conn.OpenAsync();
 
             // -----------------------------
-            // 1️⃣ Cek apakah data ada dan ambil info
+            // 1?? Cek apakah data ada dan ambil info
             // -----------------------------
             var checkCmd = new SqlCommand(@"
                 SELECT cak_lampiran_suratpengajuan, cak_lampiran, cak_id 
@@ -348,7 +344,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 throw new Exception($"Data dengan ID {id} tidak ditemukan.");
 
             // -----------------------------
-            // 2️⃣ Handle file upload
+            // 2?? Handle file upload
             // -----------------------------
             string? fileSP = oldFileSP;
             string? fileLampiran = oldFileLampiran;
@@ -360,7 +356,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 fileLampiran = SaveFile(dto.Lampiran);
 
             // -----------------------------
-            // 3️⃣ Tentukan apakah ini draft ID atau final ID
+            // 3?? Tentukan apakah ini draft ID atau final ID
             // -----------------------------
             bool isDraftId = !id.Contains("PMA") && !id.Contains("CA");
 
@@ -410,7 +406,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // DELETE (Soft Delete — SP: sia_deleteCutiAkademik)
+        // DELETE (Soft Delete � SP: sia_deleteCutiAkademik)
         // ============================================================
         public async Task<bool> DeleteAsync(string id, string modifiedBy)
         {
@@ -429,17 +425,17 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await conn.OpenAsync();
                 await cmd.ExecuteNonQueryAsync();
 
-                return true;   // 💚 anggap berhasil jika tidak error
+                return true;   // ?? anggap berhasil jika tidak error
             }
             catch
             {
-                return false;  // ❌ hanya kalau SQL benar-benar error
+                return false;  // ? hanya kalau SQL benar-benar error
             }
         }
 
 
         // ---------------------------------------------------------
-        // STEP 1 — Create Draft by Prodi (menggunakan SP khusus prodi)
+        // STEP 1 � Create Draft by Prodi (menggunakan SP khusus prodi)
         // ---------------------------------------------------------
         public async Task<string?> CreateDraftByProdiAsync(CreateCutiProdiRequest dto)
         {
@@ -491,14 +487,12 @@ namespace astratech_apps_backend.Repositories.Implementations
             catch (SqlException ex) when (ex.Number == 2627) // Primary key violation
             {
                 // Jika ada collision, coba lagi dengan retry mechanism
-                Console.WriteLine($"Primary key collision in CreateDraftByProdiAsync: {ex.Message}");
                 
                 // Fallback: gunakan direct insert dengan unique ID
                 return await CreateDraftByProdiDirectAsync(dto, conn);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in CreateDraftByProdiAsync: {ex.Message}");
                 throw;
             }
         }
@@ -562,7 +556,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
         // ---------------------------------------------------------
-        // STEP 2 — Generate Final ID (After Draft) by Prodi
+        // STEP 2 � Generate Final ID (After Draft) by Prodi
         // ---------------------------------------------------------
         public async Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto)
         {
@@ -601,7 +595,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GenerateIdByProdiAsync: {ex.Message}");
                 throw;
             }
         }
@@ -714,26 +707,19 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[ApproveCutiAsync] === STARTING APPROVAL ===");
-                Console.WriteLine($"[ApproveCutiAsync] ID: '{dto.Id}'");
-                Console.WriteLine($"[ApproveCutiAsync] Role: '{dto.Role}'");
-                Console.WriteLine($"[ApproveCutiAsync] ApprovedBy: '{dto.ApprovedBy}'");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
-                Console.WriteLine($"[ApproveCutiAsync] Database connection opened successfully");
 
                 // First, check if record exists and get current status
                 var checkCmd = new SqlCommand(
                     "SELECT cak_id, cak_status, mhs_id FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", dto.Id);
 
-                Console.WriteLine($"[ApproveCutiAsync] Checking if record exists...");
                 var reader = await checkCmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync())
                 {
                     reader.Close();
-                    Console.WriteLine($"[ApproveCutiAsync] ERROR: Record not found for ID: '{dto.Id}'");
                     return false;
                 }
 
@@ -741,25 +727,17 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var mhsId = reader["mhs_id"].ToString();
                 reader.Close();
                 
-                Console.WriteLine($"[ApproveCutiAsync] Record found!");
-                Console.WriteLine($"[ApproveCutiAsync] Current status: '{currentStatus}'");
-                Console.WriteLine($"[ApproveCutiAsync] MHS ID: '{mhsId}'");
 
                 // Handle finance approval - now using stored procedure for auto nomor surat generation
                 if (dto.Role.ToLower() == "finance" || dto.Role.ToLower() == "karyawan")
                 {
-                    Console.WriteLine($"[ApproveCutiAsync] Processing finance approval using SP...");
                     
                     // Finance approval should change status from "Belum Disetujui Finance" to "Menunggu Upload SK"
                     if (currentStatus != "Belum Disetujui Finance")
                     {
-                        Console.WriteLine($"[ApproveCutiAsync] ERROR: Invalid status for finance approval");
-                        Console.WriteLine($"[ApproveCutiAsync] Current status: '{currentStatus}'");
-                        Console.WriteLine($"[ApproveCutiAsync] Expected status: 'Belum Disetujui Finance'");
                         return false;
                     }
 
-                    Console.WriteLine($"[ApproveCutiAsync] Status validation passed, executing finance approval via SP...");
 
                     // Use stored procedure for finance approval (will auto-generate nomor surat)
                     var financeSpCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
@@ -771,9 +749,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     financeSpCmd.Parameters.AddWithValue("@Role", "finance");
                     financeSpCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
 
-                    Console.WriteLine($"[ApproveCutiAsync] Executing SP for finance approval...");
                     var financeRows = await financeSpCmd.ExecuteNonQueryAsync();
-                    Console.WriteLine($"[ApproveCutiAsync] Finance approval SP executed, rows affected: {financeRows}");
                     
                     // Verify the update by checking the new status and nomor surat
                     // (Don't rely on rows affected because SP may return 0 due to internal SELECT statements)
@@ -787,34 +763,27 @@ namespace astratech_apps_backend.Repositories.Implementations
                         var updatedStatus = verifyReader["cak_status"].ToString();
                         var updatedApproval = verifyReader["cak_approval_dakap"].ToString();
                         var nomorSurat = verifyReader["srt_no"].ToString();
-                        Console.WriteLine($"[ApproveCutiAsync] Verification - New status: '{updatedStatus}'");
-                        Console.WriteLine($"[ApproveCutiAsync] Verification - New approval: '{updatedApproval}'");
-                        Console.WriteLine($"[ApproveCutiAsync] Verification - Nomor Surat: '{nomorSurat}'");
                         
                         verifyReader.Close();
                         
                         // Check if status actually changed to "Menunggu Upload SK"
                         if (updatedStatus == "Menunggu Upload SK")
                         {
-                            Console.WriteLine($"[ApproveCutiAsync] Finance approval successful - status changed to 'Menunggu Upload SK'!");
                             return true;
                         }
                         else
                         {
-                            Console.WriteLine($"[ApproveCutiAsync] Finance approval failed - status did not change to expected value");
                             return false;
                         }
                     }
                     else
                     {
                         verifyReader.Close();
-                        Console.WriteLine($"[ApproveCutiAsync] Finance approval failed - record not found after SP execution");
                         return false;
                     }
                 }
 
                 // For other roles (prodi/wadir1), use stored procedure
-                Console.WriteLine($"[ApproveCutiAsync] Processing non-finance approval for role: {dto.Role}");
                 
                 var spCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
                 {
@@ -825,32 +794,26 @@ namespace astratech_apps_backend.Repositories.Implementations
                 spCmd.Parameters.AddWithValue("@Role", dto.Role.ToLower());
                 spCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
 
-                Console.WriteLine($"[ApproveCutiAsync] Trying stored procedure for role: {dto.Role}");
                 var spRows = await spCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[ApproveCutiAsync] SP rows affected: {spRows}");
 
                 // Check status after stored procedure execution to verify if it actually changed
                 var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
                 var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
-                Console.WriteLine($"[ApproveCutiAsync] Status after SP: '{newStatus}'");
                 
                 // Consider approval successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
                 {
-                    Console.WriteLine($"[ApproveCutiAsync] SP success - status changed from '{currentStatus}' to '{newStatus}'!");
                     return true;
                 }
                 else if (spRows > 0)
                 {
-                    Console.WriteLine($"[ApproveCutiAsync] SP success based on rows affected!");
                     return true;
                 }
 
                 // If SP failed, try role-specific direct SQL update as fallback
-                Console.WriteLine($"[ApproveCutiAsync] SP failed, trying direct SQL update...");
                 
                 string targetStatus = "";
                 string approvalField = "";
@@ -870,7 +833,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                         dateField = "cak_app_dir1_date";
                         break;
                     default:
-                        Console.WriteLine($"[ApproveCutiAsync] ERROR: Unknown role for fallback: {dto.Role}");
                         return false;
                 }
 
@@ -888,20 +850,15 @@ namespace astratech_apps_backend.Repositories.Implementations
                 directCmd.Parameters.AddWithValue("@newStatus", targetStatus);
 
                 var directRows = await directCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[ApproveCutiAsync] Direct SQL rows affected: {directRows}");
 
                 var success = directRows > 0;
-                Console.WriteLine($"[ApproveCutiAsync] Final result: {success}");
                 
                 return success;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ApproveCutiAsync] EXCEPTION: {ex.Message}");
-                Console.WriteLine($"[ApproveCutiAsync] Stack trace: {ex.StackTrace}");
                 if (ex.InnerException != null)
                 {
-                    Console.WriteLine($"[ApproveCutiAsync] Inner exception: {ex.InnerException.Message}");
                 }
                 throw; // Re-throw to let controller handle it
             }
@@ -914,9 +871,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[ApproveProdiCutiAsync] Starting approval for ID: {dto.Id}");
-                Console.WriteLine($"[ApproveProdiCutiAsync] Menimbang: '{dto.Menimbang}' (Length: {dto.Menimbang?.Length ?? 0})");
-                Console.WriteLine($"[ApproveProdiCutiAsync] ApprovedBy: {dto.ApprovedBy}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -930,14 +884,12 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (!await reader.ReadAsync())
                 {
                     reader.Close();
-                    Console.WriteLine($"[ApproveProdiCutiAsync] ERROR: Record not found for ID: {dto.Id}");
                     return false;
                 }
 
                 var currentStatus = reader["cak_status"].ToString();
                 reader.Close();
                 
-                Console.WriteLine($"[ApproveProdiCutiAsync] Current status: {currentStatus}");
 
                 // Try stored procedure first dengan parameter yang sudah di-ALTER
                 var spCmd = new SqlCommand("sia_setujuiCutiAkademikProdi", conn)
@@ -949,32 +901,26 @@ namespace astratech_apps_backend.Repositories.Implementations
                 spCmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
                 spCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
 
-                Console.WriteLine($"[ApproveProdiCutiAsync] Trying stored procedure first...");
                 var spRows = await spCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[ApproveProdiCutiAsync] SP rows affected: {spRows}");
 
                 // Check status after stored procedure execution to verify if it actually changed
                 var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
                 var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
-                Console.WriteLine($"[ApproveProdiCutiAsync] Status after SP: '{newStatus}'");
                 
                 // Consider approval successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
                 {
-                    Console.WriteLine($"[ApproveProdiCutiAsync] SP success - status changed from '{currentStatus}' to '{newStatus}'!");
                     return true;
                 }
                 else if (spRows > 0)
                 {
-                    Console.WriteLine($"[ApproveProdiCutiAsync] SP success based on rows affected!");
                     return true;
                 }
 
                 // If SP failed, try direct SQL update as fallback
-                Console.WriteLine($"[ApproveProdiCutiAsync] SP failed, trying direct SQL update...");
                 
                 var directCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
@@ -989,17 +935,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                 directCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
 
                 var directRows = await directCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[ApproveProdiCutiAsync] Direct SQL rows affected: {directRows}");
 
                 var success = directRows > 0;
-                Console.WriteLine($"[ApproveProdiCutiAsync] Final result: {success}");
                 
                 return success;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ApproveProdiCutiAsync] ERROR: {ex.Message}");
-                Console.WriteLine($"[ApproveProdiCutiAsync] Stack trace: {ex.StackTrace}");
                 throw; // Re-throw to let controller handle it
             }
         }
@@ -1011,8 +953,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[RejectCutiAsync] Starting rejection for ID: {dto.Id}");
-                Console.WriteLine($"[RejectCutiAsync] Role: {dto.Role}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -1026,14 +966,12 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (!await reader.ReadAsync())
                 {
                     reader.Close();
-                    Console.WriteLine($"[RejectCutiAsync] ERROR: Record not found for ID: {dto.Id}");
                     return false;
                 }
 
                 var currentStatus = reader["cak_status"].ToString();
                 reader.Close();
                 
-                Console.WriteLine($"[RejectCutiAsync] Current status: {currentStatus}");
 
                 // Try stored procedure first dengan parameter yang sudah di-ALTER
                 var spCmd = new SqlCommand("sia_tolakCutiAkademik", conn)
@@ -1045,32 +983,26 @@ namespace astratech_apps_backend.Repositories.Implementations
                 spCmd.Parameters.AddWithValue("@Role", dto.Role);
                 spCmd.Parameters.AddWithValue("@Keterangan", ""); // Empty keterangan
 
-                Console.WriteLine($"[RejectCutiAsync] Trying stored procedure first...");
                 var spRows = await spCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[RejectCutiAsync] SP rows affected: {spRows}");
 
                 // Check status after stored procedure execution to verify if it actually changed
                 var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
                 var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
-                Console.WriteLine($"[RejectCutiAsync] Status after SP: '{newStatus}'");
                 
                 // Consider rejection successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
                 {
-                    Console.WriteLine($"[RejectCutiAsync] SP success - status changed from '{currentStatus}' to '{newStatus}'!");
                     return true;
                 }
                 else if (spRows > 0)
                 {
-                    Console.WriteLine($"[RejectCutiAsync] SP success based on rows affected!");
                     return true;
                 }
 
                 // If SP failed, try direct SQL update as fallback
-                Console.WriteLine($"[RejectCutiAsync] SP failed, trying direct SQL update...");
                 
                 var directCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
@@ -1082,17 +1014,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                 directCmd.Parameters.AddWithValue("@newStatus", $"Ditolak {dto.Role}");
 
                 var directRows = await directCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[RejectCutiAsync] Direct SQL rows affected: {directRows}");
 
                 var success = directRows > 0;
-                Console.WriteLine($"[RejectCutiAsync] Final result: {success}");
                 
                 return success;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[RejectCutiAsync] ERROR: {ex.Message}");
-                Console.WriteLine($"[RejectCutiAsync] Stack trace: {ex.StackTrace}");
                 throw; // Re-throw to let controller handle it
             }
         }
@@ -1104,8 +1032,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[CreateSKAsync] Starting SK creation for ID: {dto.Id}");
-                Console.WriteLine($"[CreateSKAsync] NoSK: {dto.NoSK}, CreatedBy: {dto.CreatedBy}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -1121,7 +1047,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (!await reader.ReadAsync())
                 {
                     reader.Close();
-                    Console.WriteLine($"[CreateSKAsync] ERROR: Record not found for ID: {dto.Id}");
                     return null;
                 }
 
@@ -1129,14 +1054,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var existingSrtNo = reader["srt_no"].ToString();
                 reader.Close();
                 
-                Console.WriteLine($"[CreateSKAsync] Current status: {currentStatus}");
-                Console.WriteLine($"[CreateSKAsync] Existing srt_no: {existingSrtNo}");
 
                 // Validate status - harus sudah disetujui finance untuk bisa create SK
                 if (currentStatus != "Belum Disetujui Finance" && currentStatus != "Menunggu Upload SK")
                 {
-                    Console.WriteLine($"[CreateSKAsync] ERROR: Invalid status for SK creation: {currentStatus}");
-                    Console.WriteLine($"[CreateSKAsync] Expected status: 'Belum Disetujui Finance' or 'Menunggu Upload SK'");
                     return null;
                 }
 
@@ -1171,7 +1092,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     }
                     
                     noSK = $"{sequence:D3}/SK-CA/{month:D2}/{year}";
-                    Console.WriteLine($"[CreateSKAsync] Generated SK number: {noSK}");
                 }
 
                 // Use stored procedure sia_createSKCutiAkademik to finalize SK
@@ -1187,23 +1107,18 @@ namespace astratech_apps_backend.Repositories.Implementations
                     spCmd.Parameters.AddWithValue("@NomorSK", noSK);
                     spCmd.Parameters.AddWithValue("@ModifiedBy", dto.CreatedBy);
 
-                    Console.WriteLine($"[CreateSKAsync] Executing stored procedure with SK: {noSK}");
                     var spRows = await spCmd.ExecuteNonQueryAsync();
-                    Console.WriteLine($"[CreateSKAsync] SP rows affected: {spRows}");
 
                     if (spRows > 0)
                     {
-                        Console.WriteLine($"[CreateSKAsync] SK created successfully using SP: {noSK}");
                         return noSK;
                     }
                 }
                 catch (Exception spEx)
                 {
-                    Console.WriteLine($"[CreateSKAsync] SP failed: {spEx.Message}");
                 }
 
                 // Fallback: Update record dengan nomor SK dan ubah status ke "Menunggu Upload SK"
-                Console.WriteLine($"[CreateSKAsync] SP failed, using fallback direct SQL...");
                 var updateCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
                     SET srt_no = @noSK,
@@ -1216,23 +1131,17 @@ namespace astratech_apps_backend.Repositories.Implementations
                 updateCmd.Parameters.AddWithValue("@noSK", noSK);
                 updateCmd.Parameters.AddWithValue("@createdBy", dto.CreatedBy);
 
-                Console.WriteLine($"[CreateSKAsync] Executing fallback update with SK number: {noSK}");
                 var rows = await updateCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[CreateSKAsync] Fallback rows affected: {rows}");
 
                 if (rows > 0)
                 {
-                    Console.WriteLine($"[CreateSKAsync] SK created successfully with fallback: {noSK}");
                     return noSK;
                 }
                 
-                Console.WriteLine($"[CreateSKAsync] Failed to create SK");
                 return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CreateSKAsync] ERROR: {ex.Message}");
-                Console.WriteLine($"[CreateSKAsync] Stack trace: {ex.StackTrace}");
                 throw;
             }
         }
@@ -1245,9 +1154,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[UploadSKAsync] Starting SK upload for ID: {dto.Id}");
-                Console.WriteLine($"[UploadSKAsync] File: {dto.FileSK?.FileName}");
-                Console.WriteLine($"[UploadSKAsync] UploadBy: {dto.UploadBy}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -1261,7 +1167,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (!await reader.ReadAsync())
                 {
                     reader.Close();
-                    Console.WriteLine($"[UploadSKAsync] ERROR: Record not found for ID: {dto.Id}");
                     return false;
                 }
 
@@ -1269,13 +1174,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var existingSrtNo = reader["srt_no"]?.ToString() ?? "";
                 reader.Close();
                 
-                Console.WriteLine($"[UploadSKAsync] Current status: {currentStatus}");
-                Console.WriteLine($"[UploadSKAsync] Existing srt_no: '{existingSrtNo}'");
 
                 // Allow upload if status is "Menunggu Upload SK" OR "Disetujui" (untuk re-upload)
                 if (currentStatus != "Menunggu Upload SK" && currentStatus != "Disetujui")
                 {
-                    Console.WriteLine($"[UploadSKAsync] ERROR: Invalid status for SK upload: {currentStatus}");
                     return false;
                 }
 
@@ -1283,15 +1185,12 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var fileName = SaveFile(dto.FileSK);
                 if (string.IsNullOrEmpty(fileName))
                 {
-                    Console.WriteLine($"[UploadSKAsync] ERROR: Failed to save file");
                     return false;
                 }
 
-                Console.WriteLine($"[UploadSKAsync] File saved as: {fileName}");
 
                 // Generate SK number untuk keperluan internal/logging (tidak disimpan ke DB)
                 var skNumber = await GenerateSKNumberAsync(conn);
-                Console.WriteLine($"[UploadSKAsync] Generated SK number (for reference): {skNumber}");
 
                 // Update record WITHOUT srt_no field (bypass foreign key constraint)
                 var updateCmd = new SqlCommand(@"
@@ -1314,11 +1213,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 updateCmd.Parameters.AddWithValue("@uploadBy", dto.UploadBy);
 
                 var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[UploadSKAsync] Update rows affected: {rowsAffected}");
 
                 if (rowsAffected > 0)
                 {
-                    Console.WriteLine($"[UploadSKAsync] ✓ SUCCESS! SK uploaded (Generated SK for reference: {skNumber})");
                     
                     // Verify the update worked
                     var verifyCmd = new SqlCommand(
@@ -1330,7 +1227,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     {
                         var finalSk = verifyReader["cak_sk"]?.ToString() ?? "";
                         var finalStatus = verifyReader["cak_status"]?.ToString() ?? "";
-                        Console.WriteLine($"[UploadSKAsync] Verification - cak_sk: '{finalSk}', status: '{finalStatus}'");
                     }
                     verifyReader.Close();
                     
@@ -1338,14 +1234,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
                 else
                 {
-                    Console.WriteLine($"[UploadSKAsync] ✗ FAILED: No rows affected during update");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UploadSKAsync] ERROR: {ex.Message}");
-                Console.WriteLine($"[UploadSKAsync] Stack trace: {ex.StackTrace}");
                 throw; // Re-throw to let controller handle it
             }
         }
@@ -1391,7 +1284,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 string romanMonth = ConvertToRoman(month);
                 string skFormat = $"/PA-WADIR-I/SKC/{romanMonth}/{year}";
                 
-                Console.WriteLine($"[GenerateSKNumberAsync] Generating SK number for {romanMonth}/{year}");
                 
                 // Get the highest sequence number for current year
                 // Use simpler query to avoid parsing issues
@@ -1423,20 +1315,17 @@ namespace astratech_apps_backend.Repositories.Implementations
                                 if (sequence > maxSequence)
                                 {
                                     maxSequence = sequence;
-                                    Console.WriteLine($"[GenerateSKNumberAsync] Found sequence: {sequence} from SK: {srtNo}");
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[GenerateSKNumberAsync] Error parsing SK: {srtNo}, Error: {ex.Message}");
                         }
                     }
                 }
                 reader.Close();
                 
                 int nextSequence = maxSequence + 1;
-                Console.WriteLine($"[GenerateSKNumberAsync] Max sequence found: {maxSequence}, Next will be: {nextSequence}");
                 
                 // Generate new SK number with collision protection
                 for (int attempt = 0; attempt < 100; attempt++)
@@ -1444,7 +1333,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     // Format sequence number with leading zeros (always 3 digits)
                     string candidateSkNumber = $"{nextSequence:D3}{skFormat}";
                     
-                    Console.WriteLine($"[GenerateSKNumberAsync] Attempt {attempt + 1}: Trying SK number: {candidateSkNumber}");
                     
                     // Check if this SK number already exists
                     var checkExistCmd = new SqlCommand(@"
@@ -1456,30 +1344,24 @@ namespace astratech_apps_backend.Repositories.Implementations
                     var count = (int)await checkExistCmd.ExecuteScalarAsync();
                     if (count == 0)
                     {
-                        Console.WriteLine($"[GenerateSKNumberAsync] ✓ SK number is unique: {candidateSkNumber}");
                         return candidateSkNumber;
                     }
                     
-                    Console.WriteLine($"[GenerateSKNumberAsync] ✗ SK number collision detected, trying next sequence");
                     nextSequence++;
                 }
                 
                 // If all attempts fail, use timestamp-based fallback
                 var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
                 var fallbackSkNumber = $"{timestamp + 500:D3}{skFormat}"; // Add 500 to avoid low numbers
-                Console.WriteLine($"[GenerateSKNumberAsync] ⚠️ Using fallback SK number: {fallbackSkNumber}");
                 return fallbackSkNumber;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GenerateSKNumberAsync] ERROR: {ex.Message}");
-                Console.WriteLine($"[GenerateSKNumberAsync] Stack trace: {ex.StackTrace}");
                 
                 // Emergency fallback
                 var now = DateTime.Now;
                 var romanMonth = ConvertToRoman(now.Month);
                 var emergencySkNumber = $"999/PA-WADIR-I/SKC/{romanMonth}/{now.Year}";
-                Console.WriteLine($"[GenerateSKNumberAsync] 🚨 Using emergency fallback: {emergencySkNumber}");
                 return emergencySkNumber;
             }
         }
@@ -1488,7 +1370,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[DetectUserRoleAsync] Starting role detection for username: '{username}'");
                 
                 await using var conn = new SqlConnection(_conn);
                 await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
@@ -1498,22 +1379,18 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 // Based on the error message, the SP expects @UsernameToFind parameter
                 cmd.Parameters.AddWithValue("@UsernameToFind", username);
-                Console.WriteLine($"[DetectUserRoleAsync] Set @UsernameToFind parameter to: '{username}'");
 
                 await conn.OpenAsync();
-                Console.WriteLine($"[DetectUserRoleAsync] Connection opened, executing stored procedure...");
                 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 if (await reader.ReadAsync())
                 {
                     // Log all available columns for debugging
-                    Console.WriteLine($"[DetectUserRoleAsync] Found data! Available columns:");
                     for (int i = 0; i < reader.FieldCount; i++)
                     {
                         var columnName = reader.GetName(i);
                         var columnValue = reader[i]?.ToString() ?? "NULL";
-                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
                     }
                     
                     var strMainId = reader["str_main_id"]?.ToString() ?? "";
@@ -1521,7 +1398,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
                     var rolId = reader["rol_id"]?.ToString() ?? "";
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Key fields - Username: '{username}', kry_username: '{kryUsername}', str_main_id: '{strMainId}', jab_main_id: '{jabMainId}', rol_id: '{rolId}'");
                     
                     // Updated role detection logic based on jabMainId
                     var role = jabMainId switch
@@ -1538,11 +1414,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                         role = "finance";
                     }
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: '{role}' for jabMainId: '{jabMainId}', username: '{username}'");
                     return role;
                 }
                 
-                Console.WriteLine($"[DetectUserRoleAsync] No data found for username: '{username}' - stored procedure returned no rows");
                 
                 // Let's also try a direct query to see if the user exists in the tables
                 await using var directCmd = new SqlCommand(@"
@@ -1555,12 +1429,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var directReader = await directCmd.ExecuteReaderAsync();
                 if (await directReader.ReadAsync())
                 {
-                    Console.WriteLine($"[DetectUserRoleAsync] Direct query found data:");
                     for (int i = 0; i < directReader.FieldCount; i++)
                     {
                         var columnName = directReader.GetName(i);
                         var columnValue = directReader[i]?.ToString() ?? "NULL";
-                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
                     }
                     
                     var strMainId = directReader["str_main_id"]?.ToString() ?? "";
@@ -1581,20 +1453,16 @@ namespace astratech_apps_backend.Repositories.Implementations
                         role = "finance";
                     }
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Direct query - Detected role: '{role}' for jabMainId: '{jabMainId}', username: '{username}'");
                     return role;
                 }
                 else
                 {
-                    Console.WriteLine($"[DetectUserRoleAsync] Direct query also found no data for username: '{username}'");
                 }
                 
                 return "";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DetectUserRoleAsync] Error: {ex.Message}");
-                Console.WriteLine($"[DetectUserRoleAsync] Stack trace: {ex.StackTrace}");
                 return "";
             }
         }
