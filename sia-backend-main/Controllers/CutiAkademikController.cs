@@ -24,6 +24,41 @@ namespace astratech_apps_backend.Controllers
         public async Task<IActionResult> CreateDraft([FromForm] CreateDraftCutiRequest dto)
 
         {
+            // Validate file types - MS Word documents not allowed
+            if (dto.LampiranSuratPengajuan != null)
+            {
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                var fileExtension = Path.GetExtension(dto.LampiranSuratPengajuan.FileName).ToLowerInvariant();
+                
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(new { message = $"Tipe file lampiran surat pengajuan tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                }
+
+                // Validate file size (max 10MB)
+                if (dto.LampiranSuratPengajuan.Length > 10 * 1024 * 1024)
+                {
+                    return BadRequest(new { message = "Ukuran file lampiran surat pengajuan maksimal 10MB." });
+                }
+            }
+
+            if (dto.Lampiran != null)
+            {
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                var fileExtension = Path.GetExtension(dto.Lampiran.FileName).ToLowerInvariant();
+                
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(new { message = $"Tipe file lampiran tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                }
+
+                // Validate file size (max 10MB)
+                if (dto.Lampiran.Length > 10 * 1024 * 1024)
+                {
+                    return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
+                }
+            }
+
             var id = await _service.CreateDraftAsync(dto);
             return Ok(new { draftId = id });
         }
@@ -53,6 +88,41 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                // Validate file types - MS Word documents not allowed
+                if (dto.LampiranSuratPengajuan != null)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(dto.LampiranSuratPengajuan.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { message = $"Tipe file lampiran surat pengajuan tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    }
+
+                    // Validate file size (max 10MB)
+                    if (dto.LampiranSuratPengajuan.Length > 10 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Ukuran file lampiran surat pengajuan maksimal 10MB." });
+                    }
+                }
+
+                if (dto.Lampiran != null)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(dto.Lampiran.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { message = $"Tipe file lampiran tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    }
+
+                    // Validate file size (max 10MB)
+                    if (dto.Lampiran.Length > 10 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
+                    }
+                }
+
                 var id = await _service.CreateDraftByProdiAsync(dto);
                 
                 if (string.IsNullOrEmpty(id))
@@ -157,6 +227,41 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                // Validate file types - MS Word documents not allowed
+                if (dto.LampiranSuratPengajuan != null)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(dto.LampiranSuratPengajuan.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { message = $"Tipe file lampiran surat pengajuan tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    }
+
+                    // Validate file size (max 10MB)
+                    if (dto.LampiranSuratPengajuan.Length > 10 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Ukuran file lampiran surat pengajuan maksimal 10MB." });
+                    }
+                }
+
+                if (dto.Lampiran != null)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(dto.Lampiran.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { message = $"Tipe file lampiran tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    }
+
+                    // Validate file size (max 10MB)
+                    if (dto.Lampiran.Length > 10 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
+                    }
+                }
+
                 // Set ModifiedBy dari context jika tidak ada
                 if (string.IsNullOrEmpty(dto.ModifiedBy))
                 {
@@ -584,8 +689,8 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "UploadBy harus diisi." });
                 }
 
-                // Validate file type
-                var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png" };
+                // Validate file type - MS Word documents not allowed
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 var fileExtension = Path.GetExtension(dto.FileSK.FileName).ToLowerInvariant();
                 
                 if (!allowedExtensions.Contains(fileExtension))

@@ -252,8 +252,6 @@ namespace astratech_apps_backend.Controllers
             return extension switch
             {
                 ".pdf" => "application/pdf",
-                ".doc" => "application/msword",
-                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".png" => "image/png",
                 ".txt" => "text/plain",
@@ -270,6 +268,24 @@ namespace astratech_apps_backend.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            // Validate file type - MS Word documents not allowed
+            if (dto.LampiranFile != null)
+            {
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
+                
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(new { message = $"Tipe file lampiran tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                }
+
+                // Validate file size (max 10MB)
+                if (dto.LampiranFile.Length > 10 * 1024 * 1024)
+                {
+                    return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
+                }
+            }
 
             var createdBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
             var id = await _service.CreateAsync(dto, createdBy);
@@ -327,7 +343,7 @@ namespace astratech_apps_backend.Controllers
                 // Validate file if provided
                 if (dto.LampiranFile != null)
                 {
-                    var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png" };
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                     var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
                     
                     if (!allowedExtensions.Contains(fileExtension))
@@ -400,8 +416,8 @@ namespace astratech_apps_backend.Controllers
                     request.ModifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
                 }
 
-                // Validate file types
-                var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png" };
+                // Validate file types - MS Word documents not allowed
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 
                 var skFileExtension = Path.GetExtension(request.SK.FileName).ToLowerInvariant();
                 var spkbFileExtension = Path.GetExtension(request.SKPB.FileName).ToLowerInvariant();
@@ -594,8 +610,48 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                // Validate file types - MS Word documents not allowed
+                if (dto.SkFile != null)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(dto.SkFile.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { message = $"Tipe file SK tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    }
+
+                    // Validate file size (max 10MB)
+                    if (dto.SkFile.Length > 10 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Ukuran file SK maksimal 10MB." });
+                    }
+                }
+
+                if (dto.SpkbFile != null)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(dto.SpkbFile.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { message = $"Tipe file SPKB tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    }
+
+                    // Validate file size (max 10MB)
+                    if (dto.SpkbFile.Length > 10 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Ukuran file SPKB maksimal 10MB." });
+                    }
+                }
 
                 var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
+
+                // Ensure files are not null before calling service
+                if (dto.SkFile == null || dto.SpkbFile == null)
+                {
+                    return BadRequest(new { message = "File SK dan SPKB harus diupload." });
+                }
 
                 var success = await _service.UploadSKAsync(id, dto.SkFile, dto.SpkbFile, updatedBy);
 
