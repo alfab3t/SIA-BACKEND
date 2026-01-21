@@ -8,8 +8,6 @@ namespace astratech_apps_backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // Note: This controller handles multiple mahasiswa-related operations by design
-    // to maintain consistency with the existing system architecture
     [SuppressMessage("SonarQube", "S6960", Justification = "Controller consolidates related mahasiswa operations for system consistency")]
     public class MahasiswaController : ControllerBase
     {
