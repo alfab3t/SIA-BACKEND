@@ -96,23 +96,23 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 list.Add(new DropOut
                 {
-                    Id = r["dro_id"].ToString(),
-                    MhsId = r["mhs_id"].ToString(),
-                    Menimbang = r["dro_menimbang"].ToString(),
-                    Mengingat = r["dro_mengingat"].ToString(),
-                    ApproveWadir1 = r["dro_appr_wadir1"].ToString(),
+                    Id = r["dro_id"]?.ToString() ?? "",
+                    MhsId = r["mhs_id"]?.ToString() ?? "",
+                    Menimbang = r["dro_menimbang"]?.ToString() ?? "",
+                    Mengingat = r["dro_mengingat"]?.ToString() ?? "",
+                    ApproveWadir1 = r["dro_appr_wadir1"]?.ToString() ?? "",
                     ApproveWadir1Date = r["dro_appr_wadir1_date"] as DateTime?,
-                    ApproveDir = r["dro_appr_dir"].ToString(),
+                    ApproveDir = r["dro_appr_dir"]?.ToString() ?? "",
                     ApproveDirDate = r["dro_appr_dir_date"] as DateTime?,
-                    SrtNo = r["srt_no"].ToString(),
-                    SrtKetNo = r["dro_srt_ket_no"].ToString(),
-                    Sk = r["dro_sk"].ToString(),
-                    Skpb = r["dro_skpb"].ToString(),
-                    AlasanTolak = r["dro_alasan_tolak"].ToString(),
-                    Status = r["dro_status"].ToString(),
-                    CreatedBy = r["dro_created_by"].ToString(),
+                    SrtNo = r["srt_no"]?.ToString() ?? "",
+                    SrtKetNo = r["dro_srt_ket_no"]?.ToString() ?? "",
+                    Sk = r["dro_sk"]?.ToString() ?? "",
+                    Skpb = r["dro_skpb"]?.ToString() ?? "",
+                    AlasanTolak = r["dro_alasan_tolak"]?.ToString() ?? "",
+                    Status = r["dro_status"]?.ToString() ?? "",
+                    CreatedBy = r["dro_created_by"]?.ToString() ?? "",
                     CreatedDate = r["dro_created_date"] as DateTime?,
-                    ModifiedBy = r["dro_modif_by"].ToString(),
+                    ModifiedBy = r["dro_modif_by"]?.ToString() ?? "",
                     ModifiedDate = r["dro_modif_date"] as DateTime?
                 });
             }
@@ -146,19 +146,19 @@ namespace astratech_apps_backend.Repositories.Implementations
                 MhsText = reader.GetString(2),
                 Konsentrasi = reader.GetString(3),
                 Angkatan = reader.GetString(4),
-                Menimbang = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                Mengingat = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                Menimbang = await reader.IsDBNullAsync(5) ? "" : reader.GetString(5),
+                Mengingat = await reader.IsDBNullAsync(6) ? "" : reader.GetString(6),
                 Status = reader.GetString(7),
                 CreatedBy = reader.GetString(8),
-                Sk = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                ApproveWadir1Date = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                ApproveWadir1By = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                ApproveDirDate = reader.IsDBNull(12) ? "" : reader.GetString(12),
-                ApproveDirBy = reader.IsDBNull(13) ? "" : reader.GetString(13),
-                AlasanTolak = reader.IsDBNull(14) ? "" : reader.GetString(14),
-                Konsentrasi2 = reader.IsDBNull(15) ? "" : reader.GetString(15),
-                Prodi = reader.IsDBNull(16) ? "" : reader.GetString(16),
-                SuratKeteranganNo = reader.IsDBNull(17) ? "" : reader.GetString(17)
+                Sk = await reader.IsDBNullAsync(9) ? "" : reader.GetString(9),
+                ApproveWadir1Date = await reader.IsDBNullAsync(10) ? "" : reader.GetString(10),
+                ApproveWadir1By = await reader.IsDBNullAsync(11) ? "" : reader.GetString(11),
+                ApproveDirDate = await reader.IsDBNullAsync(12) ? "" : reader.GetString(12),
+                ApproveDirBy = await reader.IsDBNullAsync(13) ? "" : reader.GetString(13),
+                AlasanTolak = await reader.IsDBNullAsync(14) ? "" : reader.GetString(14),
+                Konsentrasi2 = await reader.IsDBNullAsync(15) ? "" : reader.GetString(15),
+                Prodi = await reader.IsDBNullAsync(16) ? "" : reader.GetString(16),
+                SuratKeteranganNo = await reader.IsDBNullAsync(17) ? "" : reader.GetString(17)
             };
         }
 
@@ -181,23 +181,23 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new DropOut
             {
-                Id = r["dro_id"].ToString(),
-                MhsId = r["mhs_id"].ToString(),
-                Menimbang = r["dro_menimbang"].ToString(),
-                Mengingat = r["dro_mengingat"].ToString(),
-                ApproveWadir1 = r["dro_appr_wadir1"].ToString(),
+                Id = r["dro_id"]?.ToString() ?? "",
+                MhsId = r["mhs_id"]?.ToString() ?? "",
+                Menimbang = r["dro_menimbang"]?.ToString() ?? "",
+                Mengingat = r["dro_mengingat"]?.ToString() ?? "",
+                ApproveWadir1 = r["dro_appr_wadir1"]?.ToString() ?? "",
                 ApproveWadir1Date = r["dro_appr_wadir1_date"] as DateTime?,
-                ApproveDir = r["dro_appr_dir"].ToString(),
+                ApproveDir = r["dro_appr_dir"]?.ToString() ?? "",
                 ApproveDirDate = r["dro_appr_dir_date"] as DateTime?,
-                SrtNo = r["srt_no"].ToString(),
-                SrtKetNo = r["dro_srt_ket_no"].ToString(),
-                Sk = r["dro_sk"].ToString(),
-                Skpb = r["dro_skpb"].ToString(),
-                AlasanTolak = r["dro_alasan_tolak"].ToString(),
-                Status = r["dro_status"].ToString(),
-                CreatedBy = r["dro_created_by"].ToString(),
+                SrtNo = r["srt_no"]?.ToString() ?? "",
+                SrtKetNo = r["dro_srt_ket_no"]?.ToString() ?? "",
+                Sk = r["dro_sk"]?.ToString() ?? "",
+                Skpb = r["dro_skpb"]?.ToString() ?? "",
+                AlasanTolak = r["dro_alasan_tolak"]?.ToString() ?? "",
+                Status = r["dro_status"]?.ToString() ?? "",
+                CreatedBy = r["dro_created_by"]?.ToString() ?? "",
                 CreatedDate = r["dro_created_date"] as DateTime?,
-                ModifiedBy = r["dro_modif_by"].ToString(),
+                ModifiedBy = r["dro_modif_by"]?.ToString() ?? "",
                 ModifiedDate = r["dro_modif_date"] as DateTime?
             };
         }
@@ -324,7 +324,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 TahunAjaran = reader.GetString(16),
                 SemesterText = reader.GetString(17),
                 StatusKuliah = reader.GetString(18),
-                TahunLulus = reader.IsDBNull(19) ? "" : reader.GetString(19),
+                TahunLulus = await reader.IsDBNullAsync(19) ? "" : reader.GetString(19),
                 TempatLahir = reader.GetString(20),
                 MhsId = reader.GetString(21)
             };
@@ -348,56 +348,10 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new DropOutDownloadSkResponse
             {
-                Sk = reader.IsDBNull(0) ? "" : reader.GetString(0),
-                Skpb = reader.IsDBNull(1) ? "" : reader.GetString(1)
+                Sk = await reader.IsDBNullAsync(0) ? "" : reader.GetString(0),
+                Skpb = await reader.IsDBNullAsync(1) ? "" : reader.GetString(1)
             };
         }
-
-        //    public async Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
-        //string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi)
-        //    {
-        //        var result = new List<DropOutRiwayatResponse>();
-
-        //        await using var conn = new SqlConnection(_conn);
-        //        await using var cmd = new SqlCommand("sia_getDataRiwayatDO", conn)
-        //        {
-        //            CommandType = CommandType.StoredProcedure
-        //        };
-
-        //        cmd.Parameters.AddWithValue("@p1", username);
-        //        cmd.Parameters.AddWithValue("@p2", keyword);
-        //        cmd.Parameters.AddWithValue("@p3", sortBy);
-        //        cmd.Parameters.AddWithValue("@p4", konsentrasi);
-        //        cmd.Parameters.AddWithValue("@p5", role);
-        //        cmd.Parameters.AddWithValue("@p6", sekprodi);
-
-        //        // sisanya p7 - p50 = "" (kosong)
-        //        for (int i = 7; i <= 50; i++)
-        //        {
-        //            cmd.Parameters.AddWithValue($"@p{i}", "");
-        //        }
-
-        //        await conn.OpenAsync();
-        //        using var reader = await cmd.ExecuteReaderAsync();
-
-        //        while (await reader.ReadAsync())
-        //        {
-        //            result.Add(new DropOutRiwayatResponse
-        //            {
-        //                Id = reader["dro_id"].ToString(),
-        //                MhsId = reader["mhs_id"].ToString(),
-        //                Mahasiswa = reader["mhs_nama"].ToString(),
-        //                Konsentrasi = reader["kon_nama"].ToString(),
-        //                Tanggal = reader["dro_created_date"].ToString(),
-        //                CreatedBy = reader["dro_created_by"].ToString(),
-        //                SuratNo = reader["srt_no"].ToString(),
-        //                Status = reader["dro_status"].ToString()
-        //            });
-        //        }
-
-        //        return result;
-        //    }
-
 
         public async Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
        string username, string keyword, string sortBy, string konsentrasi, string role, string displayName)
@@ -450,12 +404,12 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 result.Add(new DropOutRiwayatExcelResponse
                 {
-                    NIM = reader["NIM"].ToString(),
-                    NamaMahasiswa = reader["Nama Mahasiswa"].ToString(),
-                    Konsentrasi = reader["Konsenstrasi"].ToString(),
-                    TanggalPengajuan = reader["Tanggal Pengajuan"].ToString(),
-                    NoSK = reader["No SK"].ToString(),
-                    NoPengajuan = reader["No Pengajuan"].ToString()
+                    NIM = reader["NIM"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["Nama Mahasiswa"]?.ToString() ?? "",
+                    Konsentrasi = reader["Konsenstrasi"]?.ToString() ?? "",
+                    TanggalPengajuan = reader["Tanggal Pengajuan"]?.ToString() ?? "",
+                    NoSK = reader["No SK"]?.ToString() ?? "",
+                    NoPengajuan = reader["No Pengajuan"]?.ToString() ?? ""
                 });
             }
 
@@ -484,7 +438,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 return new DropOutGetIdByDraftResponse
                 {
-                    Id = reader[0].ToString()
+                    Id = reader[0]?.ToString() ?? ""
                 };
             }
 
@@ -529,23 +483,23 @@ namespace astratech_apps_backend.Repositories.Implementations
             await conn.OpenAsync();
             using var reader = await cmd.ExecuteReaderAsync();
 
-            if (!reader.Read())
+            if (!await reader.ReadAsync())
                 return null;
 
             return new SKDOReportResponse
             {
-                DropOutId = reader["dro_id"].ToString(),
-                SuratNo = reader["srt_no"].ToString(),
-                Menimbang = reader["dro_menimbang"].ToString(),
-                Mengingat = reader["dro_mengingat"].ToString(),
-                MahasiswaNama = reader["mhs_nama"].ToString(),
-                MahasiswaId = reader["mhs_id"].ToString(),
-                ProdiNama = reader["pro_nama"].ToString(),
-                KonsentrasiNama = reader["kon_nama"].ToString(),
-                TahunAjaran = reader["srt_tahun_ajaran"].ToString(),
-                Direktur = reader["direktur"].ToString(),
-                Wadir1 = reader["wadir1"].ToString(),
-                Kaprodi = reader["kaprod"].ToString()
+                DropOutId = reader["dro_id"]?.ToString() ?? "",
+                SuratNo = reader["srt_no"]?.ToString() ?? "",
+                Menimbang = reader["dro_menimbang"]?.ToString() ?? "",
+                Mengingat = reader["dro_mengingat"]?.ToString() ?? "",
+                MahasiswaNama = reader["mhs_nama"]?.ToString() ?? "",
+                MahasiswaId = reader["mhs_id"]?.ToString() ?? "",
+                ProdiNama = reader["pro_nama"]?.ToString() ?? "",
+                KonsentrasiNama = reader["kon_nama"]?.ToString() ?? "",
+                TahunAjaran = reader["srt_tahun_ajaran"]?.ToString() ?? "",
+                Direktur = reader["direktur"]?.ToString() ?? "",
+                Wadir1 = reader["wadir1"]?.ToString() ?? "",
+                Kaprodi = reader["kaprod"]?.ToString() ?? ""
             };
         }
 
@@ -572,9 +526,9 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 result.Add(new SKDOReportSubResponse
                 {
-                    DropOutId = reader["dro_id"].ToString(),
-                    Jenis = reader["jenis"].ToString(),
-                    Isi = reader["isi"].ToString()
+                    DropOutId = reader["dro_id"]?.ToString() ?? "",
+                    Jenis = reader["jenis"]?.ToString() ?? "",
+                    Isi = reader["isi"]?.ToString() ?? ""
                 });
             }
 
@@ -634,14 +588,14 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 result.Add(new DropOutPendingResponse
                 {
-                    Id = reader["dro_id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                    Mahasiswa = reader["mhs_nama"].ToString(),
-                    Konsentrasi = reader["kon_nama"].ToString(),
-                    CreatedDate = reader["dro_created_date"].ToString(),
-                    CreatedBy = reader["dro_created_by"].ToString(),
-                    SuratNo = reader["srt_no"].ToString(),
-                    Status = reader["dro_status"].ToString()
+                    Id = reader["dro_id"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
+                    Mahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                    CreatedDate = reader["dro_created_date"]?.ToString() ?? "",
+                    CreatedBy = reader["dro_created_by"]?.ToString() ?? "",
+                    SuratNo = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["dro_status"]?.ToString() ?? ""
                 });
             }
 

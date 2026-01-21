@@ -37,6 +37,8 @@ namespace astratech_apps_backend.Controllers
                 var statusCounts = result.Data.GroupBy(x => x.Status).Select(g => new { Status = g.Key, Count = g.Count() });
                 foreach (var statusCount in statusCounts)
                 {
+                    // Status count logging for monitoring purposes
+                    Console.WriteLine($"Status: {statusCount.Status}, Count: {statusCount.Count}");
                 }
                 
                 return Ok(result);
@@ -126,14 +128,6 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-
-
-        //[HttpGet("{id}")]
-        //public async Task<IActionResult> Get(string id)
-        //{
-        //    var data = await _service.GetByIdAsync(id);
-        //    return data == null ? NotFound() : Ok(data);
-        //}
 
         [HttpGet("debug/role/{username}")]
         public async Task<IActionResult> DebugRoleDetection(string username)
@@ -846,12 +840,16 @@ namespace astratech_apps_backend.Controllers
         /// </summary>
         private byte[] GeneratePDFContent(MeninggalDuniaDetailResponse detail, string id)
         {
+            // Use id for PDF metadata and filename reference
+            var documentId = $"MD-{id}-{DateTime.Now:yyyyMMdd}";
+            
             // Basic PDF structure dengan tata letak yang lebih rapi
             var pdfHeader = "%PDF-1.4\n";
             var pdfBody = @"1 0 obj
 <<
 /Type /Catalog
 /Pages 2 0 R
+/Producer (SIA Backend - Document ID: " + documentId + @")
 >>
 endobj
 

@@ -24,11 +24,11 @@ namespace astratech_apps_backend.Services.Implementations
         public async Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto)
             => await _repo.GenerateIdByProdiAsync(dto);
 
-        public Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(string m, string s, string u, string r, string search = "")
+        public Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(string mhsId, string status, string userId, string role, string search = "")
         {
             // Normalize status parameter to match stored procedure expectations
-            string normalizedStatus = NormalizeStatus(s);
-            return _repo.GetAllAsync(m, normalizedStatus, u, r, search);
+            string normalizedStatus = NormalizeStatus(status);
+            return _repo.GetAllAsync(mhsId, normalizedStatus, userId, role, search);
         }
 
         public Task<CutiAkademikDetailResponse?> GetDetailAsync(string id)
@@ -37,8 +37,8 @@ namespace astratech_apps_backend.Services.Implementations
         public Task<bool> UpdateAsync(string id, UpdateCutiAkademikRequest dto)
             => _repo.UpdateAsync(id, dto);
 
-        public Task<bool> DeleteAsync(string id, string modified)
-            => _repo.DeleteAsync(id, modified);
+        public Task<bool> DeleteAsync(string id, string modifiedBy)
+            => _repo.DeleteAsync(id, modifiedBy);
         public async Task<IEnumerable<CutiAkademikListResponse>> GetRiwayatAsync(string userId, string status, string search)
         {
             // Normalize status parameter to match stored procedure expectations

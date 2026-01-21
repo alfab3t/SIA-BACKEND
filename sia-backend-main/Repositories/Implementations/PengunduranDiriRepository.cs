@@ -3,9 +3,6 @@ using astratech_apps_backend.Models;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
-using Dapper;
-using Microsoft.Data.SqlClient;
-using System.Data;
 
 namespace astratech_apps_backend.Repositories.Implementations
 {
@@ -59,16 +56,16 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new CreatePengunduranDiriResponse
             {
-                PdiId = reader["pdi_id"].ToString(),
-                MhsId = reader["mhs_id"].ToString(),
-                MhsNama = reader["mhs_nama"].ToString(),
-                Konsentrasi = reader["kon_nama"].ToString(),
-                Angkatan = reader["mhs_angkatan"].ToString(),
-                CreatedBy = reader["pdi_created_by"].ToString()
+                PdiId = reader["pdi_id"]?.ToString() ?? "",
+                MhsId = reader["mhs_id"]?.ToString() ?? "",
+                MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                Angkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                CreatedBy = reader["pdi_created_by"]?.ToString() ?? ""
             };
         }
 
-        public async Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string p1, string status, string userId)
+        public async Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string nimOrCreatedBy, string status, string userId)
         {
             var list = new List<PengunduranDiriListResponse>();
 
@@ -81,7 +78,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             // SP memiliki 50 parameter (p1 - p50)
             // Tapi yang dipakai hanya p1, p2, p3.
             // Sisanya harus dikirim string kosong
-            cmd.Parameters.AddWithValue("@p1", p1);
+            cmd.Parameters.AddWithValue("@p1", nimOrCreatedBy);
             cmd.Parameters.AddWithValue("@p2", status);
             cmd.Parameters.AddWithValue("@p3", userId);
 
@@ -95,15 +92,15 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 list.Add(new PengunduranDiriListResponse
                 {
-                    PdiId = reader["pdi_id"].ToString(),
-                    IdAlternative = reader["id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                    ApproveProdi = reader["approve_prodi"].ToString(),
-                    ApproveDir1 = reader["approve_dir1"].ToString(),
-                    Tanggal = reader["tanggal"].ToString(),
+                    PdiId = reader["pdi_id"]?.ToString() ?? "",
+                    IdAlternative = reader["id"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
+                    ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
+                    ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
+                    Tanggal = reader["tanggal"]?.ToString() ?? "",
                     TanggalDisetujui = reader["tanggal_disetujui"]?.ToString(),
-                    SuratNo = reader["srt_no"].ToString(),
-                    Status = reader["status"].ToString()
+                    SuratNo = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["status"]?.ToString() ?? ""
                 });
             }
 
@@ -129,23 +126,23 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new PengunduranDiri
             {
-                Id = r["pdi_id"].ToString(),
-                MhsId = r["mhs_id"].ToString(),
-                LampiranSuratPengajuan = r["pdi_lampiransuratpengajuan"].ToString(),
-                Lampiran = r["pdi_lampiran"].ToString(),
-                Keterangan = r["pdi_keterangan"].ToString(),
-                ApprovalProdiBy = r["pdi_approval_prodi_by"].ToString(),
+                Id = r["pdi_id"]?.ToString() ?? "",
+                MhsId = r["mhs_id"]?.ToString() ?? "",
+                LampiranSuratPengajuan = r["pdi_lampiransuratpengajuan"]?.ToString() ?? "",
+                Lampiran = r["pdi_lampiran"]?.ToString() ?? "",
+                Keterangan = r["pdi_keterangan"]?.ToString() ?? "",
+                ApprovalProdiBy = r["pdi_approval_prodi_by"]?.ToString() ?? "",
                 AppProdiDate = r["pdi_app_prodi_date"] as DateTime?,
-                ApprovalDir1By = r["pdi_approval_dir1_by"].ToString(),
+                ApprovalDir1By = r["pdi_approval_dir1_by"]?.ToString() ?? "",
                 AppDir1Date = r["pdi_app_dir1_date"] as DateTime?,
-                SrtNo = r["srt_no"].ToString(),
-                NoSkpb = r["pdi_no_skpb"].ToString(),
-                Sk = r["pdi_sk"].ToString(),
-                Skpb = r["pdi_skpb"].ToString(),
-                Status = r["pdi_status"].ToString(),
-                CreatedBy = r["pdi_created_by"].ToString(),
+                SrtNo = r["srt_no"]?.ToString() ?? "",
+                NoSkpb = r["pdi_no_skpb"]?.ToString() ?? "",
+                Sk = r["pdi_sk"]?.ToString() ?? "",
+                Skpb = r["pdi_skpb"]?.ToString() ?? "",
+                Status = r["pdi_status"]?.ToString() ?? "",
+                CreatedBy = r["pdi_created_by"]?.ToString() ?? "",
                 CreatedDate = r["pdi_created_date"] as DateTime?,
-                ModifiedBy = r["pdi_modif_by"].ToString(),
+                ModifiedBy = r["pdi_modif_by"]?.ToString() ?? "",
                 ModifiedDate = r["pdi_modif_date"] as DateTime?
             };
         }
@@ -245,12 +242,12 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             if (await reader.ReadAsync())
             {
-                result.Id = reader["pdi_id"].ToString() ?? "";
-                result.MhsId = reader["mhs_id"].ToString() ?? "";
-                result.Nama = reader["mhs_nama"].ToString() ?? "";
-                result.Konsentrasi = reader["kon_nama"].ToString() ?? "";
-                result.Angkatan = reader["mhs_angkatan"].ToString() ?? "";
-                result.CreatedBy = reader["pdi_created_by"].ToString() ?? "";
+                result.Id = reader["pdi_id"]?.ToString() ?? "";
+                result.MhsId = reader["mhs_id"]?.ToString() ?? "";
+                result.Nama = reader["mhs_nama"]?.ToString() ?? "";
+                result.Konsentrasi = reader["kon_nama"]?.ToString() ?? "";
+                result.Angkatan = reader["mhs_angkatan"]?.ToString() ?? "";
+                result.CreatedBy = reader["pdi_created_by"]?.ToString() ?? "";
             }
 
             return result;
@@ -345,12 +342,12 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new PengunduranDiriNotifResponse
             {
-                PdiId = reader["pdi_id"].ToString(),
-                MhsId = reader["mhs_id"].ToString(),
-                NamaMahasiswa = reader["mhs_nama"].ToString(),
-                Konsentrasi = reader["kon_nama"].ToString(),
-                Angkatan = reader["mhs_angkatan"].ToString(),
-                CreatedBy = reader["pdi_created_by"].ToString()
+                PdiId = reader["pdi_id"]?.ToString() ?? "",
+                MhsId = reader["mhs_id"]?.ToString() ?? "",
+                NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                Angkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                CreatedBy = reader["pdi_created_by"]?.ToString() ?? ""
             };
         }
 
@@ -387,16 +384,16 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 list.Add(new PengunduranDiriRiwayatResponse
                 {
-                    PdiId = reader["pdi_id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                    ApproveProdi = reader["approve_prodi"].ToString(),
-                    ApproveDir1 = reader["approve_dir1"].ToString(),
-                    Tanggal = reader["tanggal"].ToString(),
-                    TanggalDisetujui = reader["tanggal_disetujui"].ToString(),
-                    SuratNo = reader["srt_no"].ToString(),
-                    NamaMahasiswa = reader["mhs_nama"].ToString(),
-                    Konsentrasi = reader["kon_singkatan"].ToString(),
-                    Status = reader["status"].ToString()
+                    PdiId = reader["pdi_id"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
+                    ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
+                    ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
+                    Tanggal = reader["tanggal"]?.ToString() ?? "",
+                    TanggalDisetujui = reader["tanggal_disetujui"]?.ToString() ?? "",
+                    SuratNo = reader["srt_no"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Konsentrasi = reader["kon_singkatan"]?.ToString() ?? "",
+                    Status = reader["status"]?.ToString() ?? ""
                 });
             }
 
@@ -434,12 +431,12 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 list.Add(new PengunduranDiriRiwayatExcelResponse
                 {
-                    NIM = reader["NIM"].ToString(),
-                    NamaMahasiswa = reader["Nama Mahasiswa"].ToString(),
-                    Konsentrasi = reader["Konsentrasi"].ToString(),
-                    TanggalPengajuan = reader["Tanggal Pengajuan"].ToString(),
-                    NoSk = reader["No SK"].ToString(),
-                    NoPengajuan = reader["No Pengajuan"].ToString()
+                    NIM = reader["NIM"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["Nama Mahasiswa"]?.ToString() ?? "",
+                    Konsentrasi = reader["Konsentrasi"]?.ToString() ?? "",
+                    TanggalPengajuan = reader["Tanggal Pengajuan"]?.ToString() ?? "",
+                    NoSk = reader["No SK"]?.ToString() ?? "",
+                    NoPengajuan = reader["No Pengajuan"]?.ToString() ?? ""
                 });
             }
 

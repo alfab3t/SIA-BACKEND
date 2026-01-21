@@ -116,12 +116,6 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.DownloadSKAsync(droId);
         }
 
-        //public async Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
-        //string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi)
-        //{
-        //    return await _repo.GetRiwayatAsync(username, keyword, sortBy, konsentrasi, role, sekprodi);
-        //}
-
         public Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
         string username, string keyword, string sortBy, string konsentrasi, string role, string displayName)
         {

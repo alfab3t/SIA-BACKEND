@@ -89,7 +89,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
@@ -138,7 +138,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 return result;
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
@@ -186,7 +186,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 return result;
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
@@ -239,7 +239,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
@@ -270,7 +270,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 return status;
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
@@ -411,7 +411,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }

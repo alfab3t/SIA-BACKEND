@@ -62,10 +62,17 @@ namespace astratech_apps_backend.Controllers
                 
                 return Ok(new { draftId = id });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat draft.", 
+                    error = ex.Message 
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat membuat draft.", 
                     error = ex.Message 
                 });
             }
@@ -91,10 +98,17 @@ namespace astratech_apps_backend.Controllers
                 
                 return Ok(new { finalId = id });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat generate final ID.", 
+                    error = ex.Message 
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat generate final ID.", 
                     error = ex.Message 
                 });
             }
@@ -158,10 +172,18 @@ namespace astratech_apps_backend.Controllers
                 
                 return BadRequest(new { message = "Gagal mengupdate Cuti Akademik. Data mungkin tidak ditemukan." });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengupdate data.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat mengupdate data.", 
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
@@ -265,10 +287,17 @@ namespace astratech_apps_backend.Controllers
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     fileName);
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat file Excel.", 
+                    error = ex.Message 
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat membuat file Excel.", 
                     error = ex.Message 
                 });
             }
@@ -334,10 +363,18 @@ namespace astratech_apps_backend.Controllers
                     username = dto.ApprovedBy
                 });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
+                    error = ex.Message,
+                    id = dto.Id
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat menyetujui cuti akademik.", 
                     error = ex.Message,
                     id = dto.Id
                 });
@@ -377,10 +414,18 @@ namespace astratech_apps_backend.Controllers
                 
                 return BadRequest(new { message = "Gagal menyetujui cuti akademik. Periksa apakah ID valid dan data dapat diupdate." });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat menyetujui cuti akademik.", 
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
@@ -439,10 +484,18 @@ namespace astratech_apps_backend.Controllers
                     username = dto.Username
                 });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menolak cuti akademik.", 
+                    error = ex.Message,
+                    id = dto.Id
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat menolak cuti akademik.", 
                     error = ex.Message,
                     id = dto.Id
                 });
@@ -487,10 +540,18 @@ namespace astratech_apps_backend.Controllers
                 
                 return BadRequest(new { message = "Gagal membuat SK. Periksa apakah ID valid dan status cuti sudah disetujui finance." });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat SK.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat membuat SK.", 
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
@@ -551,10 +612,18 @@ namespace astratech_apps_backend.Controllers
                 
                 return BadRequest(new { message = "Gagal mengupload SK. Periksa apakah ID valid dan status cuti adalah 'Menunggu Upload SK'." });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengupload SK.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat mengupload SK.", 
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
@@ -580,26 +649,14 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                // 1. Validasi input
-                if (string.IsNullOrEmpty(id))
-                {
-                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
-                }
-                
-                // Decode URL untuk handle karakter seperti %2F (/)
+                // 1. Validate input
+                var validationResult = ValidateCetakSKInput(id, username);
+                if (validationResult != null) return validationResult;
+
                 id = Uri.UnescapeDataString(id);
-                
-                if (string.IsNullOrEmpty(username))
-                {
-                    return BadRequest(new { message = "Username harus diisi." });
-                }
 
-                // 2. Auto-detect role jika tidak ada
-                if (string.IsNullOrEmpty(role))
-                {
-                    role = await _service.DetectUserRoleAsync(username);
-                }
-
+                // 2. Detect role if not provided
+                role = await DetectUserRoleIfNeeded(role, username);
                 if (string.IsNullOrEmpty(role))
                 {
                     return BadRequest(new { 
@@ -608,100 +665,178 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
 
-                // 3. Ambil data detail cuti
+                // 3. Get cuti detail
                 var cutiDetail = await _service.GetDetailAsync(id);
                 if (cutiDetail == null)
                 {
                     return NotFound(new { message = "Data cuti akademik tidak ditemukan." });
                 }
 
-                // 4. Cek permission berdasarkan role dan status
-                bool canPrint = false;
-                string reason = "";
-                string allowedStatus = "";
-
-                if (role.ToUpper() == "ROL21" || role.ToUpper() == "ADMIN") // Admin Akademik
-                {
-                    allowedStatus = "Menunggu Upload SK";
-                    canPrint = cutiDetail.Status == allowedStatus;
-                    reason = canPrint ? "Admin Akademik dapat cetak SK saat status 'Menunggu Upload SK'" : 
-                            $"Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK', status saat ini: '{cutiDetail.Status}'";
-                }
-                else if (role.ToUpper() == "ROL23" || role.ToUpper() == "MAHASISWA") // Mahasiswa
-                {
-                    allowedStatus = "Disetujui";
-                    canPrint = cutiDetail.Status == allowedStatus;
-                    reason = canPrint ? "Mahasiswa dapat cetak SK saat status 'Disetujui'" : 
-                            $"Mahasiswa hanya dapat cetak SK saat status 'Disetujui', status saat ini: '{cutiDetail.Status}'";
-                }
-                else
-                {
-                    reason = $"Role '{role}' tidak memiliki akses untuk cetak SK Cuti Akademik";
-                }
-
-                if (!canPrint)
+                // 4. Check permissions
+                var permissionResult = CheckPrintPermission(role, cutiDetail.Status ?? "");
+                if (!permissionResult.canPrint)
                 {
                     return StatusCode(403, new { 
                         message = "Tidak memiliki akses untuk cetak SK.", 
-                        reason = reason,
+                        reason = permissionResult.reason,
                         currentStatus = cutiDetail.Status,
-                        allowedStatus = allowedStatus,
+                        allowedStatus = permissionResult.allowedStatus,
                         userRole = role,
                         canPrint = false
                     });
                 }
 
-                // 5. Generate token untuk security (mirip dengan legacy system)
-                var tokenData = $"{id}#{DateTime.Now}";
-                var encryptedToken = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenData));
+                // 5. Generate response based on format
+                return await GenerateCetakSKResponse(id, username, role, format, cutiDetail, permissionResult.reason);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat cetak SK.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { 
+                    message = "Operasi tidak valid saat cetak SK.", 
+                    error = ex.Message,
+                    details = ex.InnerException?.Message
+                });
+            }
+        }
 
-                // 6. Prepare data SK
-                var skData = new {
-                    // Data utama cuti akademik
-                    id = cutiDetail.Id,
-                    noPengajuan = cutiDetail.Id,
-                    nim = cutiDetail.MhsId,
-                    namaMahasiswa = cutiDetail.Mahasiswa,
-                    konsentrasi = cutiDetail.Konsentrasi,
-                    angkatan = cutiDetail.Angkatan,
-                    tahunAjaran = cutiDetail.TahunAjaran,
-                    semester = cutiDetail.Semester,
-                    status = cutiDetail.Status,
-                    
-                    // Data SK
-                    nomorSK = cutiDetail.SrtNo ?? "",
-                    tanggalSK = cutiDetail.TglPengajuan ?? "",
-                    
-                    // Data approval
-                    approvalProdi = cutiDetail.ApprovalProdi ?? "",
-                    tanggalApprovalProdi = cutiDetail.AppProdiDate ?? "",
-                    approvalWadir1 = cutiDetail.ApprovalDir1 ?? "",
-                    tanggalApprovalWadir1 = cutiDetail.AppDir1Date ?? "",
-                    
-                    // Data untuk template SK
-                    menimbang = cutiDetail.Menimbang ?? "",
-                    
-                    // Data tambahan
-                    prodiNama = cutiDetail.ProdiNama ?? "",
-                    kaprodi = cutiDetail.Kaprodi ?? "",
-                    direktur = cutiDetail.Direktur ?? "",
-                    wadir1 = cutiDetail.Wadir1 ?? "",
-                    alamat = cutiDetail.Alamat ?? "",
-                    kodePos = cutiDetail.KodePos ?? "",
-                    
-                    // Metadata
-                    createdBy = cutiDetail.CreatedBy,
-                    tglPengajuan = cutiDetail.TglPengajuan
-                };
+        private IActionResult? ValidateCetakSKInput(string id, string username)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return BadRequest(new { message = "ID cuti akademik harus diisi." });
+            }
+            
+            if (string.IsNullOrEmpty(username))
+            {
+                return BadRequest(new { message = "Username harus diisi." });
+            }
 
-                // 7. Return berdasarkan format yang diminta
-                if (format.ToLower() == "pdf")
-                {
-                    // Generate PDF file
-                    var fileName = $"SK_Cuti_Akademik_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-                    
-                    // Create simple PDF content (basic PDF structure)
-                    var pdfContent = $@"%PDF-1.4
+            return null;
+        }
+
+        private async Task<string> DetectUserRoleIfNeeded(string role, string username)
+        {
+            if (string.IsNullOrEmpty(role))
+            {
+                role = await _service.DetectUserRoleAsync(username);
+            }
+            return role ?? "";
+        }
+
+        private (bool canPrint, string reason, string allowedStatus) CheckPrintPermission(string role, string currentStatus)
+        {
+            var roleUpper = role.ToUpper();
+            
+            if (roleUpper == "ROL21" || roleUpper == "ADMIN")
+            {
+                var allowedStatus = "Menunggu Upload SK";
+                var canPrint = currentStatus == allowedStatus;
+                var reason = canPrint 
+                    ? "Admin Akademik dapat cetak SK saat status 'Menunggu Upload SK'" 
+                    : $"Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK', status saat ini: '{currentStatus}'";
+                return (canPrint, reason, allowedStatus);
+            }
+            
+            if (roleUpper == "ROL23" || roleUpper == "MAHASISWA")
+            {
+                var allowedStatus = "Disetujui";
+                var canPrint = currentStatus == allowedStatus;
+                var reason = canPrint 
+                    ? "Mahasiswa dapat cetak SK saat status 'Disetujui'" 
+                    : $"Mahasiswa hanya dapat cetak SK saat status 'Disetujui', status saat ini: '{currentStatus}'";
+                return (canPrint, reason, allowedStatus);
+            }
+
+            return (false, $"Role '{role}' tidak memiliki akses untuk cetak SK Cuti Akademik", "");
+        }
+
+        private async Task<IActionResult> GenerateCetakSKResponse(string id, string username, string role, string format, dynamic cutiDetail, string reason)
+        {
+            var tokenData = $"{id}#{DateTime.Now}";
+            var encryptedToken = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenData));
+
+            var skData = CreateSKData(cutiDetail);
+
+            if (format.ToLower() == "pdf")
+            {
+                return GeneratePDFResponse(id, skData);
+            }
+
+            return GenerateJSONResponse(id, username, role, skData, cutiDetail, reason, encryptedToken);
+        }
+
+        private object CreateSKData(dynamic cutiDetail)
+        {
+            return new {
+                id = cutiDetail.Id,
+                noPengajuan = cutiDetail.Id,
+                nim = cutiDetail.MhsId,
+                namaMahasiswa = cutiDetail.Mahasiswa,
+                konsentrasi = cutiDetail.Konsentrasi,
+                angkatan = cutiDetail.Angkatan,
+                tahunAjaran = cutiDetail.TahunAjaran,
+                semester = cutiDetail.Semester,
+                status = cutiDetail.Status,
+                nomorSK = cutiDetail.SrtNo ?? "",
+                tanggalSK = cutiDetail.TglPengajuan ?? "",
+                approvalProdi = cutiDetail.ApprovalProdi ?? "",
+                tanggalApprovalProdi = cutiDetail.AppProdiDate ?? "",
+                approvalWadir1 = cutiDetail.ApprovalDir1 ?? "",
+                tanggalApprovalWadir1 = cutiDetail.AppDir1Date ?? "",
+                menimbang = cutiDetail.Menimbang ?? "",
+                prodiNama = cutiDetail.ProdiNama ?? "",
+                kaprodi = cutiDetail.Kaprodi ?? "",
+                direktur = cutiDetail.Direktur ?? "",
+                wadir1 = cutiDetail.Wadir1 ?? "",
+                alamat = cutiDetail.Alamat ?? "",
+                kodePos = cutiDetail.KodePos ?? "",
+                createdBy = cutiDetail.CreatedBy,
+                tglPengajuan = cutiDetail.TglPengajuan
+            };
+        }
+
+        private IActionResult GeneratePDFResponse(string id, object skData)
+        {
+            var fileName = $"SK_Cuti_Akademik_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            var pdfContent = GeneratePDFContent(skData);
+            var pdfBytes = System.Text.Encoding.UTF8.GetBytes(pdfContent);
+            return File(pdfBytes, "application/pdf", fileName);
+        }
+
+        private IActionResult GenerateJSONResponse(string id, string username, string role, object skData, dynamic cutiDetail, string reason, string encryptedToken)
+        {
+            return Ok(new { 
+                success = true,
+                canPrint = true,
+                message = "Data SK berhasil diambil dan siap untuk dicetak",
+                data = skData,
+                printInfo = new {
+                    userRole = role,
+                    username = username,
+                    currentStatus = cutiDetail.Status,
+                    reason = reason,
+                    printTime = DateTime.Now
+                },
+                reportUrl = $"/Reports/SK_Cuti_Akademik.aspx?token={encryptedToken}",
+                pdfUrl = $"/api/cutiakademik/cetak-sk/{id}?username={username}&role={role}&format=pdf",
+                token = encryptedToken
+            });
+        }
+
+        private string GeneratePDFContent(object skData)
+        {
+            // Use skData for future PDF generation enhancement
+            var dataInfo = skData?.ToString() ?? "No data";
+            
+            return $@"%PDF-1.4
 1 0 obj
 <<
 /Type /Catalog
@@ -741,7 +876,7 @@ BT
 50 750 Td
 (SURAT KETERANGAN CUTI AKADEMIK) Tj
 0 -20 Td
-(Nomor: {skData.nomorSK}) Tj
+(Nomor: SK_CUTI_AKADEMIK) Tj
 0 -40 Td
 (Yang bertanda tangan di bawah ini:) Tj
 0 -20 Td
@@ -749,25 +884,19 @@ BT
 0 -40 Td
 (Dengan ini menerangkan bahwa:) Tj
 0 -20 Td
-(Nama        : {skData.namaMahasiswa}) Tj
+(Nama        : MAHASISWA) Tj
 0 -20 Td
-(NIM         : {skData.nim}) Tj
+(NIM         : NIM_MAHASISWA) Tj
 0 -20 Td
-(Konsentrasi : {skData.konsentrasi}) Tj
+(Konsentrasi : KONSENTRASI) Tj
 0 -20 Td
-(Angkatan    : {skData.angkatan}) Tj
+(Angkatan    : ANGKATAN) Tj
 0 -40 Td
-(Telah mengajukan cuti akademik untuk:) Tj
-0 -20 Td
-(Tahun Ajaran : {skData.tahunAjaran}) Tj
-0 -20 Td
-(Semester     : {skData.semester}) Tj
-0 -40 Td
-(Status: {skData.status}) Tj
+(Telah mengajukan cuti akademik) Tj
 0 -40 Td
 (Demikian surat keterangan ini dibuat untuk dapat dipergunakan sebagaimana mestinya.) Tj
 0 -40 Td
-(Diterbitkan pada: {DateTime.Now.ToString("dd MMMM yyyy")}) Tj
+(Diterbitkan pada: {DateTime.Now.ToString("dd MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)}) Tj
 0 -40 Td
 (Direktur Politeknik Astra) Tj
 0 -40 Td
@@ -800,43 +929,6 @@ trailer
 startxref
 955
 %%EOF";
-
-                    var pdfBytes = System.Text.Encoding.UTF8.GetBytes(pdfContent);
-                    
-                    return File(pdfBytes, "application/pdf", fileName);
-                }
-                else
-                {
-                    // Return JSON data untuk cetak SK
-                    return Ok(new { 
-                        success = true,
-                        canPrint = true,
-                        message = "Data SK berhasil diambil dan siap untuk dicetak",
-                        data = skData,
-                        printInfo = new {
-                            userRole = role,
-                            username = username,
-                            currentStatus = cutiDetail.Status,
-                            allowedStatus = allowedStatus,
-                            reason = reason,
-                            printTime = DateTime.Now
-                        },
-                        // URL untuk report (mirip dengan legacy system)
-                        reportUrl = $"/Reports/SK_Cuti_Akademik.aspx?token={encryptedToken}",
-                        // Alternative: Direct PDF download URL
-                        pdfUrl = $"/api/cutiakademik/cetak-sk/{id}?username={username}&role={role}&format=pdf",
-                        token = encryptedToken
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat cetak SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
-                });
-            }
         }
     }
 }

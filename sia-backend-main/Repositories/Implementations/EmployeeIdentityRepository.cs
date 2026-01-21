@@ -40,11 +40,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 {
                     return new EmployeeIdentityResponse
                     {
-                        KryUsername = GetSafeString(reader, "kry_username"),
-                        JabMainId = GetSafeString(reader, "jab_main_id"),
-                        StrMainId = GetSafeString(reader, "str_main_id"),
-                        RolId = GetSafeString(reader, "rol_id"),
-                        KryId = GetSafeString(reader, "kry_id")
+                        KryUsername = await GetSafeStringAsync(reader, "kry_username"),
+                        JabMainId = await GetSafeStringAsync(reader, "jab_main_id"),
+                        StrMainId = await GetSafeStringAsync(reader, "str_main_id"),
+                        RolId = await GetSafeStringAsync(reader, "rol_id"),
+                        KryId = await GetSafeStringAsync(reader, "kry_id")
                     };
                 }
 
@@ -62,12 +62,12 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        private static string GetSafeString(SqlDataReader reader, string columnName)
+        private static async Task<string> GetSafeStringAsync(SqlDataReader reader, string columnName)
         {
             try
             {
                 var ordinal = reader.GetOrdinal(columnName);
-                if (reader.IsDBNull(ordinal))
+                if (await reader.IsDBNullAsync(ordinal))
                     return string.Empty;
 
                 var value = reader.GetValue(ordinal);

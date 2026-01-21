@@ -8,7 +8,7 @@ namespace astratech_apps_backend.Repositories.Interfaces
         
         Task<string> CreateStep1Async(string mhsId, string createdBy);
         Task<CreatePengunduranDiriResponse?> CreateStep2Async(string draftId, string createdBy);
-        Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string p1, string status, string userId);
+        Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string nimOrCreatedBy, string status, string userId);
         Task<PengunduranDiri?> GetByIdAsync(string id);
         Task<bool> UpdateAsync(string id, UpdatePengunduranDiriRequest dto, string updatedBy);
         Task<bool> SoftDeleteAsync(string id, string updatedBy);

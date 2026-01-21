@@ -4,8 +4,6 @@ using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using Dapper;
-using Microsoft.Data.SqlClient;
-using System.Data;
 
 namespace astratech_apps_backend.Repositories.Implementations
 {

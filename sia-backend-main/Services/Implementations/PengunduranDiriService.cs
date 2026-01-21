@@ -24,9 +24,9 @@ namespace astratech_apps_backend.Services.Implementations
             return _repo.CreateStep2Async(draftId, createdBy);
         }
 
-        public async Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string p1, string status, string userId)
+        public async Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string nimOrCreatedBy, string status, string userId)
         {
-            return await _repo.GetAllAsync(p1, status, userId);
+            return await _repo.GetAllAsync(nimOrCreatedBy, status, userId);
         }
 
         public async Task<PengunduranDiriResponse?> GetByIdAsync(string id)

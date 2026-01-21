@@ -76,23 +76,6 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
-        //[HttpGet("riwayat")]
-        //public async Task<IActionResult> GetRiwayat(
-        //[FromQuery] string username,
-        //[FromQuery] string keyword = "",
-        //[FromQuery] string sortBy = "dro_id asc",
-        //[FromQuery] string konsentrasi = "",
-        //[FromQuery] string role = "",
-        //[FromQuery] string sekprodi = ""
-        //)
-        //{
-        //    var data = await _service.GetRiwayatAsync(
-        //        username, keyword, sortBy, konsentrasi, role, sekprodi
-        //    );
-
-        //    return Ok(data);
-        //}
-
         [HttpGet("riwayat")]
         public async Task<IActionResult> GetRiwayat(
            [FromQuery] string username,

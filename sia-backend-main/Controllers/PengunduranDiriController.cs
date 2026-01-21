@@ -80,45 +80,6 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        //[HttpGet("riwayat-excel/download")]
-        //public async Task<IActionResult> DownloadExcel(
-        //[FromQuery] string orderBy = "",
-        //[FromQuery] string konsentrasi = ""
-        //)
-        //{
-        //    var data = await _service.GetRiwayatExcelAsync(orderBy, konsentrasi);
-
-        //    using var wb = new XLWorkbook();
-        //    var ws = wb.Worksheets.Add("Riwayat");
-
-        //    ws.Cell(1, 1).Value = "NIM";
-        //    ws.Cell(1, 2).Value = "Nama Mahasiswa";
-        //    ws.Cell(1, 3).Value = "Konsentrasi";
-        //    ws.Cell(1, 4).Value = "Tanggal Pengajuan";
-        //    ws.Cell(1, 5).Value = "No SK";
-        //    ws.Cell(1, 6).Value = "No Pengajuan";
-
-        //    int row = 2;
-        //    foreach (var item in data)
-        //    {
-        //        ws.Cell(row, 1).Value = item.NIM;
-        //        ws.Cell(row, 2).Value = item.NamaMahasiswa;
-        //        ws.Cell(row, 3).Value = item.Konsentrasi;
-        //        ws.Cell(row, 4).Value = item.TanggalPengajuan;
-        //        ws.Cell(row, 5).Value = item.NoSk;
-        //        ws.Cell(row, 6).Value = item.NoPengajuan;
-        //        row++;
-        //    }
-
-        //    using var stream = new MemoryStream();
-        //    wb.SaveAs(stream);
-        //    stream.Position = 0;
-
-        //    return File(stream.ToArray(),
-        //        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        //        "RiwayatPengunduranDiri.xlsx");
-        //}
-
         [HttpPost("step1")]
         public async Task<IActionResult> Step1([FromBody] CreatePengunduranDiriRequest dto)
         {

@@ -22,12 +22,7 @@ namespace astratech_apps_backend.Services.Interfaces
         Task<MahasiswaProdiDto?> GetMahasiswaProdiAsync(string mhsId);
 
         //READ ALL
-        //Task<IEnumerable<MeninggalDuniaListResponse>> GetAllAsync(string status, string roleId);
         Task<MeninggalDuniaResponse> GetAllAsync(GetAllMeninggalDuniaRequest req);
-
-
-        //READ SEARCH BY ID
-        //Task<MeninggalDuniaResponse?> GetByIdAsync(string id);
 
         Task<MeninggalDuniaDetailResponse?> GetDetailAsync(string id);
 
@@ -57,16 +52,11 @@ namespace astratech_apps_backend.Services.Interfaces
         );
 
         // Method UploadSKMeninggalAsync sudah tidak diperlukan karena kita menggunakan UploadSKAsync
-        // Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request);
-
         Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto);
 
         Task<bool> RejectAsync(string id, RejectMeninggalDuniaRequest dto);
 
         //ROLE DETECTION
         Task<string> DetectUserRoleAsync(string username); 
-
-
-
     }
 }

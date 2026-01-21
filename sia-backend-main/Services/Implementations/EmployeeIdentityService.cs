@@ -29,7 +29,7 @@ namespace astratech_apps_backend.Services.Implementations
             // Update these IDs based on your actual database values
             var wadirPositionIds = new[] { "4" }; // Only specific wadir positions
             
-            return wadirPositionIds.Contains(identity.JabMainId);
+            return wadirPositionIds.Contains(identity?.JabMainId ?? "");
         }
 
         public async Task<bool> IsFinanceAsync(string username)
@@ -48,7 +48,7 @@ namespace astratech_apps_backend.Services.Implementations
 
             // Option 2: Check by specific combination of jabMainId and strMainId for finance only
             // You may need to adjust these based on your actual finance employee data
-            var isFinancePosition = identity.JabMainId == "1" && identity.StrMainId == "27";
+            var isFinancePosition = identity?.JabMainId == "1" && identity?.StrMainId == "27";
             var isFinanceUser = username.ToLower().Equals("user_finance");
             
             return isFinancePosition && isFinanceUser;
@@ -62,7 +62,7 @@ namespace astratech_apps_backend.Services.Implementations
                 return false;
 
             // Check if the employee has prodi position based on jabMainId = "6"
-            return identity.JabMainId == "6";
+            return identity?.JabMainId == "6";
         }
 
         public async Task<string> GetUserRoleTypeAsync(string username)
