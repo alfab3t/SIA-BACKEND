@@ -39,7 +39,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // STEP 1 — Create Draft (Menggunakan SP sia_createCutiAkademik)
+        // STEP 1 ï¿½ Create Draft (Menggunakan SP sia_createCutiAkademik)
         // ============================================================
         public async Task<string?> CreateDraftAsync(CreateDraftCutiRequest dto)
         {
@@ -85,7 +85,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // STEP 2 — Generate Final ID (Menggunakan SP sia_createCutiAkademik)
+        // STEP 2 ï¿½ Generate Final ID (Menggunakan SP sia_createCutiAkademik)
         // ============================================================
         public async Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto)
         {
@@ -151,7 +151,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 return finalId.ToString();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
             }
@@ -173,7 +173,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", candidateId);
 
-                var count = (int)await checkCmd.ExecuteScalarAsync();
+                var count = (int)(await checkCmd.ExecuteScalarAsync() ?? 0);
                 if (count == 0)
                 {
                     return candidateId;
@@ -237,18 +237,18 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 result.Add(new CutiAkademikListResponse
                 {
-                    Id = reader["cak_id"].ToString(),
-                    IdDisplay = reader["id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
+                    Id = reader["cak_id"]?.ToString() ?? "",
+                    IdDisplay = reader["id"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
                     Prodi = reader["kon_nama"]?.ToString() ?? "",
-                    TahunAjaran = reader["cak_tahunajaran"].ToString(),
-                    Semester = reader["cak_semester"].ToString(),
+                    TahunAjaran = reader["cak_tahunajaran"]?.ToString() ?? "",
+                    Semester = reader["cak_semester"]?.ToString() ?? "",
                     ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
                     ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
-                    Tanggal = reader["tanggal"].ToString(),
+                    Tanggal = reader["tanggal"]?.ToString() ?? "",
                     SuratNo = reader["srt_no"]?.ToString() ?? "",
-                    Status = reader["status"].ToString(),
+                    Status = reader["status"]?.ToString() ?? "",
                 });
             }
 
@@ -406,7 +406,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ============================================================
-        // DELETE (Soft Delete — SP: sia_deleteCutiAkademik)
+        // DELETE (Soft Delete ï¿½ SP: sia_deleteCutiAkademik)
         // ============================================================
         public async Task<bool> DeleteAsync(string id, string modifiedBy)
         {
@@ -435,7 +435,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
         // ---------------------------------------------------------
-        // STEP 1 — Create Draft by Prodi (menggunakan SP khusus prodi)
+        // STEP 1 ï¿½ Create Draft by Prodi (menggunakan SP khusus prodi)
         // ---------------------------------------------------------
         public async Task<string?> CreateDraftByProdiAsync(CreateCutiProdiRequest dto)
         {
@@ -491,7 +491,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 // Fallback: gunakan direct insert dengan unique ID
                 return await CreateDraftByProdiDirectAsync(dto, conn);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
             }
@@ -556,7 +556,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
         // ---------------------------------------------------------
-        // STEP 2 — Generate Final ID (After Draft) by Prodi
+        // STEP 2 ï¿½ Generate Final ID (After Draft) by Prodi
         // ---------------------------------------------------------
         public async Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto)
         {
@@ -593,7 +593,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 return (string?)await cmd2.ExecuteScalarAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
             }
@@ -624,18 +624,18 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 result.Add(new CutiAkademikListResponse
                 {
-                    Id = reader["cak_id"].ToString(),
-                    IdDisplay = reader["id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
+                    Id = reader["cak_id"]?.ToString() ?? "",
+                    IdDisplay = reader["id"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
                     Prodi = reader["kon_nama"]?.ToString() ?? "",
-                    TahunAjaran = reader["cak_tahunajaran"].ToString(),
-                    Semester = reader["cak_semester"].ToString(),
-                    ApproveProdi = reader["approve_prodi"].ToString(),
-                    ApproveDir1 = reader["approve_dir1"].ToString(),
-                    Tanggal = reader["tanggal"].ToString(),
+                    TahunAjaran = reader["cak_tahunajaran"]?.ToString() ?? "",
+                    Semester = reader["cak_semester"]?.ToString() ?? "",
+                    ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
+                    ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
+                    Tanggal = reader["tanggal"]?.ToString() ?? "",
                     SuratNo = reader["srt_no"]?.ToString() ?? "",
-                    Status = reader["status"].ToString()
+                    Status = reader["status"]?.ToString() ?? ""
                 });
             }
 
@@ -940,7 +940,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 return success;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw; // Re-throw to let controller handle it
             }
@@ -1019,7 +1019,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 return success;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw; // Re-throw to let controller handle it
             }
@@ -1050,8 +1050,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return null;
                 }
 
-                var currentStatus = reader["cak_status"].ToString();
-                var existingSrtNo = reader["srt_no"].ToString();
+                var currentStatus = reader["cak_status"]?.ToString() ?? "";
+                var existingSrtNo = reader["srt_no"]?.ToString() ?? "";
                 reader.Close();
                 
 
@@ -1114,7 +1114,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                         return noSK;
                     }
                 }
-                catch (Exception spEx)
+                catch (Exception)
                 {
                 }
 
@@ -1140,7 +1140,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 return null;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
             }
@@ -1237,7 +1237,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw; // Re-throw to let controller handle it
             }
@@ -1318,7 +1318,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                                 }
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
                         }
                     }
@@ -1341,7 +1341,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                         WHERE srt_no = @candidateSkNumber", conn);
                     checkExistCmd.Parameters.AddWithValue("@candidateSkNumber", candidateSkNumber);
                     
-                    var count = (int)await checkExistCmd.ExecuteScalarAsync();
+                    var count = (int)(await checkExistCmd.ExecuteScalarAsync() ?? 0);
                     if (count == 0)
                     {
                         return candidateSkNumber;
@@ -1355,7 +1355,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var fallbackSkNumber = $"{timestamp + 500:D3}{skFormat}"; // Add 500 to avoid low numbers
                 return fallbackSkNumber;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 
                 // Emergency fallback
@@ -1461,7 +1461,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 return "";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return "";
             }
