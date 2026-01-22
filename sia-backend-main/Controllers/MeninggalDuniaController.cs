@@ -534,10 +534,6 @@ namespace astratech_apps_backend.Controllers
         }
             
 
-
-        /// <summary>
-        /// Get riwayat meninggal dunia data as Excel file (only approved status)
-        /// </summary>
         [HttpGet("riwayat/excel")]
         [ProducesResponseType(typeof(FileResult), 200)]
         public async Task<IActionResult> GetRiwayatExcel(
@@ -614,10 +610,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Download PDF SK Meninggal Dunia dari service report eksternal
-        /// Endpoint ini mengikuti pola standar download PDF untuk konsistensi
-        /// </summary>
+        
         [HttpPost("DownloadPdf/{id}")]
         [ProducesResponseType(typeof(FileResult), 200)]
         [ProducesResponseType(400)]

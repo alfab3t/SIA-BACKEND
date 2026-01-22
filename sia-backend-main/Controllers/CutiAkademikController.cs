@@ -339,9 +339,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Get riwayat cuti akademik data as Excel file (only approved status)
-        /// </summary>
+        
         [HttpGet("riwayat/excel")]
         [ProducesResponseType(typeof(FileResult), 200)]
         public async Task<IActionResult> GetRiwayatExcel([FromQuery] string userId = "")
@@ -623,11 +621,6 @@ namespace astratech_apps_backend.Controllers
         // SK MANAGEMENT ENDPOINTS
         // ============================================
         
-
-
-        /// <summary>
-        /// Upload SK Cuti Akademik (untuk admin)
-        /// </summary>
         [HttpPut("upload-sk")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
@@ -706,10 +699,6 @@ namespace astratech_apps_backend.Controllers
         // CETAK SK CUTI AKADEMIK ENDPOINT  
         // ============================================
         
-        /// <summary>
-        /// Download PDF SK Cuti Akademik dari service report eksternal
-        /// Endpoint ini menggantikan cetak-sk dengan template corporate standard
-        /// </summary>
         [HttpPost("DownloadPdf/{id}")]
         [ProducesResponseType(typeof(FileResult), 200)]
         [ProducesResponseType(400)]

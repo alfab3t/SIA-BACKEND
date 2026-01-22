@@ -243,11 +243,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Check bebas tanggungan mahasiswa
-        /// </summary>
-        /// <param name="userId">User ID / NIM Mahasiswa</param>
-        /// <returns>Status bebas tanggungan</returns>
+        
         [HttpGet("CheckBebasTanggungan")]
         [ProducesResponseType(typeof(BebasTanggunganResponse), 200)]
         [ProducesResponseType(400)]
@@ -274,11 +270,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        /// <summary>
-        /// Get profil lengkap mahasiswa
-        /// </summary>
-        /// <param name="nim">NIM Mahasiswa</param>
-        /// <returns>Profil lengkap mahasiswa</returns>
+        
             [HttpGet("GetProfil")]
             [ProducesResponseType(typeof(ProfilMahasiswaResponse), 200)]
             [ProducesResponseType(400)]
