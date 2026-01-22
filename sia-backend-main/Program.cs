@@ -37,6 +37,7 @@ namespace astratech_apps_backend
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddHttpClient(); // Add HttpClientFactory for PDF download endpoints
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo 

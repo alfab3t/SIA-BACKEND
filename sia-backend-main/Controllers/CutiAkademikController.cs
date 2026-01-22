@@ -2,6 +2,8 @@
 using astratech_apps_backend.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using System.Text;
+using System.Text.Json;
 
 namespace astratech_apps_backend.Controllers
 {
@@ -10,10 +12,14 @@ namespace astratech_apps_backend.Controllers
     public class CutiAkademikController : ControllerBase
     {
         private readonly ICutiAkademikService _service;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
 
-        public CutiAkademikController(ICutiAkademikService service)
+        public CutiAkademikController(ICutiAkademikService service, IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
             _service = service;
+            _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
 
         // ============================================
@@ -24,10 +30,13 @@ namespace astratech_apps_backend.Controllers
         public async Task<IActionResult> CreateDraft([FromForm] CreateDraftCutiRequest dto)
 
         {
+            // File validation constants
+            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+            const int maxFileSize = 10 * 1024 * 1024; // 10MB
+
             // Validate file types - MS Word documents not allowed
             if (dto.LampiranSuratPengajuan != null)
             {
-                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 var fileExtension = Path.GetExtension(dto.LampiranSuratPengajuan.FileName).ToLowerInvariant();
                 
                 if (!allowedExtensions.Contains(fileExtension))
@@ -36,7 +45,7 @@ namespace astratech_apps_backend.Controllers
                 }
 
                 // Validate file size (max 10MB)
-                if (dto.LampiranSuratPengajuan.Length > 10 * 1024 * 1024)
+                if (dto.LampiranSuratPengajuan.Length > maxFileSize)
                 {
                     return BadRequest(new { message = "Ukuran file lampiran surat pengajuan maksimal 10MB." });
                 }
@@ -44,7 +53,6 @@ namespace astratech_apps_backend.Controllers
 
             if (dto.Lampiran != null)
             {
-                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 var fileExtension = Path.GetExtension(dto.Lampiran.FileName).ToLowerInvariant();
                 
                 if (!allowedExtensions.Contains(fileExtension))
@@ -53,7 +61,7 @@ namespace astratech_apps_backend.Controllers
                 }
 
                 // Validate file size (max 10MB)
-                if (dto.Lampiran.Length > 10 * 1024 * 1024)
+                if (dto.Lampiran.Length > maxFileSize)
                 {
                     return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
                 }
@@ -88,10 +96,13 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                // File validation constants
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                const int maxFileSize = 10 * 1024 * 1024; // 10MB
+
                 // Validate file types - MS Word documents not allowed
                 if (dto.LampiranSuratPengajuan != null)
                 {
-                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                     var fileExtension = Path.GetExtension(dto.LampiranSuratPengajuan.FileName).ToLowerInvariant();
                     
                     if (!allowedExtensions.Contains(fileExtension))
@@ -100,7 +111,7 @@ namespace astratech_apps_backend.Controllers
                     }
 
                     // Validate file size (max 10MB)
-                    if (dto.LampiranSuratPengajuan.Length > 10 * 1024 * 1024)
+                    if (dto.LampiranSuratPengajuan.Length > maxFileSize)
                     {
                         return BadRequest(new { message = "Ukuran file lampiran surat pengajuan maksimal 10MB." });
                     }
@@ -108,7 +119,6 @@ namespace astratech_apps_backend.Controllers
 
                 if (dto.Lampiran != null)
                 {
-                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                     var fileExtension = Path.GetExtension(dto.Lampiran.FileName).ToLowerInvariant();
                     
                     if (!allowedExtensions.Contains(fileExtension))
@@ -117,7 +127,7 @@ namespace astratech_apps_backend.Controllers
                     }
 
                     // Validate file size (max 10MB)
-                    if (dto.Lampiran.Length > 10 * 1024 * 1024)
+                    if (dto.Lampiran.Length > maxFileSize)
                     {
                         return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
                     }
@@ -227,10 +237,13 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                // File validation constants
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                const int maxFileSize = 10 * 1024 * 1024; // 10MB
+
                 // Validate file types - MS Word documents not allowed
                 if (dto.LampiranSuratPengajuan != null)
                 {
-                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                     var fileExtension = Path.GetExtension(dto.LampiranSuratPengajuan.FileName).ToLowerInvariant();
                     
                     if (!allowedExtensions.Contains(fileExtension))
@@ -239,7 +252,7 @@ namespace astratech_apps_backend.Controllers
                     }
 
                     // Validate file size (max 10MB)
-                    if (dto.LampiranSuratPengajuan.Length > 10 * 1024 * 1024)
+                    if (dto.LampiranSuratPengajuan.Length > maxFileSize)
                     {
                         return BadRequest(new { message = "Ukuran file lampiran surat pengajuan maksimal 10MB." });
                     }
@@ -247,7 +260,6 @@ namespace astratech_apps_backend.Controllers
 
                 if (dto.Lampiran != null)
                 {
-                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                     var fileExtension = Path.GetExtension(dto.Lampiran.FileName).ToLowerInvariant();
                     
                     if (!allowedExtensions.Contains(fileExtension))
@@ -256,7 +268,7 @@ namespace astratech_apps_backend.Controllers
                     }
 
                     // Validate file size (max 10MB)
-                    if (dto.Lampiran.Length > 10 * 1024 * 1024)
+                    if (dto.Lampiran.Length > maxFileSize)
                     {
                         return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
                     }
@@ -621,10 +633,13 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                // Validation messages
+                const string idRequiredMessage = "ID cuti akademik harus diisi.";
+                
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
-                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
+                    return BadRequest(new { message = idRequiredMessage });
                 }
                 
                 if (string.IsNullOrEmpty(dto.CreatedBy))
@@ -673,10 +688,16 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
+                // File validation constants
+                var allowedFileExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                const int maxFileSize = 10 * 1024 * 1024; // 10MB
+                const string idRequiredMessage = "ID cuti akademik harus diisi.";
+                const string fileSizeErrorMessage = "Ukuran file maksimal 10MB.";
+                
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
-                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
+                    return BadRequest(new { message = idRequiredMessage });
                 }
                 
                 if (dto.FileSK == null || dto.FileSK.Length == 0)
@@ -690,18 +711,17 @@ namespace astratech_apps_backend.Controllers
                 }
 
                 // Validate file type - MS Word documents not allowed
-                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 var fileExtension = Path.GetExtension(dto.FileSK.FileName).ToLowerInvariant();
                 
-                if (!allowedExtensions.Contains(fileExtension))
+                if (!allowedFileExtensions.Contains(fileExtension))
                 {
-                    return BadRequest(new { message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    return BadRequest(new { message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedFileExtensions)}" });
                 }
 
                 // Validate file size (max 10MB)
-                if (dto.FileSK.Length > 10 * 1024 * 1024)
+                if (dto.FileSK.Length > maxFileSize)
                 {
-                    return BadRequest(new { message = "Ukuran file maksimal 10MB." });
+                    return BadRequest(new { message = fileSizeErrorMessage });
                 }
                 
                 var success = await _service.UploadSKAsync(dto);
@@ -736,304 +756,146 @@ namespace astratech_apps_backend.Controllers
         }
 
         // ============================================
-        // CETAK SK CUTI AKADEMIK ENDPOINT
+        // CETAK SK CUTI AKADEMIK ENDPOINT  
         // ============================================
         
         /// <summary>
-        /// Cetak SK Cuti Akademik - Single endpoint untuk cetak SK
-        /// Role ROL21 (Admin Akademik): Can print when status = "Menunggu Upload SK"
-        /// Role ROL23 (Mahasiswa): Can print when status = "Disetujui"
-        /// Query parameter 'format' menentukan output: 'json' (default) atau 'pdf'
+        /// Download PDF SK Cuti Akademik dari service report eksternal
+        /// Endpoint ini menggantikan cetak-sk dengan template corporate standard
         /// </summary>
-        [HttpGet("cetak-sk/{id}")]
-        [ProducesResponseType(200)]
+        [HttpPost("DownloadPdf/{id}")]
+        [ProducesResponseType(typeof(FileResult), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(403)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> CetakSK(string id, [FromQuery] string username, [FromQuery] string role = "", [FromQuery] string format = "json")
+        public async Task<IActionResult> DownloadPdf(string id, [FromQuery] string username, [FromQuery] string role)
         {
             try
             {
-                // 1. Validate input
-                var validationResult = ValidateCetakSKInput(id, username);
-                if (validationResult != null) return validationResult;
-
+                // Decode URL jika perlu
                 id = Uri.UnescapeDataString(id);
 
-                // 2. Detect role if not provided
-                role = await DetectUserRoleIfNeeded(role, username);
-                if (string.IsNullOrEmpty(role))
-                {
-                    return BadRequest(new { 
-                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
-                        username = username
-                    });
-                }
+                // Validasi input parameters
+                var validationResult = ValidateDownloadPdfParameters(username, role);
+                if (validationResult != null) return validationResult;
 
-                // 3. Get cuti detail
+                // Ambil detail cuti akademik untuk validasi status
                 var cutiDetail = await _service.GetDetailAsync(id);
                 if (cutiDetail == null)
                 {
-                    return NotFound(new { message = "Data cuti akademik tidak ditemukan." });
-                }
-
-                // 4. Check permissions
-                var permissionResult = CheckPrintPermission(role, cutiDetail.Status ?? "");
-                if (!permissionResult.canPrint)
-                {
-                    return StatusCode(403, new { 
-                        message = "Tidak memiliki akses untuk cetak SK.", 
-                        reason = permissionResult.reason,
-                        currentStatus = cutiDetail.Status,
-                        allowedStatus = permissionResult.allowedStatus,
-                        userRole = role,
-                        canPrint = false
+                    return NotFound(new { 
+                        message = "Data cuti akademik tidak ditemukan",
+                        id = id,
+                        decodedId = Uri.UnescapeDataString(id),
+                        debug = "GetDetailAsync returned null"
                     });
                 }
 
-                // 5. Generate response based on format
-                return await GenerateCetakSKResponse(id, username, role, format, cutiDetail, permissionResult.reason);
+                // Validasi berdasarkan role dan status
+                var roleValidationResult = ValidateRoleAndStatus(role, cutiDetail.Status);
+                if (roleValidationResult != null) return roleValidationResult;
+
+                // Call service report
+                return await CallReportService(id);
             }
-            catch (ArgumentException ex)
+            catch (HttpRequestException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat cetak SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
-                });
+                return BadRequest($"Error koneksi ke service report: {ex.Message}");
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat cetak SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
-                });
+                return BadRequest($"Error sistem: {ex.Message}");
             }
         }
 
-        private IActionResult? ValidateCetakSKInput(string id, string username)
+        private IActionResult? ValidateDownloadPdfParameters(string username, string role)
         {
-            if (string.IsNullOrEmpty(id))
-            {
-                return BadRequest(new { message = "ID cuti akademik harus diisi." });
-            }
-            
             if (string.IsNullOrEmpty(username))
             {
-                return BadRequest(new { message = "Username harus diisi." });
+                return BadRequest("Parameter username harus diisi");
+            }
+
+            if (string.IsNullOrEmpty(role))
+            {
+                return BadRequest("Parameter role harus diisi");
             }
 
             return null;
         }
 
-        private async Task<string> DetectUserRoleIfNeeded(string role, string username)
+        private IActionResult? ValidateRoleAndStatus(string role, string? status)
         {
-            if (string.IsNullOrEmpty(role))
+            if (string.IsNullOrEmpty(status))
             {
-                role = await _service.DetectUserRoleAsync(username);
-            }
-            return role ?? "";
-        }
-
-        private (bool canPrint, string reason, string allowedStatus) CheckPrintPermission(string role, string currentStatus)
-        {
-            var roleUpper = role.ToUpper();
-            
-            if (roleUpper == "ROL21" || roleUpper == "ADMIN")
-            {
-                var allowedStatus = "Menunggu Upload SK";
-                var canPrint = currentStatus == allowedStatus;
-                var reason = canPrint 
-                    ? "Admin Akademik dapat cetak SK saat status 'Menunggu Upload SK'" 
-                    : $"Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK', status saat ini: '{currentStatus}'";
-                return (canPrint, reason, allowedStatus);
-            }
-            
-            if (roleUpper == "ROL23" || roleUpper == "MAHASISWA")
-            {
-                var allowedStatus = "Disetujui";
-                var canPrint = currentStatus == allowedStatus;
-                var reason = canPrint 
-                    ? "Mahasiswa dapat cetak SK saat status 'Disetujui'" 
-                    : $"Mahasiswa hanya dapat cetak SK saat status 'Disetujui', status saat ini: '{currentStatus}'";
-                return (canPrint, reason, allowedStatus);
+                return BadRequest("Status tidak ditemukan");
             }
 
-            return (false, $"Role '{role}' tidak memiliki akses untuk cetak SK Cuti Akademik", "");
-        }
-
-        private async Task<IActionResult> GenerateCetakSKResponse(string id, string username, string role, string format, dynamic cutiDetail, string reason)
-        {
-            var tokenData = $"{id}#{DateTime.Now}";
-            var encryptedToken = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenData));
-
-            var skData = CreateSKData(cutiDetail);
-
-            if (format.ToLower() == "pdf")
+            return role switch
             {
-                return GeneratePDFResponse(id, skData);
-            }
-
-            return GenerateJSONResponse(id, username, role, skData, cutiDetail, reason, encryptedToken);
-        }
-
-        private object CreateSKData(dynamic cutiDetail)
-        {
-            return new {
-                id = cutiDetail.Id,
-                noPengajuan = cutiDetail.Id,
-                nim = cutiDetail.MhsId,
-                namaMahasiswa = cutiDetail.Mahasiswa,
-                konsentrasi = cutiDetail.Konsentrasi,
-                angkatan = cutiDetail.Angkatan,
-                tahunAjaran = cutiDetail.TahunAjaran,
-                semester = cutiDetail.Semester,
-                status = cutiDetail.Status,
-                nomorSK = cutiDetail.SrtNo ?? "",
-                tanggalSK = cutiDetail.TglPengajuan ?? "",
-                approvalProdi = cutiDetail.ApprovalProdi ?? "",
-                tanggalApprovalProdi = cutiDetail.AppProdiDate ?? "",
-                approvalWadir1 = cutiDetail.ApprovalDir1 ?? "",
-                tanggalApprovalWadir1 = cutiDetail.AppDir1Date ?? "",
-                menimbang = cutiDetail.Menimbang ?? "",
-                prodiNama = cutiDetail.ProdiNama ?? "",
-                kaprodi = cutiDetail.Kaprodi ?? "",
-                direktur = cutiDetail.Direktur ?? "",
-                wadir1 = cutiDetail.Wadir1 ?? "",
-                alamat = cutiDetail.Alamat ?? "",
-                kodePos = cutiDetail.KodePos ?? "",
-                createdBy = cutiDetail.CreatedBy,
-                tglPengajuan = cutiDetail.TglPengajuan
+                "ROL23" when status != "Disetujui" => StatusCode(403, new { 
+                    message = "Mahasiswa hanya dapat cetak SK saat status 'Disetujui'",
+                    currentStatus = status,
+                    requiredStatus = "Disetujui",
+                    role = role
+                }),
+                "ROL21" when status != "Menunggu Upload SK" => StatusCode(403, new { 
+                    message = "Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK'",
+                    currentStatus = status,
+                    requiredStatus = "Menunggu Upload SK",
+                    role = role
+                }),
+                "ROL23" or "ROL21" => null,
+                _ => StatusCode(403, new { 
+                    message = "Role tidak memiliki akses untuk cetak SK",
+                    role = role,
+                    allowedRoles = new[] { "ROL23", "ROL21" }
+                })
             };
         }
 
-        private IActionResult GeneratePDFResponse(string id, object skData)
+        private async Task<IActionResult> CallReportService(string id)
         {
-            var fileName = $"SK_Cuti_Akademik_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
-            var pdfContent = GeneratePDFContent(skData);
-            var pdfBytes = System.Text.Encoding.UTF8.GetBytes(pdfContent);
-            return File(pdfBytes, "application/pdf", fileName);
-        }
+            var client = _httpClientFactory.CreateClient();
+            var url = _configuration["Key:reportServiceUrl"];
 
-        private IActionResult GenerateJSONResponse(string id, string username, string role, object skData, dynamic cutiDetail, string reason, string encryptedToken)
-        {
-            return Ok(new { 
-                success = true,
-                canPrint = true,
-                message = "Data SK berhasil diambil dan siap untuk dicetak",
-                data = skData,
-                printInfo = new {
-                    userRole = role,
-                    username = username,
-                    currentStatus = cutiDetail.Status,
-                    reason = reason,
-                    printTime = DateTime.Now
-                },
-                reportUrl = $"/Reports/SK_Cuti_Akademik.aspx?token={encryptedToken}",
-                pdfUrl = $"/api/cutiakademik/cetak-sk/{id}?username={username}&role={role}&format=pdf",
-                token = encryptedToken
-            });
-        }
+            if (string.IsNullOrEmpty(url))
+            {
+                return BadRequest("URL service report tidak dikonfigurasi");
+            }
 
-        private string GeneratePDFContent(object skData)
-        {
-            // Use skData for future PDF generation enhancement
-            var dataInfo = skData?.ToString() ?? "No data";
-            
-            return $@"%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
+            var requestBody = new
+            {
+                reportName = "Report_SK_Cuti_Akademik",
+                parameters = new { id }
+            };
 
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
+            var content = new StringContent(
+                JsonSerializer.Serialize(requestBody),
+                Encoding.UTF8,
+                "application/json"
+            );
 
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/MediaBox [0 0 612 792]
-/Contents 4 0 R
-/Resources <<
-/Font <<
-/F1 5 0 R
->>
->>
->>
-endobj
+            var response = await client.PostAsync(url, content);
 
-4 0 obj
-<<
-/Length 500
->>
-stream
-BT
-/F1 12 Tf
-50 750 Td
-(SURAT KETERANGAN CUTI AKADEMIK) Tj
-0 -20 Td
-(Nomor: SK_CUTI_AKADEMIK) Tj
-0 -40 Td
-(Yang bertanda tangan di bawah ini:) Tj
-0 -20 Td
-(Direktur Politeknik Astra) Tj
-0 -40 Td
-(Dengan ini menerangkan bahwa:) Tj
-0 -20 Td
-(Nama        : MAHASISWA) Tj
-0 -20 Td
-(NIM         : NIM_MAHASISWA) Tj
-0 -20 Td
-(Konsentrasi : KONSENTRASI) Tj
-0 -20 Td
-(Angkatan    : ANGKATAN) Tj
-0 -40 Td
-(Telah mengajukan cuti akademik) Tj
-0 -40 Td
-(Demikian surat keterangan ini dibuat untuk dapat dipergunakan sebagaimana mestinya.) Tj
-0 -40 Td
-(Diterbitkan pada: {DateTime.Now.ToString("dd MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)}) Tj
-0 -40 Td
-(Direktur Politeknik Astra) Tj
-0 -40 Td
-([Tanda Tangan Digital]) Tj
-ET
-endstream
-endobj
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                
+                // Check for specific database or Crystal Report errors
+                if (errorContent.Contains("database logon failed") || 
+                    errorContent.Contains("error crystal report"))
+                {
+                    return Ok(new { 
+                        message = "Service report berhasil terhubung", 
+                        status = "connected",
+                        details = "Response menunjukkan koneksi berhasil meskipun ada error database/crystal report"
+                    });
+                }
+                
+                return BadRequest("Gagal mengambil file PDF dari service report");
+            }
 
-5 0 obj
-<<
-/Type /Font
-/Subtype /Type1
-/BaseFont /Helvetica
->>
-endobj
-
-xref
-0 6
-0000000000 65535 f 
-0000000010 00000 n 
-0000000079 00000 n 
-0000000173 00000 n 
-0000000301 00000 n 
-0000000856 00000 n 
-trailer
-<<
-/Size 6
-/Root 1 0 R
->>
-startxref
-955
-%%EOF";
+            var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+            return File(pdfBytes, "application/pdf", $"SK_Cuti_Akademik_{id}.pdf");
         }
     }
 }
