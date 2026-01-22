@@ -1,5 +1,6 @@
-﻿using astratech_apps_backend.DTOs.CutiAkademik;
+using astratech_apps_backend.DTOs.CutiAkademik;
 using astratech_apps_backend.Services.Interfaces;
+using astratech_apps_backend.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
@@ -8,7 +9,7 @@ using System.Text.Json;
 namespace astratech_apps_backend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] 
+    [Route("api/[controller]")]
     public class CutiAkademikController : ControllerBase
     {
         private readonly ICutiAkademikService _service;
@@ -25,10 +26,9 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // CREATE DRAFT (Mahasiswa)
         // ============================================
-        [HttpPost("draft")]
-        [HttpPost]
-        public async Task<IActionResult> CreateDraft([FromForm] CreateDraftCutiRequest dto)
-
+        [HttpPost("CreateDraftCutiAkademik")]
+        [RequiresPermission("cuti_akademik.create")]
+        public async Task<IActionResult> CreateDraftCutiAkademik([FromForm] CreateDraftCutiRequest dto)
         {
             // File validation constants
             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
@@ -74,8 +74,9 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // GENERATE FINAL ID (Mahasiswa)
         // ============================================
-        [HttpPut("generate-id")]
-        public async Task<IActionResult> GenerateId([FromBody] GenerateCutiIdRequest dto)
+        [HttpPut("GenerateFinalIdCutiAkademik")]
+        [RequiresPermission("cuti_akademik.create")]
+        public async Task<IActionResult> GenerateFinalIdCutiAkademik([FromBody] GenerateCutiIdRequest dto)
         {
             var id = await _service.GenerateIdAsync(dto);
 
@@ -88,11 +89,11 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // CREATE DRAFT (Prodi)
         // ============================================
-        
-        [HttpPost("prodi/draft")]
+        [HttpPost("CreateDraftCutiAkademikByProdi")]
+        [RequiresPermission("cuti_akademik.create")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> CreateDraftByProdi([FromForm] CreateCutiProdiRequest dto)
+        public async Task<IActionResult> CreateDraftCutiAkademikByProdi([FromForm] CreateCutiProdiRequest dto)
         {
             try
             {
@@ -144,16 +145,18 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat draft.", 
-                    error = ex.Message 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat membuat draft.",
+                    error = ex.Message
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat membuat draft.", 
-                    error = ex.Message 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat membuat draft.",
+                    error = ex.Message
                 });
             }
         }
@@ -161,11 +164,11 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // GENERATE FINAL ID (Prodi)
         // ============================================
-        
-        [HttpPut("prodi/generate-id")]
+        [HttpPut("GenerateFinalIdCutiAkademikByProdi")]
+        [RequiresPermission("cuti_akademik.create")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> GenerateIdByProdi([FromBody] GenerateCutiProdiIdRequest dto)
+        public async Task<IActionResult> GenerateFinalIdCutiAkademikByProdi([FromBody] GenerateCutiProdiIdRequest dto)
         {
             try
             {
@@ -180,16 +183,18 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat generate final ID.", 
-                    error = ex.Message 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat generate final ID.",
+                    error = ex.Message
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat generate final ID.", 
-                    error = ex.Message 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat generate final ID.",
+                    error = ex.Message
                 });
             }
         }
@@ -197,14 +202,14 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // GET ALL CUTI
         // ============================================
-        
-        [HttpGet]
+        [HttpGet("GetAllCutiAkademik")]
+        [RequiresPermission("cuti_akademik.view")]
         [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
-        public async Task<IActionResult> GetAll(
-            [FromQuery] string mhsId = "%", 
+        public async Task<IActionResult> GetAllCutiAkademik(
+            [FromQuery] string mhsId = "%",
             [FromQuery] string status = "",
-            [FromQuery] string userId = "", 
-            [FromQuery] string role = "", 
+            [FromQuery] string userId = "",
+            [FromQuery] string role = "",
             [FromQuery] string search = "")
         {
             var result = await _service.GetAllAsync(mhsId, status, userId, role, search);
@@ -214,8 +219,9 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // GET DETAIL CUTI
         // ============================================
-        [HttpGet("detail")]
-        public async Task<IActionResult> GetDetail([FromQuery] string id)
+        [HttpGet("GetDetailCutiAkademik")]
+        [RequiresPermission("cuti_akademik.view")]
+        public async Task<IActionResult> GetDetailCutiAkademik([FromQuery] string id)
         {
             var data = await _service.GetDetailAsync(id);
 
@@ -225,15 +231,14 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-
         // ============================================
         // UPDATE CUTI (WITH FILE UPLOAD)
         // ============================================
-        
-        [HttpPut("{id}")]
+        [HttpPut("UpdateCutiAkademik/{id}")]
+        [RequiresPermission("cuti_akademik.edit")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> UpdateDraft(string id, [FromForm] UpdateCutiAkademikRequest dto)
+        public async Task<IActionResult> UpdateCutiAkademik(string id, [FromForm] UpdateCutiAkademikRequest dto)
         {
             try
             {
@@ -291,16 +296,18 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengupdate data.", 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat mengupdate data.",
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat mengupdate data.", 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat mengupdate data.",
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
@@ -310,8 +317,9 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // SOFT DELETE
         // ============================================
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(string id)
+        [HttpDelete("DeleteCutiAkademik/{id}")]
+        [RequiresPermission("cuti_akademik.delete")]
+        public async Task<IActionResult> DeleteCutiAkademik(string id)
         {
             var modifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
 
@@ -326,23 +334,23 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // RIWAYAT CUTI
         // ============================================
-        
-        [HttpGet("riwayat")]
+        [HttpGet("GetRiwayatCutiAkademik")]
+        [RequiresPermission("cuti_akademik.view")]
         [ProducesResponseType(typeof(IEnumerable<CutiAkademikListResponse>), 200)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> GetRiwayat(
-            [FromQuery] string userId = "", 
-            [FromQuery] string status = "", 
+        public async Task<IActionResult> GetRiwayatCutiAkademik(
+            [FromQuery] string userId = "",
+            [FromQuery] string status = "",
             [FromQuery] string search = "")
         {
             var result = await _service.GetRiwayatAsync(userId, status, search);
             return Ok(result);
         }
 
-        
-        [HttpGet("riwayat/excel")]
+        [HttpGet("ExportRiwayatCutiAkademikToExcel")]
+        [RequiresPermission("cuti_akademik.export")]
         [ProducesResponseType(typeof(FileResult), 200)]
-        public async Task<IActionResult> GetRiwayatExcel([FromQuery] string userId = "")
+        public async Task<IActionResult> ExportRiwayatCutiAkademikToExcel([FromQuery] string userId = "")
         {
             try
             {
@@ -404,16 +412,18 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat file Excel.", 
-                    error = ex.Message 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat membuat file Excel.",
+                    error = ex.Message
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat membuat file Excel.", 
-                    error = ex.Message 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat membuat file Excel.",
+                    error = ex.Message
                 });
             }
         }
@@ -421,13 +431,14 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // DOWNLOAD FILE
         // ============================================
-        [HttpGet("file/{filename}")]
-        public IActionResult DownloadFile(string filename)
+        [HttpGet("DownloadFileCutiAkademik/{filename}")]
+        [RequiresPermission("cuti_akademik.print")]
+        public IActionResult DownloadFileCutiAkademik(string filename)
         {
             var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/cuti", filename);
 
             if (!System.IO.File.Exists(path))
-                return NotFound();  
+                return NotFound();
 
             var fileBytes = System.IO.File.ReadAllBytes(path);
             return File(fileBytes, "application/octet-stream", filename);
@@ -436,12 +447,11 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // APPROVAL & REJECTION ENDPOINTS
         // ============================================
-        
-        
-        [HttpPut("approve")]
+        [HttpPut("ApproveCutiAkademik")]
+        [RequiresPermission("cuti_akademik.approve_reject")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> ApproveCuti([FromBody] ApproveCutiAkademikRequest dto)
+        public async Task<IActionResult> ApproveCutiAkademik([FromBody] ApproveCutiAkademikRequest dto)
         {
             try
             {
@@ -449,7 +459,8 @@ namespace astratech_apps_backend.Controllers
                 var detectedRole = await _service.DetectUserRoleAsync(dto.ApprovedBy);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
-                    return BadRequest(new { 
+                    return BadRequest(new
+                    {
                         message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
                         username = dto.ApprovedBy
                     });
@@ -462,7 +473,8 @@ namespace astratech_apps_backend.Controllers
                 
                 if (success)
                 {
-                    return Ok(new { 
+                    return Ok(new
+                    {
                         approved = true,
                         id = dto.Id,
                         approvedBy = dto.ApprovedBy,
@@ -471,7 +483,8 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                return BadRequest(new { 
+                return BadRequest(new
+                {
                     message = "Gagal menyetujui cuti akademik. Data mungkin tidak ditemukan atau sudah diproses.",
                     id = dto.Id,
                     detectedRole = detectedRole,
@@ -480,27 +493,29 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat menyetujui cuti akademik.",
                     error = ex.Message,
                     id = dto.Id
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat menyetujui cuti akademik.", 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat menyetujui cuti akademik.",
                     error = ex.Message,
                     id = dto.Id
                 });
             }
         }
 
-        
-        [HttpPut("approve/prodi")]
+        [HttpPut("ApproveCutiAkademikByProdi")]
+        [RequiresPermission("cuti_akademik.approve_reject")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> ApproveProdiCuti([FromBody] ApproveProdiCutiRequest dto)
+        public async Task<IActionResult> ApproveCutiAkademikByProdi([FromBody] ApproveProdiCutiRequest dto)
         {
             try
             {
@@ -531,27 +546,29 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menyetujui cuti akademik.", 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat menyetujui cuti akademik.",
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat menyetujui cuti akademik.", 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat menyetujui cuti akademik.",
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
             }
         }
 
-       
-        [HttpPut("reject")]
+        [HttpPut("RejectCutiAkademik")]
+        [RequiresPermission("cuti_akademik.approve_reject")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> RejectCuti([FromBody] RejectCutiAkademikRequest dto)
+        public async Task<IActionResult> RejectCutiAkademik([FromBody] RejectCutiAkademikRequest dto)
         {
             try
             {
@@ -570,7 +587,8 @@ namespace astratech_apps_backend.Controllers
                 var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
-                    return BadRequest(new { 
+                    return BadRequest(new
+                    {
                         message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
                         username = dto.Username
                     });
@@ -581,9 +599,10 @@ namespace astratech_apps_backend.Controllers
                 
                 var success = await _service.RejectCutiAsync(dto);
                 
-                if (success)    
+                if (success)
                 {
-                    return Ok(new { 
+                    return Ok(new
+                    {
                         rejected = true,
                         id = dto.Id,
                         rejectedBy = dto.Username,
@@ -592,7 +611,8 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                return BadRequest(new { 
+                return BadRequest(new
+                {
                     message = "Gagal menolak cuti akademik. Data mungkin tidak ditemukan atau sudah diproses.",
                     id = dto.Id,
                     detectedRole = detectedRole,
@@ -601,16 +621,18 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menolak cuti akademik.", 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat menolak cuti akademik.",
                     error = ex.Message,
                     id = dto.Id
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat menolak cuti akademik.", 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat menolak cuti akademik.",
                     error = ex.Message,
                     id = dto.Id
                 });
@@ -620,11 +642,11 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // SK MANAGEMENT ENDPOINTS
         // ============================================
-        
-        [HttpPut("upload-sk")]
+        [HttpPut("UploadSKCutiAkademik")]
+        [RequiresPermission("cuti_akademik.import")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> UploadSK([FromForm] UploadSKRequest dto)
+        public async Task<IActionResult> UploadSKCutiAkademik([FromForm] UploadSKRequest dto)
         {
             try
             {
@@ -633,18 +655,18 @@ namespace astratech_apps_backend.Controllers
                 const int maxFileSize = 10 * 1024 * 1024; // 10MB
                 const string idRequiredMessage = "ID cuti akademik harus diisi.";
                 const string fileSizeErrorMessage = "Ukuran file maksimal 10MB.";
-                
+
                 // Validate input
                 if (string.IsNullOrEmpty(dto.Id))
                 {
                     return BadRequest(new { message = idRequiredMessage });
                 }
-                
+
                 if (dto.FileSK == null || dto.FileSK.Length == 0)
                 {
                     return BadRequest(new { message = "File SK harus diupload." });
                 }
-                
+
                 if (string.IsNullOrEmpty(dto.UploadBy))
                 {
                     return BadRequest(new { message = "UploadBy harus diisi." });
@@ -668,7 +690,8 @@ namespace astratech_apps_backend.Controllers
                 
                 if (success)
                 {
-                    return Ok(new { 
+                    return Ok(new
+                    {
                         message = "SK berhasil diupload. Status cuti akademik telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis di daftar.",
                         success = true,
                         id = dto.Id
@@ -679,16 +702,18 @@ namespace astratech_apps_backend.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengupload SK.", 
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat mengupload SK.",
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat mengupload SK.", 
+                return BadRequest(new
+                {
+                    message = "Operasi tidak valid saat mengupload SK.",
                     error = ex.Message,
                     details = ex.InnerException?.Message
                 });
@@ -698,12 +723,12 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // CETAK SK CUTI AKADEMIK ENDPOINT  
         // ============================================
-        
-        [HttpPost("DownloadPdf/{id}")]
+        [HttpPost("DownloadPdfSKCutiAkademik/{id}")]
+        [RequiresPermission("cuti_akademik.print")]
         [ProducesResponseType(typeof(FileResult), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(403)]
-        public async Task<IActionResult> DownloadPdf(string id, [FromQuery] string username, [FromQuery] string role)
+        public async Task<IActionResult> DownloadPdfSKCutiAkademik(string id, [FromQuery] string username, [FromQuery] string role)
         {
             try
             {
@@ -718,11 +743,12 @@ namespace astratech_apps_backend.Controllers
                 var cutiDetail = await _service.GetDetailAsync(id);
                 if (cutiDetail == null)
                 {
-                    return NotFound(new { 
+                    return NotFound(new
+                    {
                         message = "Data cuti akademik tidak ditemukan",
                         id = id,
-                        decodedId = Uri.UnescapeDataString(id),
-                        debug = "GetDetailAsync returned null"
+                        username = username,
+                        role = role
                     });
                 }
 
@@ -731,15 +757,29 @@ namespace astratech_apps_backend.Controllers
                 if (roleValidationResult != null) return roleValidationResult;
 
                 // Call service report
-                return await CallReportService(id);
+                return await CallReportService(id, username, role);
             }
             catch (HttpRequestException ex)
             {
-                return BadRequest($"Error koneksi ke service report: {ex.Message}");
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat download PDF SK Cuti Akademik.",
+                    error = ex.Message,
+                    id = id,
+                    username = username,
+                    role = role
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error sistem: {ex.Message}");
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat download PDF SK Cuti Akademik.",
+                    error = ex.Message,
+                    id = id,
+                    username = username,
+                    role = role
+                });
             }
         }
 
@@ -747,12 +787,21 @@ namespace astratech_apps_backend.Controllers
         {
             if (string.IsNullOrEmpty(username))
             {
-                return BadRequest("Parameter username harus diisi");
+                return BadRequest(new
+                {
+                    message = "Parameter username harus diisi",
+                    username = username
+                });
             }
 
             if (string.IsNullOrEmpty(role))
             {
-                return BadRequest("Parameter role harus diisi");
+                return BadRequest(new
+                {
+                    message = "Parameter role harus diisi",
+                    username = username,
+                    role = role
+                });
             }
 
             return null;
@@ -762,25 +811,32 @@ namespace astratech_apps_backend.Controllers
         {
             if (string.IsNullOrEmpty(status))
             {
-                return BadRequest("Status tidak ditemukan");
+                return BadRequest(new
+                {
+                    message = "Status tidak ditemukan",
+                    role = role
+                });
             }
 
             return role switch
             {
-                "ROL23" when status != "Disetujui" => StatusCode(403, new { 
+                "ROL23" when status != "Disetujui" => StatusCode(403, new
+                {
                     message = "Mahasiswa hanya dapat cetak SK saat status 'Disetujui'",
                     currentStatus = status,
                     requiredStatus = "Disetujui",
                     role = role
                 }),
-                "ROL21" when status != "Menunggu Upload SK" => StatusCode(403, new { 
+                "ROL21" when status != "Menunggu Upload SK" => StatusCode(403, new
+                {
                     message = "Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK'",
                     currentStatus = status,
                     requiredStatus = "Menunggu Upload SK",
                     role = role
                 }),
                 "ROL23" or "ROL21" => null,
-                _ => StatusCode(403, new { 
+                _ => StatusCode(403, new
+                {
                     message = "Role tidak memiliki akses untuk cetak SK",
                     role = role,
                     allowedRoles = new[] { "ROL23", "ROL21" }
@@ -788,14 +844,20 @@ namespace astratech_apps_backend.Controllers
             };
         }
 
-        private async Task<IActionResult> CallReportService(string id)
+        private async Task<IActionResult> CallReportService(string id, string username, string role)
         {
             var client = _httpClientFactory.CreateClient();
             var url = _configuration["Key:reportServiceUrl"];
 
             if (string.IsNullOrEmpty(url))
             {
-                return BadRequest("URL service report tidak dikonfigurasi");
+                return BadRequest(new
+                {
+                    message = "URL service report tidak dikonfigurasi",
+                    id = id,
+                    username = username,
+                    role = role
+                });
             }
 
             var requestBody = new
@@ -810,28 +872,54 @@ namespace astratech_apps_backend.Controllers
                 "application/json"
             );
 
-            var response = await client.PostAsync(url, content);
-
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                
-                // Check for specific database or Crystal Report errors
-                if (errorContent.Contains("database logon failed") || 
-                    errorContent.Contains("error crystal report"))
+                var response = await client.PostAsync(url, content);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    return Ok(new { 
-                        message = "Service report berhasil terhubung", 
-                        status = "connected",
-                        details = "Response menunjukkan koneksi berhasil meskipun ada error database/crystal report"
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    
+                    // Check for specific database or Crystal Report errors
+                    if (errorContent.Contains("database logon failed") ||
+                        errorContent.Contains("error crystal report"))
+                    {
+                        return BadRequest(new
+                        {
+                            message = "Service report berhasil terhubung namun terjadi error database/crystal report",
+                            error = errorContent,
+                            connectionStatus = "Connected - Database/Crystal Report Error",
+                            id = id,
+                            username = username,
+                            role = role
+                        });
+                    }
+                    
+                    return BadRequest(new
+                    {
+                        message = "Gagal mengambil file PDF dari service report",
+                        error = errorContent,
+                        statusCode = (int)response.StatusCode,
+                        id = id,
+                        username = username,
+                        role = role
                     });
                 }
-                
-                return BadRequest("Gagal mengambil file PDF dari service report");
-            }
 
-            var pdfBytes = await response.Content.ReadAsByteArrayAsync();
-            return File(pdfBytes, "application/pdf", $"SK_Cuti_Akademik_{id}.pdf");
+                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+                return File(pdfBytes, "application/pdf", $"SK_Cuti_Akademik_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+            }
+            catch (HttpRequestException ex)
+            {
+                return BadRequest(new
+                {
+                    message = "Terjadi kesalahan saat download PDF SK Cuti Akademik.",
+                    error = ex.Message,
+                    id = id,
+                    username = username,
+                    role = role
+                });
+            }
         }
     }
 }
