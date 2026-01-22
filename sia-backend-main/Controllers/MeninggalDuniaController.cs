@@ -632,7 +632,9 @@ namespace astratech_apps_backend.Controllers
                 {
                     return NotFound(new { 
                         message = "Data meninggal dunia tidak ditemukan",
-                        id = id
+                        id = id,
+                        username = username,
+                        role = role
                     });
                 }
 
@@ -641,15 +643,27 @@ namespace astratech_apps_backend.Controllers
                 if (roleValidationResult != null) return roleValidationResult;
 
                 // Call service report
-                return await CallReportService(id, "Report_SK_Meninggal_Dunia", "SK_Meninggal_Dunia");
+                return await CallReportService(id, username, role, "Report_SK_Meninggal_Dunia", "SK_Meninggal_Dunia");
             }
             catch (HttpRequestException ex)
             {
-                return BadRequest($"Error koneksi ke service report: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
+                    error = ex.Message,
+                    id = id,
+                    username = username,
+                    role = role
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error sistem: {ex.Message}");
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
+                    error = ex.Message,
+                    id = id,
+                    username = username,
+                    role = role
+                });
             }
         }
 
@@ -657,12 +671,19 @@ namespace astratech_apps_backend.Controllers
         {
             if (string.IsNullOrEmpty(username))
             {
-                return BadRequest("Parameter username harus diisi");
+                return BadRequest(new { 
+                    message = "Parameter username harus diisi",
+                    username = username
+                });
             }
 
             if (string.IsNullOrEmpty(role))
             {
-                return BadRequest("Parameter role harus diisi");
+                return BadRequest(new { 
+                    message = "Parameter role harus diisi",
+                    username = username,
+                    role = role
+                });
             }
 
             return null;
@@ -672,7 +693,10 @@ namespace astratech_apps_backend.Controllers
         {
             if (string.IsNullOrEmpty(status))
             {
-                return BadRequest("Status tidak ditemukan");
+                return BadRequest(new { 
+                    message = "Status tidak ditemukan",
+                    role = role
+                });
             }
 
             return role switch
@@ -698,14 +722,19 @@ namespace astratech_apps_backend.Controllers
             };
         }
 
-        private async Task<IActionResult> CallReportService(string id, string reportName, string filePrefix)
+        private async Task<IActionResult> CallReportService(string id, string username, string role, string reportName, string filePrefix)
         {
             var client = _httpClientFactory.CreateClient();
             var url = _configuration["Key:reportServiceUrl"];
 
             if (string.IsNullOrEmpty(url))
             {
-                return BadRequest("URL service report tidak dikonfigurasi");
+                return BadRequest(new { 
+                    message = "URL service report tidak dikonfigurasi",
+                    id = id,
+                    username = username,
+                    role = role
+                });
             }
 
             var requestBody = new
@@ -720,28 +749,51 @@ namespace astratech_apps_backend.Controllers
                 "application/json"
             );
 
-            var response = await client.PostAsync(url, content);
-
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                
-                // Check for specific database or Crystal Report errors
-                if (errorContent.Contains("database logon failed") || 
-                    errorContent.Contains("error crystal report"))
+                var response = await client.PostAsync(url, content);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    return Ok(new { 
-                        message = "Service report berhasil terhubung", 
-                        status = "connected",
-                        details = "Response menunjukkan koneksi berhasil meskipun ada error database/crystal report"
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    
+                    // Check for specific database or Crystal Report errors
+                    if (errorContent.Contains("database logon failed") || 
+                        errorContent.Contains("error crystal report"))
+                    {
+                        return BadRequest(new { 
+                            message = "Service report berhasil terhubung namun terjadi error database/crystal report",
+                            error = errorContent,
+                            connectionStatus = "Connected - Database/Crystal Report Error",
+                            id = id,
+                            username = username,
+                            role = role
+                        });
+                    }
+                    
+                    return BadRequest(new { 
+                        message = "Gagal mengambil file PDF dari service report",
+                        error = errorContent,
+                        statusCode = (int)response.StatusCode,
+                        id = id,
+                        username = username,
+                        role = role
                     });
                 }
-                
-                return BadRequest("Gagal mengambil file PDF dari service report");
-            }
 
-            var pdfBytes = await response.Content.ReadAsByteArrayAsync();
-            return File(pdfBytes, "application/pdf", $"{filePrefix}_{id}.pdf");
+                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+                return File(pdfBytes, "application/pdf", $"{filePrefix}_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+            }
+            catch (HttpRequestException ex)
+            {
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
+                    error = ex.Message,
+                    id = id,
+                    username = username,
+                    role = role
+                });
+            }
         }
 
     }
