@@ -34,17 +34,8 @@ namespace astratech_apps_backend.Controllers
                     req.PageSize = 50; // Increase default page size
                 }
                 
-                
                 ModelState.Clear();
                 var result = await _service.GetAllAsync(req);
-                
-                
-                // Log the status distribution for debugging using LINQ
-                var statusCounts = result.Data.GroupBy(x => x.Status).Select(g => new { Status = g.Key, Count = g.Count() });
-                
-                // Status count logging for monitoring purposes using LINQ
-                statusCounts.ToList().ForEach(statusCount => 
-                    Console.WriteLine($"Status: {statusCount.Status}, Count: {statusCount.Count}"));
                 
                 return Ok(result);
             }
@@ -54,43 +45,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        // Debug endpoint untuk melihat data yang dihapus
-        [HttpGet("GetAll/deleted")]
-        public async Task<IActionResult> GetAllDeleted([FromQuery] GetAllMeninggalDuniaRequest req)
-        {
-            // Override status untuk melihat data yang dihapus
-            req.Status = "Dihapus";
-            ModelState.Clear();
-            return Ok(await _service.GetAllAsync(req));
-        }
 
-        // Debug endpoint untuk melihat data spesifik sebelum delete
-        [HttpGet("debug/{id}")]
-        public async Task<IActionResult> DebugGetById(string id)
-        {
-            try
-            {
-                var data = await _service.GetDetailAsync(id);
-                if (data == null)
-                {
-                    return NotFound(new { message = "Data tidak ditemukan", id = id });
-                }
-                return Ok(new { 
-                    message = "Data ditemukan", 
-                    id = id,
-                    data = data,
-                    canDelete = !string.IsNullOrEmpty(data.MhsId)
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    message = "Error saat mengambil data", 
-                    id = id, 
-                    error = ex.Message 
-                });
-            }
-        }
 
         [HttpGet("mahasiswa")]
         public async Task<IActionResult> GetMahasiswa([FromQuery] string? search = null)
@@ -134,52 +89,7 @@ namespace astratech_apps_backend.Controllers
         }
 
 
-        [HttpGet("debug/role/{username}")]
-        public async Task<IActionResult> DebugRoleDetection(string username)
-        {
-            try
-            {
-                var detectedRole = await _service.DetectUserRoleAsync(username);
-                return Ok(new { 
-                    username = username,
-                    detectedRole = detectedRole,
-                    success = !string.IsNullOrEmpty(detectedRole),
-                    message = string.IsNullOrEmpty(detectedRole) ? "Role detection failed" : "Role detected successfully"
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    username = username,
-                    error = ex.Message,
-                    message = "Error during role detection"
-                });
-            }
-        }
 
-        [HttpGet("debug/ids")]
-        public async Task<IActionResult> GetAllIds()
-        {
-            try
-            {
-                var data = await _service.GetAllAsync(new GetAllMeninggalDuniaRequest { PageSize = 100 });
-                var ids = data.Data.Select(x => new { 
-                    Id = x.Id, 
-                    NoPengajuan = x.NoPengajuan,
-                    Status = x.Status 
-                }).ToList();
-                
-                return Ok(new { 
-                    message = "Daftar ID yang tersedia", 
-                    totalData = data.TotalData,
-                    ids = ids 
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = "Error mengambil daftar ID", error = ex.Message });
-            }
-        }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDetail(string id)
@@ -202,16 +112,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpGet("report/{id}")]
-        public async Task<IActionResult> GetReport(string id)
-        {
-            var data = await _service.GetReportAsync(id);
 
-            if (data == null)
-                return NotFound();
-
-            return Ok(data);
-        }
 
         // ============================================
         // DOWNLOAD FILE
@@ -497,80 +398,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPost("{id}/upload-sk")]
-        public async Task<IActionResult> UploadSK(string id, [FromForm] UploadSKMeninggalDuniaDto dto)
-        {
-            try
-            {
-                // File validation constants
-                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-                const int maxFileSize = 10 * 1024 * 1024; // 10MB
-                const string userIdKey = "UserId";
-                const string systemUser = "system";
 
-                // Validate file types - MS Word documents not allowed
-                if (dto.SkFile != null)
-                {
-                    var fileExtension = Path.GetExtension(dto.SkFile.FileName).ToLowerInvariant();
-                    
-                    if (!allowedExtensions.Contains(fileExtension))
-                    {
-                        return BadRequest(new { message = $"Tipe file SK tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
-                    }
-
-                    // Validate file size (max 10MB)
-                    if (dto.SkFile.Length > maxFileSize)
-                    {
-                        return BadRequest(new { message = "Ukuran file SK maksimal 10MB." });
-                    }
-                }
-
-                if (dto.SpkbFile != null)
-                {
-                    var fileExtension = Path.GetExtension(dto.SpkbFile.FileName).ToLowerInvariant();
-                    
-                    if (!allowedExtensions.Contains(fileExtension))
-                    {
-                        return BadRequest(new { message = $"Tipe file SPKB tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
-                    }
-
-                    // Validate file size (max 10MB)
-                    if (dto.SpkbFile.Length > maxFileSize)
-                    {
-                        return BadRequest(new { message = "Ukuran file SPKB maksimal 10MB." });
-                    }
-                }
-
-                var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-
-                // Ensure files are not null before calling service
-                if (dto.SkFile == null || dto.SpkbFile == null)
-                {
-                    return BadRequest(new { message = "File SK dan SPKB harus diupload." });
-                }
-
-                var success = await _service.UploadSKAsync(id, dto.SkFile, dto.SpkbFile, updatedBy);
-
-                if (!success)
-                {
-                    return BadRequest(new { message = "Gagal upload SK meninggal dunia. Periksa apakah ID valid dan status adalah 'Menunggu Upload SK'." });
-                }
-
-                return Ok(new { 
-                    message = "SK berhasil diupload. Status meninggal dunia telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis di daftar.",
-                    success = true,
-                    id = id
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengupload SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
-                });
-            }
-        }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> SoftDelete(string id)
@@ -589,20 +417,7 @@ namespace astratech_apps_backend.Controllers
         }
 
 
-        [HttpPut("sk/{id}")]
-        public async Task<IActionResult> UpdateSK(string id, UpdateSKMeninggalDuniaRequest dto)
-        {
-            const string systemUser = "SYSTEM";
-            
-            var updatedBy = User?.Identity?.Name ?? systemUser;
 
-            var success = await _service.UpdateSKAsync(id, dto, updatedBy);
-
-            if (!success)
-                return BadRequest(new { message = "Gagal memperbarui SK Meninggal Dunia." });
-
-            return Ok(new { message = "SK berhasil diperbarui." });
-        }
 
         [HttpPut("approve/{id}")]
         public async Task<IActionResult> Approve(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
@@ -824,9 +639,7 @@ namespace astratech_apps_backend.Controllers
                 {
                     return NotFound(new { 
                         message = "Data meninggal dunia tidak ditemukan",
-                        id = id,
-                        decodedId = Uri.UnescapeDataString(id),
-                        debug = "GetDetailAsync returned null"
+                        id = id
                     });
                 }
 

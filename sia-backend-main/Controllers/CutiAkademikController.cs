@@ -623,60 +623,7 @@ namespace astratech_apps_backend.Controllers
         // SK MANAGEMENT ENDPOINTS
         // ============================================
         
-        /// <summary>
-        /// Create SK Cuti Akademik - Generate nomor SK dan siapkan untuk upload
-        /// </summary>
-        [HttpPost("create-sk")]
-        [ProducesResponseType(200)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> CreateSK([FromBody] CreateSKRequest dto)
-        {
-            try
-            {
-                // Validation messages
-                const string idRequiredMessage = "ID cuti akademik harus diisi.";
-                
-                // Validate input
-                if (string.IsNullOrEmpty(dto.Id))
-                {
-                    return BadRequest(new { message = idRequiredMessage });
-                }
-                
-                if (string.IsNullOrEmpty(dto.CreatedBy))
-                {
-                    return BadRequest(new { message = "CreatedBy harus diisi." });
-                }
-                
-                var noSK = await _service.CreateSKAsync(dto);
-                
-                if (!string.IsNullOrEmpty(noSK))
-                {
-                    return Ok(new { 
-                        message = "SK berhasil dibuat dan siap untuk diupload.", 
-                        noSK = noSK,
-                        status = "Disetujui"
-                    });
-                }
-                
-                return BadRequest(new { message = "Gagal membuat SK. Periksa apakah ID valid dan status cuti sudah disetujui finance." });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat membuat SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
-                });
-            }
-        }
+
 
         /// <summary>
         /// Upload SK Cuti Akademik (untuk admin)
