@@ -1,5 +1,5 @@
 using astratech_apps_backend.DTOs.MeninggalDunia;
-    using astratech_apps_backend.Helpers;
+using astratech_apps_backend.Helpers;
 using astratech_apps_backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +24,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetAllMeninggalDunia")]
-        
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetAllMeninggalDunia([FromQuery] GetAllMeninggalDuniaRequest req)
         {
             try
@@ -47,6 +47,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetMahasiswaListMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaListMeninggalDunia([FromQuery] string? search = null)
         {
             var data = await _service.GetMahasiswaListAsync(search);
@@ -54,6 +55,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetMahasiswaDropdownMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaDropdownMeninggalDunia()
         {
             var data = await _service.GetMahasiswaDropdownAsync();
@@ -61,6 +63,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetMahasiswaDetailMeninggalDunia/{mhsId}")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaDetailMeninggalDunia(string mhsId)
         {
             var data = await _service.GetMahasiswaDetailAsync(mhsId);
@@ -71,6 +74,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetMahasiswaProdiMeninggalDunia/{mhsId}")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaProdiMeninggalDunia(string mhsId)
         {
             var data = await _service.GetMahasiswaProdiAsync(mhsId);
@@ -81,6 +85,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetProgramStudiMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetProgramStudiMeninggalDunia()
         {
             var data = await _service.GetProgramStudiListAsync();
@@ -88,6 +93,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetDetailMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetDetailMeninggalDunia(string id)
         {
             try
@@ -112,6 +118,7 @@ namespace astratech_apps_backend.Controllers
         // DOWNLOAD FILE
         // ============================================
         [HttpGet("DownloadFileMeninggalDunia/{filename}")]
+        [RequiresPermission("meninggal_dunia.print")]
         public IActionResult DownloadFileMeninggalDunia(string filename)
         {
             // Path constants
@@ -166,6 +173,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("CreateMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> CreateMeninggalDunia([FromForm] CreateMeninggalDuniaRequest dto)
         {
             if (!ModelState.IsValid)
@@ -200,6 +208,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("FinalizeMeninggalDunia/{draftId}")]
+        [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> FinalizeMeninggalDunia(string draftId)
         {
             try
@@ -236,6 +245,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("UpdateMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.edit")]
         public async Task<IActionResult> UpdateMeninggalDunia(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
         {
             try
@@ -302,6 +312,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("UploadSKMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.import")]
         public async Task<IActionResult> UploadSKMeninggalDunia([FromForm] UploadSKMeninggalRequest request)
         {
             try
@@ -387,6 +398,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpDelete("DeleteMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.delete")]
         public async Task<IActionResult> DeleteMeninggalDunia(string id)
         {
             const string userIdKey = "UserId";
@@ -403,6 +415,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("ApproveMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> ApproveMeninggalDunia(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
         {
             try
@@ -454,6 +467,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("RejectMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> RejectMeninggalDunia(string id, [FromBody] RejectMeninggalDuniaRequest dto)
         {
             try
@@ -506,12 +520,14 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetRiwayatMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
             return Ok(await _service.GetRiwayatAsync(req));
         }
 
         [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]
+        [RequiresPermission("meninggal_dunia.export")]
         [ProducesResponseType(typeof(FileResult), 200)]
         public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel(
             [FromQuery] string sort = "",
@@ -587,6 +603,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("DownloadPdfSKMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.print")]
         [ProducesResponseType(typeof(FileResult), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(403)]
