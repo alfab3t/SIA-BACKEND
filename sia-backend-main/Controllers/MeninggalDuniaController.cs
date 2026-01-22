@@ -1,4 +1,5 @@
 using astratech_apps_backend.DTOs.MeninggalDunia;
+    using astratech_apps_backend.Helpers;
 using astratech_apps_backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,9 +23,9 @@ namespace astratech_apps_backend.Controllers
             _configuration = configuration;
         }
 
-
-        [HttpGet("GetAll")]
-        public async Task<IActionResult> GetAll([FromQuery] GetAllMeninggalDuniaRequest req)
+        [HttpGet("GetAllMeninggalDunia")]
+        
+        public async Task<IActionResult> GetAllMeninggalDunia([FromQuery] GetAllMeninggalDuniaRequest req)
         {
             try
             {
@@ -45,24 +46,22 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
-
-        [HttpGet("mahasiswa")]
-        public async Task<IActionResult> GetMahasiswa([FromQuery] string? search = null)
+        [HttpGet("GetMahasiswaListMeninggalDunia")]
+        public async Task<IActionResult> GetMahasiswaListMeninggalDunia([FromQuery] string? search = null)
         {
             var data = await _service.GetMahasiswaListAsync(search);
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa-dropdown")]
-        public async Task<IActionResult> GetMahasiswaDropdown()
+        [HttpGet("GetMahasiswaDropdownMeninggalDunia")]
+        public async Task<IActionResult> GetMahasiswaDropdownMeninggalDunia()
         {
             var data = await _service.GetMahasiswaDropdownAsync();
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/{mhsId}")]
-        public async Task<IActionResult> GetMahasiswaDetail(string mhsId)
+        [HttpGet("GetMahasiswaDetailMeninggalDunia/{mhsId}")]
+        public async Task<IActionResult> GetMahasiswaDetailMeninggalDunia(string mhsId)
         {
             var data = await _service.GetMahasiswaDetailAsync(mhsId);
             if (data == null)
@@ -71,8 +70,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/{mhsId}/prodi")]
-        public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
+        [HttpGet("GetMahasiswaProdiMeninggalDunia/{mhsId}")]
+        public async Task<IActionResult> GetMahasiswaProdiMeninggalDunia(string mhsId)
         {
             var data = await _service.GetMahasiswaProdiAsync(mhsId);
             if (data == null)
@@ -81,18 +80,15 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("program-studi")]
-        public async Task<IActionResult> GetProgramStudi()
+        [HttpGet("GetProgramStudiMeninggalDunia")]
+        public async Task<IActionResult> GetProgramStudiMeninggalDunia()
         {
             var data = await _service.GetProgramStudiListAsync();
             return Ok(data);
         }
 
-
-
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetDetail(string id)
+        [HttpGet("GetDetailMeninggalDunia/{id}")]
+        public async Task<IActionResult> GetDetailMeninggalDunia(string id)
         {
             try
             {
@@ -112,13 +108,11 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
-
         // ============================================
         // DOWNLOAD FILE
         // ============================================
-        [HttpGet("file/{filename}")]
-        public IActionResult DownloadFile(string filename)
+        [HttpGet("DownloadFileMeninggalDunia/{filename}")]
+        public IActionResult DownloadFileMeninggalDunia(string filename)
         {
             // Path constants
             const string uploadsFolder = "uploads";
@@ -171,12 +165,8 @@ namespace astratech_apps_backend.Controllers
             };
         }
 
-
-
-
-
-        [HttpPost]
-        public async Task<IActionResult> Create([FromForm] CreateMeninggalDuniaRequest dto)
+        [HttpPost("CreateMeninggalDunia")]
+        public async Task<IActionResult> CreateMeninggalDunia([FromForm] CreateMeninggalDuniaRequest dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -209,8 +199,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { id });
         }
 
-        [HttpPost("finalize/{draftId}")]
-        public async Task<IActionResult> Finalize(string draftId)
+        [HttpPost("FinalizeMeninggalDunia/{draftId}")]
+        public async Task<IActionResult> FinalizeMeninggalDunia(string draftId)
         {
             try
             {
@@ -245,10 +235,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
+        [HttpPut("UpdateMeninggalDunia/{id}")]
+        public async Task<IActionResult> UpdateMeninggalDunia(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
         {
             try
             {
@@ -313,8 +301,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("upload-sk")]
-        public async Task<IActionResult> UploadSK([FromForm] UploadSKMeninggalRequest request)
+        [HttpPut("UploadSKMeninggalDunia")]
+        public async Task<IActionResult> UploadSKMeninggalDunia([FromForm] UploadSKMeninggalRequest request)
         {
             try
             {
@@ -398,10 +386,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> SoftDelete(string id)
+        [HttpDelete("DeleteMeninggalDunia/{id}")]
+        public async Task<IActionResult> DeleteMeninggalDunia(string id)
         {
             const string userIdKey = "UserId";
             const string systemUser = "system";
@@ -416,17 +402,13 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { message = "Data meninggal dunia berhasil dihapus (soft delete)." });
         }
 
-
-
-
-        [HttpPut("approve/{id}")]
-        public async Task<IActionResult> Approve(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
+        [HttpPut("ApproveMeninggalDunia/{id}")]
+        public async Task<IActionResult> ApproveMeninggalDunia(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
         {
             try
             {
                 // Decode URL jika perlu
                 id = Uri.UnescapeDataString(id);
-                
                 
                 // Auto-detect role based on username using stored procedure
                 var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
@@ -437,7 +419,6 @@ namespace astratech_apps_backend.Controllers
                         username = dto.Username
                     });
                 }
-                
                 
                 // Override role dengan hasil deteksi
                 dto.Role = detectedRole;
@@ -472,14 +453,13 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("reject/{id}")]
-        public async Task<IActionResult> Reject(string id, [FromBody] RejectMeninggalDuniaRequest dto)
+        [HttpPut("RejectMeninggalDunia/{id}")]
+        public async Task<IActionResult> RejectMeninggalDunia(string id, [FromBody] RejectMeninggalDuniaRequest dto)
         {
             try
             {
                 // Decode URL jika perlu
                 id = Uri.UnescapeDataString(id);
-                
                 
                 // Auto-detect role based on username using stored procedure
                 var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
@@ -490,7 +470,6 @@ namespace astratech_apps_backend.Controllers
                         username = dto.Username
                     });
                 }
-                
                 
                 // Override role dengan hasil deteksi
                 dto.Role = detectedRole;
@@ -526,20 +505,17 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
-        [HttpGet("Riwayat")]
-        public async Task<IActionResult> GetRiwayat([FromQuery] GetRiwayatMeninggalDuniaRequest req)
+        [HttpGet("GetRiwayatMeninggalDunia")]
+        public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
             return Ok(await _service.GetRiwayatAsync(req));
         }
-            
 
-        [HttpGet("riwayat/excel")]
+        [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]
         [ProducesResponseType(typeof(FileResult), 200)]
-        public async Task<IActionResult> GetRiwayatExcel(
-        [FromQuery] string sort = "",
-        [FromQuery] string konsentrasi = ""
-        )
+        public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel(
+            [FromQuery] string sort = "",
+            [FromQuery] string konsentrasi = "")
         {
             try
             {
@@ -610,12 +586,11 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        
-        [HttpPost("DownloadPdf/{id}")]
+        [HttpPost("DownloadPdfSKMeninggalDunia/{id}")]
         [ProducesResponseType(typeof(FileResult), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(403)]
-        public async Task<IActionResult> DownloadPdf(string id, [FromQuery] string username, [FromQuery] string role)
+        public async Task<IActionResult> DownloadPdfSKMeninggalDunia(string id, [FromQuery] string username, [FromQuery] string role)
         {
             try
             {
@@ -795,6 +770,5 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
-
     }
 }
