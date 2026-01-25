@@ -11,5 +11,6 @@
         public string? TanggalDisetujui { get; set; }
         public string SuratNo { get; set; } = "";
         public string Status { get; set; } = "";
+        public string CreatedBy { get; set; } = "";
     }
 }

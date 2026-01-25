@@ -14,9 +14,9 @@ namespace astratech_apps_backend.Services.Implementations
         }
 
 
-        public Task<string> CreateStep1Async(string mhsId, string createdBy)
+        public Task<string> CreateStep1Async(string mhsId, string createdBy, string? lampiranSuratPengajuan = "", string? lampiran = "")
         {
-            return _repo.CreateStep1Async(mhsId, createdBy);
+            return _repo.CreateStep1Async(mhsId, createdBy, lampiranSuratPengajuan, lampiran);
         }
 
         public Task<CreatePengunduranDiriResponse?> CreateStep2Async(string draftId, string createdBy)
@@ -79,6 +79,16 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.CreateByProdiAsync(dto);
         }
 
+        public async Task<string> CreateByProdiStep1Async(string mhsId, string createdBy, string? lampiranSuratPengajuan = "", string? lampiran = "")
+        {
+            return await _repo.CreateByProdiStep1Async(mhsId, createdBy, lampiranSuratPengajuan, lampiran);
+        }
+
+        public async Task<CreatePengunduranDiriByProdiResponse?> CreateByProdiStep2Async(string draftId, string modifiedBy)
+        {
+            return await _repo.CreateByProdiStep2Async(draftId, modifiedBy);
+        }
+
         public async Task<bool> CreateSKAsync(string id, UploadSKPengunduranDiriRequest dto, string updatedBy)
         {
             return await _repo.CreateSKAsync(id, dto, updatedBy);
@@ -128,8 +138,45 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.RejectAsync(id, dto);
         }
 
+        public async Task<IEnumerable<MahasiswaListResponse>> GetMahasiswaListAsync()
+        {
+            return await _repo.GetMahasiswaListAsync();
+        }
 
+        public async Task<MahasiswaProdiResponse?> GetMahasiswaProdiAsync(string mhsId)
+        {
+            return await _repo.GetMahasiswaProdiAsync(mhsId);
+        }
 
+        public async Task<MahasiswaAngkatanResponse?> GetMahasiswaAngkatanAsync(string mhsId)
+        {
+            return await _repo.GetMahasiswaAngkatanAsync(mhsId);
+        }
+
+        public async Task<IEnumerable<MahasiswaListResponse>> GetMahasiswaByKonsentrasiAsync(string username)
+        {
+            return await _repo.GetMahasiswaByKonsentrasiAsync(username);
+        }
+
+        public async Task<IEnumerable<ProdiOptionResponse>> GetProdiByUserAsync(string username)
+        {
+            return await _repo.GetProdiByUserAsync(username);
+        }
+
+        public async Task<IEnumerable<ProdiOptionResponse>> GetListProdiAsync()
+        {
+            return await _repo.GetListProdiAsync();
+        }
+
+        public async Task<BebasTanggunganResponse?> CekBebasTanggunganAsync(string mhsId)
+        {
+            return await _repo.CekBebasTanggunganAsync(mhsId);
+        }
+
+        public async Task<MahasiswaProfilDetailResponse?> GetProfilMahasiswaAsync(string mhsId)
+        {
+            return await _repo.GetProfilMahasiswaAsync(mhsId);
+        }
 
     }
 }

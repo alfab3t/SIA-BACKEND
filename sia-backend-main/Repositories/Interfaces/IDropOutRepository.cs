@@ -1,4 +1,5 @@
 ﻿using astratech_apps_backend.DTOs.DropOut;
+using astratech_apps_backend.DTOs.PengunduranDiri;
 using astratech_apps_backend.Models;
 
 namespace astratech_apps_backend.Repositories.Interfaces
@@ -39,7 +40,8 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<IEnumerable<DropOutMahasiswaOptionResponse>>
     GetMahasiswaByKonsentrasiAsync(string konsentrasiId);
 
-        Task<IEnumerable<DropOutProdiOptionResponse>> GetProdiAsync();
+        Task<IEnumerable<DropOutProdiOptionResponse>> GetProdiAsync(string username);
+        Task<IEnumerable<DropOutProdiOptionResponse>> GetListProdiAsync();
 
 
 
@@ -50,6 +52,10 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<string?> GetAngkatanByMahasiswaAsync(string mhsId);
 
         Task<MahasiswaProfilResponse?> GetMahasiswaProfilAsync(string mhsId);
+
+        Task<BebasTanggunganResponse?> CekBebasTanggunganAsync(string mhsId);
+
+        Task<MahasiswaProfilDetailResponse?> GetProfilMahasiswaDetailAsync(string mhsId);
 
 
 

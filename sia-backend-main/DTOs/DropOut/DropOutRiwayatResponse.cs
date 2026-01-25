@@ -11,12 +11,13 @@
         //public string SuratNo { get; set; } = "";
         //public string Status { get; set; } = "";
 
-        public string DroId { get; set; }
-        public string TanggalPengajuan { get; set; }
-        public string DibuatOleh { get; set; }
-        public string NamaMahasiswa { get; set; }
-        public string Prodi { get; set; }
-        public string NoSkDo { get; set; }
-        public string Status { get; set; }
+        public string DroId { get; set; } = "";
+        public string MhsId { get; set; } = "";
+        public string TanggalPengajuan { get; set; } = "";
+        public string DibuatOleh { get; set; } = "";
+        public string NamaMahasiswa { get; set; } = "";
+        public string Prodi { get; set; } = "";
+        public string NoSkDo { get; set; } = "";
+        public string Status { get; set; } = "";
     }
 }

@@ -1,4 +1,5 @@
-﻿using astratech_apps_backend.DTOs.CutiAkademik;
+﻿#nullable disable
+using astratech_apps_backend.DTOs.CutiAkademik;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -7,7 +8,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 {
     public class CutiAkademikRepository : ICutiAkademikRepository
     {
-        private readonly string _conn;
+        private readonly string _conn = string.Empty;
 
         public CutiAkademikRepository(IConfiguration config)
         {

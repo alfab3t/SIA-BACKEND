@@ -22,26 +22,33 @@ build-sonar:
     paths:
       - "${SONAR_USER_HOME}/cache"
       - sonar-scanner/
+  before_script:
+    - echo "Checking SonarQube configuration..."
+    - echo "SONAR_HOST_URL is set: $(if [ -n \"$SONAR_HOST_URL\" ]; then echo 'YES'; else echo 'NO'; fi)"
+    - echo "SONAR_TOKEN is set: $(if [ -n \"$SONAR_TOKEN\" ]; then echo 'YES'; else echo 'NO'; fi)"
   script:
     - |
+      echo "Installing/Updating dotnet-sonarscanner..."
       if ! dotnet tool list --global | grep dotnet-sonarscanner; then
         dotnet tool install --global dotnet-sonarscanner
       else
         dotnet tool update --global dotnet-sonarscanner
       fi
-
-      export PATH=\"$PATH:$HOME/.dotnet/tools\"
-
+    - export PATH="$PATH:$HOME/.dotnet/tools"
+    - echo "Starting SonarQube analysis..."
+    - |
       dotnet sonarscanner begin \
-        /k:\"astradualsystem_sia-backend_d4fcd872-948f-4f0d-9352-9ecaa551897e\" \
-        /v:\"$CI_COMMIT_SHORT_SHA\" \
-        /d:sonar.token=\"$SONAR_TOKEN\" \
-        /d:\"sonar.host.url=$SONAR_HOST_URL\" \
-        /d:sonar.exclusions=\".gitlab-ci.yml,.gitlab-ci/**/*,*.gitlab-ci.yml,Dockerfile*,*.dockerfile,.dockerignore,docker-compose*.yml\"
-
-      dotnet build --no-incremental
-
-      dotnet sonarscanner end /d:sonar.token=\"$SONAR_TOKEN\"
+        /k:"astradualsystem_sia-backend_d4fcd872-948f-4f0d-9352-9ecaa551897e" \
+        /v:"$CI_COMMIT_SHORT_SHA" \
+        /d:sonar.token="$SONAR_TOKEN" \
+        /d:sonar.host.url="$SONAR_HOST_URL" \
+        /d:sonar.exclusions=".gitlab-ci.yml,.gitlab-ci/**/*,*.gitlab-ci.yml,Dockerfile*,*.dockerfile,.dockerignore,docker-compose*.yml" \
+        /d:sonar.verbose=true
+    - echo "Building project..."
+    - dotnet build --no-incremental
+    - echo "Ending SonarQube analysis and uploading results..."
+    - dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+    - echo "SonarQube analysis completed successfully!"
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == 'dev'

@@ -5,5 +5,6 @@
         public string MhsId { get; set; } = "";
         public string Lampiran { get; set; } = "";
         public string LampiranSuratPengajuan { get; set; } = "";
+        public string? CreatedBy { get; set; }
     }
 }

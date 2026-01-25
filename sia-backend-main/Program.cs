@@ -156,6 +156,7 @@ namespace astratech_apps_backend
                 app.UseHttpsRedirection();
             }
             app.UseCors("AllowSpecificOrigin");
+            app.UseStaticFiles(); // Enable static files dari wwwroot
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

@@ -1,11 +1,10 @@
-﻿using astratech_apps_backend.DTOs.MeninggalDunia;
+﻿#nullable disable
+using astratech_apps_backend.DTOs.MeninggalDunia;
 using astratech_apps_backend.Models;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using Dapper;
-using Microsoft.Data.SqlClient;
-using System.Data;
 
 namespace astratech_apps_backend.Repositories.Implementations
 {

@@ -5,8 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>astratech_apps_backend</RootNamespace>
+    <NoWarn>$(NoWarn);CS8632;CS8604</NoWarn>
   </PropertyGroup>
-
+ 
   <ItemGroup>
     <Content Remove="wwwroot\uploads\**" />
     <None Include="wwwroot\uploads\**" CopyToPublishDirectory="PreserveNewest" />

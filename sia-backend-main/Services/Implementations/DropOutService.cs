@@ -1,4 +1,5 @@
 ﻿using astratech_apps_backend.DTOs.DropOut;
+using astratech_apps_backend.DTOs.PengunduranDiri;
 using astratech_apps_backend.Repositories.Interfaces;
 using astratech_apps_backend.Services.Interfaces;
 
@@ -183,8 +184,11 @@ namespace astratech_apps_backend.Services.Implementations
             return await _repo.GetMahasiswaByKonsentrasiAsync(konsentrasiId);
         }
 
-        public Task<IEnumerable<DropOutProdiOptionResponse>> GetProdiAsync()
-    => _repo.GetProdiAsync();
+        public Task<IEnumerable<DropOutProdiOptionResponse>> GetProdiAsync(string username)
+    => _repo.GetProdiAsync(username);
+
+        public Task<IEnumerable<DropOutProdiOptionResponse>> GetListProdiAsync()
+    => _repo.GetListProdiAsync();
 
         public Task<IEnumerable<DropOutKonsentrasiOptionResponse>>
     GetKonsentrasiByProdiAsync(string prodiId, string sekprodiUsername)
@@ -200,6 +204,16 @@ namespace astratech_apps_backend.Services.Implementations
         public async Task<MahasiswaProfilResponse?> GetMahasiswaProfilAsync(string mhsId)
         {
             return await _repo.GetMahasiswaProfilAsync(mhsId);
+        }
+
+        public async Task<BebasTanggunganResponse?> CekBebasTanggunganAsync(string mhsId)
+        {
+            return await _repo.CekBebasTanggunganAsync(mhsId);
+        }
+
+        public async Task<MahasiswaProfilDetailResponse?> GetProfilMahasiswaDetailAsync(string mhsId)
+        {
+            return await _repo.GetProfilMahasiswaDetailAsync(mhsId);
         }
 
 
