@@ -10,7 +10,8 @@
         public string TanggalDisetujui { get; set; } = "";
         public string SuratNo { get; set; } = "";
         public string NamaMahasiswa { get; set; } = "";
-        public string Konsentrasi { get; set; } = "";
+        public string ProdiNama { get; set; } = ""; // Format: "Teknik Informatika" (tanpa jenjang)
+        public string Konsentrasi { get; set; } = ""; // Format: "SE", "DS", dll
         public string Status { get; set; } = "";
     }
 }

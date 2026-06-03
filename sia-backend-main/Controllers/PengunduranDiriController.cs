@@ -1,5 +1,6 @@
-﻿using astratech_apps_backend.DTOs.PengunduranDiri;
-using astratech_apps_backend.Services.Interfaces;
+using astratech_apps_backend.DTOs.PengunduranDiri;
+using astratech_apps_backend.Helpers;
+using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,37 +10,51 @@ namespace astratech_apps_backend.Controllers
     [Route("api/[controller]")]
     public class PengunduranDiriController : ControllerBase
     {
-        private readonly IPengunduranDiriService _service;
+        private readonly IPengunduranDiriRepository _repo;
         private readonly IConfiguration Configuration;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public PengunduranDiriController(IPengunduranDiriService service, IConfiguration configuration)
+        public PengunduranDiriController(IPengunduranDiriRepository repo, IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
-            _service = service;
+            _repo = repo;
             Configuration = configuration;
+            _httpClientFactory = httpClientFactory;
         }
 
         [Authorize]
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] string p1 = "",
-            [FromQuery] string status = "")
+            [FromQuery] string keyword = "",
+            [FromQuery] string sortBy = "",
+            [FromQuery] string konId = "",
+            [FromQuery] string status = "",  // Support single or multiple status (comma-separated)
+            [FromQuery] int? page = 1,
+            [FromQuery] int? pageSize = 10)
         {
             // Ambil username dari JWT token (claim "namaakun")
             var userId = User.FindFirst("namaakun")?.Value ?? "";
             
-            Console.WriteLine($"DEBUG GetAll - p1: '{p1}', status: '{status}', userId: '{userId}'");
+            Console.WriteLine($"DEBUG GetAll - p1: '{p1}', keyword: '{keyword}', konId: '{konId}', status: '{status}', userId: '{userId}'");
             
-            var result = await _service.GetAllAsync(p1, status, userId);
+            // Default pagination: page=1, pageSize=10
+            var pageVal = page.HasValue && page.Value >= 1 ? page.Value : 1;
+            var pageSizeVal = pageSize.HasValue && pageSize.Value >= 1 ? 
+                (pageSize.Value > 100 ? 100 : pageSize.Value) : 10;
             
-            Console.WriteLine($"DEBUG GetAll - Result count: {result.Count()}");
+            var result = await _repo.GetAllPaginatedAsync(p1, keyword, sortBy, konId, status, userId, pageVal, pageSizeVal);
+            
+            Console.WriteLine($"DEBUG GetAll - Result count: {result.Data.Count()}");
             
             return Ok(result);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("detail")]
         public async Task<IActionResult> GetDetail([FromQuery] string id)
         {
-            var detail = await _service.GetDetailAsync(id);
+            var detail = await _repo.GetDetailAsync(id);
 
             if (detail == null)
                 return NotFound(new { message = "Data tidak ditemukan" });
@@ -48,6 +63,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         // Upload file lampiran (bisa 1 atau 2 file sekaligus)
+        [RequiresPermission("pengunduran_diri.import")]
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile? lampiranSuratPengajuan, IFormFile? lampiran)
         {
@@ -98,6 +114,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         // Download file lampiran (cari otomatis di folder root, suratpengajuan, atau lampiran)
+        [RequiresPermission("pengunduran_diri.export")]
         [HttpGet("file/{filename}")]
         public IActionResult DownloadFile(string filename)
         {
@@ -137,10 +154,11 @@ namespace astratech_apps_backend.Controllers
         }
 
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("notif/{id}")]
         public async Task<IActionResult> GetNotif(string id)
         {
-            var data = await _service.GetNotifAsync(id);
+            var data = await _repo.GetNotifAsync(id);
 
             if (data == null)
                 return NotFound(new { message = "Data tidak ditemukan." });
@@ -148,34 +166,44 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("riwayat")]
         public async Task<IActionResult> GetRiwayat(
-        [FromQuery] string status = "",
+        [FromQuery] string status = "",  // Support single or multiple status (comma-separated)
         [FromQuery] string keyword = "",
-        [FromQuery] string orderBy = "",
-        [FromQuery] string konsentrasi = ""
-        )
+        [FromQuery] string orderBy = "pdi_created_date desc",
+        [FromQuery] string konsentrasi = "",
+        [FromQuery] int? page = 1,
+        [FromQuery] int? pageSize = 10)
         {
             var username = User?.Identity?.Name ?? "SYSTEM";
 
-            var data = await _service.GetRiwayatAsync(
+            // Default pagination: page=1, pageSize=10
+            var pageVal = page.HasValue && page.Value >= 1 ? page.Value : 1;
+            var pageSizeVal = pageSize.HasValue && pageSize.Value >= 1 ? 
+                (pageSize.Value > 100 ? 100 : pageSize.Value) : 10;
+
+            var result = await _repo.GetRiwayatPaginatedAsync(
                 username,
                 status,
                 keyword,
                 orderBy,
-                konsentrasi
+                konsentrasi,
+                pageVal,
+                pageSizeVal
             );
 
-            return Ok(data);
+            return Ok(result);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("riwayat-excel")]
         public async Task<IActionResult> GetRiwayatExcel(
         [FromQuery] string orderBy = "",
         [FromQuery] string konsentrasi = ""
         )
         {
-            var data = await _service.GetRiwayatExcelAsync(orderBy, konsentrasi);
+            var data = await _repo.GetRiwayatExcelAsync(orderBy, konsentrasi);
             return Ok(data);
         }
 
@@ -185,7 +213,7 @@ namespace astratech_apps_backend.Controllers
         //[FromQuery] string konsentrasi = ""
         //)
         //{
-        //    var data = await _service.GetRiwayatExcelAsync(orderBy, konsentrasi);
+        //    var data = await _repo.GetRiwayatExcelAsync(orderBy, konsentrasi);
 
         //    using var wb = new XLWorkbook();
         //    var ws = wb.Worksheets.Add("Riwayat");
@@ -219,13 +247,14 @@ namespace astratech_apps_backend.Controllers
         //}
 
         // POST /create - Buat Draft dengan lampiran
+        [RequiresPermission("pengunduran_diri.create")]
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] CreatePengunduranDiriRequest dto)
         {
             var createdBy = dto.CreatedBy ?? "system";
             
             // STEP1: Buat draft dengan lampiran
-            var draftId = await _service.CreateStep1Async(
+            var draftId = await _repo.CreateStep1Async(
                 dto.MhsId, 
                 createdBy, 
                 dto.LampiranSuratPengajuan, 
@@ -242,14 +271,15 @@ namespace astratech_apps_backend.Controllers
             });
         }
 
-        // PUT /submit/{draftId} - Ajukan Draft (STEP2) → status jadi "Belum Disetujui Prodi"
+        // PUT /submit/{draftId} - Ajukan Draft (STEP2) ? status jadi "Belum Disetujui Prodi"
+        [RequiresPermission("pengunduran_diri.edit")]
         [HttpPut("submit/{draftId}")]
         public async Task<IActionResult> Submit(string draftId)
         {
             var modifiedBy = User.FindFirst("namaakun")?.Value ?? "system";
             
             // STEP2: Generate ID resmi dan ubah status
-            var data = await _service.CreateStep2Async(draftId, modifiedBy);
+            var data = await _repo.CreateStep2Async(draftId, modifiedBy);
 
             if (data == null)
                 return BadRequest(new { message = "Gagal mengajukan pengunduran diri" });
@@ -257,20 +287,22 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
+        [RequiresPermission("pengunduran_diri.create")]
         [HttpPost("create-by-prodi")]
         public async Task<IActionResult> CreateByProdi([FromBody] CreatePengunduranDiriByProdiRequest dto)
         {
-            var result = await _service.CreateByProdiAsync(dto);
+            var result = await _repo.CreateByProdiAsync(dto);
             return Ok(result);
         }
 
         // STEP 1 - Buat Draft by Prodi
+        [RequiresPermission("pengunduran_diri.create")]
         [HttpPost("create-by-prodi/draft")]
         public async Task<IActionResult> CreateByProdiStep1([FromBody] CreatePengunduranDiriByProdiRequest dto)
         {
             Console.WriteLine($"DEBUG CreateByProdiStep1 - MhsId: '{dto.MhsId}', CreatedBy: '{dto.CreatedBy}'");
             
-            var draftId = await _service.CreateByProdiStep1Async(
+            var draftId = await _repo.CreateByProdiStep1Async(
                 dto.MhsId,
                 dto.CreatedBy,
                 dto.LampiranSuratPengajuan,
@@ -289,11 +321,12 @@ namespace astratech_apps_backend.Controllers
         }
 
         // STEP 2 - Submit Draft by Prodi
+        [RequiresPermission("pengunduran_diri.edit")]
         [HttpPut("create-by-prodi/submit/{draftId}")]
         public async Task<IActionResult> CreateByProdiStep2(string draftId)
         {
             var modifiedBy = User.FindFirst("namaakun")?.Value ?? "system";
-            var result = await _service.CreateByProdiStep2Async(draftId, modifiedBy);
+            var result = await _repo.CreateByProdiStep2Async(draftId, modifiedBy);
 
             if (result == null)
                 return BadRequest(new { message = "Gagal mengajukan pengunduran diri" });
@@ -301,12 +334,13 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
+        [RequiresPermission("pengunduran_diri.edit")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdatePengunduranDiriRequest dto)
         {
             var updatedBy = User?.Identity?.Name ?? "system";
 
-            var success = await _service.UpdateAsync(id, dto, updatedBy);
+            var success = await _repo.UpdateAsync(id, dto, updatedBy);
 
             if (!success)
                 return BadRequest(new { message = "Gagal memperbarui pengunduran diri." });
@@ -315,6 +349,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [Authorize]
+        [RequiresPermission("pengunduran_diri.approve_reject")]
         [HttpPut("approve")]
         public async Task<IActionResult> Approve([FromQuery] string id, [FromBody] ApprovePengunduranDiriRequest dto)
         {
@@ -326,7 +361,7 @@ namespace astratech_apps_backend.Controllers
             
             Console.WriteLine($"DEBUG Controller Approve - dto.ApprovedBy: '{dto.ApprovedBy}'");
 
-            var success = await _service.ApproveAsync(id, dto);
+            var success = await _repo.ApproveAsync(id, dto);
 
             Console.WriteLine($"DEBUG Controller Approve - success: {success}");
 
@@ -337,10 +372,11 @@ namespace astratech_apps_backend.Controllers
         }
 
         [Authorize]
+        [RequiresPermission("pengunduran_diri.approve_reject")]
         [HttpPut("reject")]
         public async Task<IActionResult> Reject([FromQuery] string id, [FromBody] RejectPengunduranDiriRequest dto)
         {
-            var success = await _service.RejectAsync(id, dto);
+            var success = await _repo.RejectAsync(id, dto);
 
             if (!success)
                 return BadRequest(new { message = "Gagal menolak pengunduran diri." });
@@ -353,12 +389,13 @@ namespace astratech_apps_backend.Controllers
         }
 
         [Authorize]
+        [RequiresPermission("pengunduran_diri.delete")]
         [HttpDelete("delete")]
         public async Task<IActionResult> SoftDelete([FromQuery] string id)
         {
             var updatedBy = User.FindFirst("namaakun")?.Value ?? "system";
 
-            var success = await _service.SoftDeleteAsync(id, updatedBy);
+            var success = await _repo.SoftDeleteAsync(id, updatedBy);
 
             if (!success)
                 return BadRequest(new { message = "Gagal menghapus data pengunduran diri." });
@@ -367,10 +404,11 @@ namespace astratech_apps_backend.Controllers
         }
 
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("check-report/{pdiId}")]
         public async Task<IActionResult> CheckReport(string pdiId)
         {
-            var report = await _service.CheckReportAsync(pdiId);
+            var report = await _repo.CheckReportAsync(pdiId);
 
             if (report == null)
                 return NotFound(new { message = "Laporan tidak ditemukan." });
@@ -378,12 +416,13 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { file = report });
         }
 
+        [RequiresPermission("pengunduran_diri.import")]
         [HttpPut("sk/{id}")]
         public async Task<IActionResult> CreateSK(string id, [FromBody] UploadSKPengunduranDiriRequest dto)
         {
             var updatedBy = User?.Identity?.Name ?? "system";
 
-            var success = await _service.CreateSKAsync(id, dto, updatedBy);
+            var success = await _repo.CreateSKAsync(id, dto, updatedBy);
 
             if (!success)
                 return BadRequest(new { message = "Gagal memperbarui SK Pengunduran Diri." });
@@ -391,42 +430,47 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { message = "SK Pengunduran Diri berhasil diperbarui." });
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("mahasiswa")]
         public async Task<IActionResult> GetMahasiswaList()
         {
-            var mahasiswaList = await _service.GetMahasiswaListAsync();
+            var mahasiswaList = await _repo.GetMahasiswaListAsync();
             return Ok(mahasiswaList);
         }
 
         [Authorize]
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("mahasiswa/by-konsentrasi")]
         public async Task<IActionResult> GetMahasiswaByKonsentrasi()
         {
             var username = User.FindFirst("namaakun")?.Value ?? "";
-            var mahasiswaList = await _service.GetMahasiswaByKonsentrasiAsync(username);
+            var mahasiswaList = await _repo.GetMahasiswaByKonsentrasiAsync(username);
             return Ok(mahasiswaList);
         }
 
         [Authorize]
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("prodi")]
         public async Task<IActionResult> GetProdi()
         {
             var username = User.FindFirst("namaakun")?.Value ?? "";
-            var prodiList = await _service.GetProdiByUserAsync(username);
+            var prodiList = await _repo.GetProdiByUserAsync(username);
             return Ok(prodiList);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("prodi/list")]
         public async Task<IActionResult> GetListProdi()
         {
-            var prodiList = await _service.GetListProdiAsync();
+            var prodiList = await _repo.GetListProdiAsync();
             return Ok(prodiList);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("mahasiswa/{mhsId}/prodi")]
         public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
         {
-            var result = await _service.GetMahasiswaProdiAsync(mhsId);
+            var result = await _repo.GetMahasiswaProdiAsync(mhsId);
             
             if (result == null)
                 return NotFound(new { message = "Data mahasiswa tidak ditemukan" });
@@ -434,10 +478,11 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("mahasiswa/{mhsId}/angkatan")]
         public async Task<IActionResult> GetMahasiswaAngkatan(string mhsId)
         {
-            var result = await _service.GetMahasiswaAngkatanAsync(mhsId);
+            var result = await _repo.GetMahasiswaAngkatanAsync(mhsId);
             
             if (result == null)
                 return NotFound(new { message = "Data angkatan mahasiswa tidak ditemukan" });
@@ -445,10 +490,11 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("mahasiswa/{mhsId}/bebas-tanggungan")]
         public async Task<IActionResult> CekBebasTanggungan(string mhsId)
         {
-            var result = await _service.CekBebasTanggunganAsync(mhsId);
+            var result = await _repo.CekBebasTanggunganAsync(mhsId);
             
             if (result == null)
                 return NotFound(new { message = "Data mahasiswa tidak ditemukan" });
@@ -456,10 +502,11 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("mahasiswa/{mhsId}/profil")]
         public async Task<IActionResult> GetProfilMahasiswa(string mhsId)
         {
-            var result = await _service.GetProfilMahasiswaAsync(mhsId);
+            var result = await _repo.GetProfilMahasiswaAsync(mhsId);
             
             if (result == null)
                 return NotFound(new { message = "Data profil mahasiswa tidak ditemukan" });
@@ -467,6 +514,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("template-sk")]
         public IActionResult DownloadTemplateSK([FromQuery] string? type = "rpt")
         {
@@ -493,6 +541,7 @@ namespace astratech_apps_backend.Controllers
             return File(fileBytes, contentType, fileName);
         }
 
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("template-sk/list")]
         public IActionResult GetTemplateList()
         {
@@ -510,42 +559,9 @@ namespace astratech_apps_backend.Controllers
             });
         }
 
-        /// <summary>
-        /// Generate nomor SK untuk Pengunduran Diri
-        /// </summary>
-        private async Task<string> GenerateNoSKAsync(string pdiId)
-        {
-            try
-            {
-                // Get data Pengunduran Diri untuk ambil konsentrasi
-                var detail = await _service.GetDetailAsync(pdiId);
-                if (detail == null)
-                    return $"SK_PD_{DateTime.Now:yyyyMMddHHmmss}";
-
-                // TODO: Sesuaikan jenisSuratId dengan ID di database
-                // Contoh: "JS002" untuk jenis surat Pengunduran Diri
-                string jenisSuratId = "JS_PENGUNDURAN_DIRI"; // Ganti dengan ID yang sesuai
-                
-                var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
-                    Configuration.GetConnectionString("DefaultConnection")!,
-                    Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
-                );
-                
-                var generator = new Helpers.NoSuratGenerator(connString);
-                
-                // Generate nomor surat
-                // Jika ada konsentrasi ID, bisa ditambahkan sebagai parameter kedua
-                return await generator.GenerateNoSKForFileAsync(jenisSuratId);
-            }
-            catch
-            {
-                // Fallback jika gagal generate
-                return $"SK_PD_{DateTime.Now:yyyyMMddHHmmss}";
-            }
-        }
-
-        // Upload file SK dan SKPB ke folder terpisah
+        // Upload file SK dan SKPB ke folder terpisah (tanpa rename)
         [Authorize]
+        [RequiresPermission("pengunduran_diri.import")]
         [HttpPost("upload-sk-file")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadSKFile([FromForm] UploadSKPdiFileRequest request)
@@ -568,16 +584,11 @@ namespace astratech_apps_backend.Controllers
 
             string skPath = "";
             string skpbPath = "";
-            
-            // Generate nomor SK untuk penamaan file
-            string nomorSK = await GenerateNoSKAsync(request.PdiId);
 
-            // Upload SK file ke folder sk/
+            // Upload SK file ke folder sk/ (gunakan nama asli dari FE)
             if (request.SkFile != null && request.SkFile.Length > 0)
             {
-                var ext = Path.GetExtension(request.SkFile.FileName);
-                // Gunakan nomor SK sebagai nama file
-                var skFileName = $"SK_PD_{nomorSK.Replace("/", "-")}{ext}";
+                var skFileName = request.SkFile.FileName;
                 var skFullPath = Path.Combine(skFolderPath, skFileName);
                 
                 using (var stream = new FileStream(skFullPath, FileMode.Create))
@@ -587,12 +598,10 @@ namespace astratech_apps_backend.Controllers
                 skPath = $"/uploads/pengundurandiri/sk/{skFileName}";
             }
 
-            // Upload SKPB file ke folder skpb/
+            // Upload SKPB file ke folder skpb/ (gunakan nama asli dari FE)
             if (request.SkpbFile != null && request.SkpbFile.Length > 0)
             {
-                var ext = Path.GetExtension(request.SkpbFile.FileName);
-                // Gunakan nomor SK sebagai nama file
-                var skpbFileName = $"SKPB_PD_{nomorSK.Replace("/", "-")}{ext}";
+                var skpbFileName = request.SkpbFile.FileName;
                 var skpbFullPath = Path.Combine(skpbFolderPath, skpbFileName);
                 
                 using (var stream = new FileStream(skpbFullPath, FileMode.Create))
@@ -610,24 +619,24 @@ namespace astratech_apps_backend.Controllers
                 Skpb = skpbPath
             };
 
-            var result = await _service.CreateSKAsync(request.PdiId, uploadRequest, modifiedBy);
+            var result = await _repo.CreateSKAsync(request.PdiId, uploadRequest, modifiedBy);
 
             if (!result)
                 return BadRequest(new { message = "Gagal menyimpan data SK ke database" });
 
             return Ok(new { 
                 message = "Upload SK Pengunduran Diri berhasil",
-                nomorSK = nomorSK,
                 skPath = skPath,
                 skpbPath = skpbPath
             });
         }
 
         // Download file SK
+        [RequiresPermission("pengunduran_diri.export")]
         [HttpGet("download-sk-file/{pdiId}")]
         public async Task<IActionResult> DownloadSKFile(string pdiId)
         {
-            var detail = await _service.GetDetailAsync(pdiId);
+            var detail = await _repo.GetDetailAsync(pdiId);
 
             if (detail == null)
                 return NotFound(new { message = "Data Pengunduran Diri tidak ditemukan" });
@@ -666,10 +675,11 @@ namespace astratech_apps_backend.Controllers
         }
 
         // Get info path SK
+        [RequiresPermission("pengunduran_diri.export")]
         [HttpGet("download-sk/{pdiId}")]
         public async Task<IActionResult> GetSKInfo(string pdiId)
         {
-            var detail = await _service.GetDetailAsync(pdiId);
+            var detail = await _repo.GetDetailAsync(pdiId);
 
             if (detail == null)
                 return NotFound(new { message = "Data Pengunduran Diri tidak ditemukan" });
@@ -680,13 +690,14 @@ namespace astratech_apps_backend.Controllers
         }
 
         // Download file SK dengan query parameter (untuk ID yang ada slash)
+        [RequiresPermission("pengunduran_diri.export")]
         [HttpGet("download-sk-file")]
         public async Task<IActionResult> DownloadSKFileByQuery([FromQuery] string id)
         {
             if (string.IsNullOrEmpty(id))
                 return BadRequest(new { message = "Parameter id wajib diisi" });
 
-            var detail = await _service.GetDetailAsync(id);
+            var detail = await _repo.GetDetailAsync(id);
 
             if (detail == null)
                 return NotFound(new { message = "Data Pengunduran Diri tidak ditemukan" });
@@ -724,6 +735,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         // Download file SK langsung dengan filename (tanpa query database)
+        [RequiresPermission("pengunduran_diri.export")]
         [HttpGet("sk/{filename}")]
         public IActionResult DownloadSKByFilename(string filename)
         {
@@ -747,6 +759,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         // Download file SKPB langsung dengan filename (tanpa query database)
+        [RequiresPermission("pengunduran_diri.export")]
         [HttpGet("skpb/{filename}")]
         public IActionResult DownloadSKPBByFilename(string filename)
         {
@@ -769,64 +782,55 @@ namespace astratech_apps_backend.Controllers
             return File(fileBytes, contentType, filename);
         }
 
-        // Download SK + SKPB sekaligus dalam ZIP
+        // Get info SK + SKPB untuk download terpisah (frontend trigger 2 download)
+        [RequiresPermission("pengunduran_diri.export")]
         [HttpGet("download-all-sk")]
-        public async Task<IActionResult> DownloadAllSK([FromQuery] string id)
+        public async Task<IActionResult> GetAllSKInfo([FromQuery] string id)
         {
             if (string.IsNullOrEmpty(id))
                 return BadRequest(new { message = "Parameter id wajib diisi" });
 
-            var detail = await _service.GetDetailAsync(id);
+            var detail = await _repo.GetDetailAsync(id);
             if (detail == null)
                 return NotFound(new { message = "Data tidak ditemukan" });
 
-            var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            var files = new List<(string path, string name)>();
-
-            // Cek SK
-            if (!string.IsNullOrEmpty(detail.SK))
+            var result = new
             {
-                var skPath = Path.Combine(webRootPath, detail.SK.TrimStart('/').Replace("/", "\\"));
-                if (System.IO.File.Exists(skPath))
-                    files.Add((skPath, "SK_" + Path.GetFileName(skPath)));
-            }
+                pdiId = id,
+                sk = new
+                {
+                    available = !string.IsNullOrEmpty(detail.SK),
+                    path = detail.SK ?? "",
+                    filename = !string.IsNullOrEmpty(detail.SK) ? Path.GetFileName(detail.SK) : "",
+                    downloadUrl = !string.IsNullOrEmpty(detail.SK) 
+                        ? $"/api/pengundurandiri/sk/{Path.GetFileName(detail.SK)}" 
+                        : ""
+                },
+                skpb = new
+                {
+                    available = !string.IsNullOrEmpty(detail.Skpb),
+                    path = detail.Skpb ?? "",
+                    filename = !string.IsNullOrEmpty(detail.Skpb) ? Path.GetFileName(detail.Skpb) : "",
+                    downloadUrl = !string.IsNullOrEmpty(detail.Skpb) 
+                        ? $"/api/pengundurandiri/skpb/{Path.GetFileName(detail.Skpb)}" 
+                        : ""
+                }
+            };
 
-            // Cek SKPB
-            if (!string.IsNullOrEmpty(detail.Skpb))
-            {
-                var skpbPath = Path.Combine(webRootPath, detail.Skpb.TrimStart('/').Replace("/", "\\"));
-                if (System.IO.File.Exists(skpbPath))
-                    files.Add((skpbPath, "SKPB_" + Path.GetFileName(skpbPath)));
-            }
-
-            if (files.Count == 0)
+            if (!result.sk.available && !result.skpb.available)
                 return NotFound(new { message = "Tidak ada file SK/SKPB yang tersedia" });
 
-            // Buat ZIP
-            using var memoryStream = new MemoryStream();
-            using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
-            {
-                foreach (var (path, name) in files)
-                {
-                    var entry = archive.CreateEntry(name);
-                    using var entryStream = entry.Open();
-                    using var fileStream = System.IO.File.OpenRead(path);
-                    await fileStream.CopyToAsync(entryStream);
-                }
-            }
-
-            memoryStream.Position = 0;
-            var safeId = id.Replace("/", "-");
-            return File(memoryStream.ToArray(), "application/zip", $"SK_SKPB_{safeId}.zip");
+            return Ok(result);
         }
 
         // DEBUG ENDPOINT - Remove in production
+        [RequiresPermission("pengunduran_diri.view")]
         [HttpGet("debug-approve/{id}")]
         public async Task<IActionResult> DebugApprove(string id)
         {
             try
             {
-                var detail = await _service.GetDetailAsync(id);
+                var detail = await _repo.GetDetailAsync(id);
                 
                 if (detail == null)
                     return NotFound(new { 
@@ -858,6 +862,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         // DEBUG ENDPOINT - Test approve without auth
+        [RequiresPermission("pengunduran_diri.approve_reject")]
         [HttpPost("debug-test-approve")]
         public async Task<IActionResult> DebugTestApprove([FromBody] DebugApproveRequest request)
         {
@@ -871,7 +876,7 @@ namespace astratech_apps_backend.Controllers
                     ApprovedBy = request.ApprovedBy
                 };
 
-                var success = await _service.ApproveAsync(request.Id, dto);
+                var success = await _repo.ApproveAsync(request.Id, dto);
 
                 return Ok(new {
                     success = success,
@@ -889,5 +894,124 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
+        // Generate PDF SK Pengunduran Diri
+        [RequiresPermission("pengunduran_diri.export")]
+        [HttpGet("{id}/generate-pdf-sk")]
+        public async Task<IActionResult> GeneratePdfSK(string id)
+        {
+            try
+            {
+                // TEMPORARY: Check if we should use mock/dummy response
+                var useMock = Configuration["ReportService:UseMock"] == "true";
+                
+                if (useMock)
+                {
+                    // Return dummy PDF for testing
+                    return Ok(new { 
+                        message = "MOCK MODE: Service report sedang dalam development",
+                        pdiId = id,
+                        reportServiceUrl = Configuration["ReportService:Url"],
+                        note = "Set ReportService:UseMock = false di appsettings.json untuk menggunakan service report asli"
+                    });
+                }
+
+                // Langsung panggil service report tanpa ambil data dari database
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(30); // Set timeout 30 detik
+                
+                var reportServiceUrl = Configuration["ReportService:Url"] ?? "http://10.5.0.94/api/Report/GetReport";
+
+                Console.WriteLine($"=== Calling Report Service for Pengunduran Diri ===");
+                Console.WriteLine($"URL: {reportServiceUrl}");
+                Console.WriteLine($"PdiId: {id}");
+
+                // Siapkan request body untuk service report
+                var requestBody = new
+                {
+                    reportName = "Report_SK_Pengunduran_Diri_2",
+                    parameters = new
+                    {
+                        pdiId = id
+                    }
+                };
+
+                // Serialize ke JSON
+                var content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(requestBody),
+                    System.Text.Encoding.UTF8,
+                    "application/json"
+                );
+
+                Console.WriteLine($"Request Body: {System.Text.Json.JsonSerializer.Serialize(requestBody)}");
+
+                // POST ke service report
+                var response = await client.PostAsync(reportServiceUrl, content);
+
+                Console.WriteLine($"Response Status: {response.StatusCode}");
+
+                // Jika gagal, return error dari service report (database logon failed, crystal report error, dll)
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Error Response: {errorContent}");
+                    
+                    return StatusCode((int)response.StatusCode, new { 
+                        message = "Gagal generate PDF dari service report",
+                        error = errorContent,
+                        reportServiceUrl = reportServiceUrl
+                    });
+                }
+
+                // Baca PDF sebagai byte array
+                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+                Console.WriteLine($"PDF Size: {pdfBytes.Length} bytes");
+
+                // Return file PDF ke client
+                var fileName = $"SK_PD_{id.Replace("/", "-")}_{DateTime.Now:yyyyMMdd}.pdf";
+                return File(pdfBytes, "application/pdf", fileName);
+            }
+            catch (HttpRequestException ex)
+            {
+                // Error koneksi ke service report
+                Console.WriteLine($"HttpRequestException: {ex.Message}");
+                
+                return StatusCode(503, new { 
+                    message = "Service report tidak dapat diakses",
+                    error = ex.Message,
+                    reportServiceUrl = Configuration["ReportService:Url"],
+                    troubleshooting = new
+                    {
+                        step1 = "Pastikan service report di 10.5.0.94 sudah running",
+                        step2 = "Test koneksi: curl http://10.5.0.94/api/Report/GetReport",
+                        step3 = "Cek firewall/network antara backend dan service report",
+                        step4 = "Verifikasi URL dan port yang benar",
+                        step5 = "Set ReportService:UseMock = true di appsettings.json untuk testing tanpa service report"
+                    }
+                });
+            }
+            catch (TaskCanceledException ex)
+            {
+                // Timeout
+                Console.WriteLine($"TaskCanceledException (Timeout): {ex.Message}");
+                
+                return StatusCode(504, new { 
+                    message = "Request ke service report timeout",
+                    error = ex.Message,
+                    hint = "Service report terlalu lama merespon atau tidak bisa diakses"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+                
+                return StatusCode(500, new { 
+                    message = "Terjadi kesalahan saat generate PDF SK Pengunduran Diri",
+                    error = ex.Message 
+                });
+            }
+        }
+
     }
 }
+

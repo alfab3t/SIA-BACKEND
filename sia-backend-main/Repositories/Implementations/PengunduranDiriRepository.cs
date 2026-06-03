@@ -1,5 +1,6 @@
 ﻿#nullable disable
 using astratech_apps_backend.DTOs.PengunduranDiri;
+using astratech_apps_backend.DTOs.Common;
 using astratech_apps_backend.Models;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
@@ -104,14 +105,25 @@ namespace astratech_apps_backend.Repositories.Implementations
             };
         }
 
-        // SP lama: @p1 = mhs_id/created_by, @p2 = status, @p3 = userId (kry_id)
-        public async Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string p1, string status, string userId)
+        // SP baru: Adopsi pola dari sia_getDataPendingDO
+        // @username = NIM mahasiswa atau username karyawan
+        // @keyword = search keyword
+        // @sort_by = sorting
+        // @kon_id = filter konsentrasi/prodi
+        // @status = multiple status (comma-separated)
+        public async Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(
+            string p1, 
+            string keyword, 
+            string sortBy, 
+            string konId, 
+            string status, 
+            string userId)
         {
             var list = new List<PengunduranDiriListResponse>();
 
             try
             {
-                Console.WriteLine($"DEBUG GetAllAsync - p1: '{p1}', status: '{status}', userId: '{userId}'");
+                Console.WriteLine($"DEBUG GetAllAsync - username: '{p1}', keyword: '{keyword}', konId: '{konId}', status: '{status}', userId: '{userId}'");
                 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -122,44 +134,43 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandTimeout = 30
                 };
 
-                // Parameter dengan nama deskriptif
-                cmd.Parameters.AddWithValue("@user_id", p1 ?? "");
-                cmd.Parameters.AddWithValue("@pdi_status", status ?? "");
-                cmd.Parameters.AddWithValue("@kry_id", userId ?? "");
+                // Parameter sesuai SP baru
+                cmd.Parameters.AddWithValue("@username", p1 ?? "");
+                cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
+                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");
+                cmd.Parameters.AddWithValue("@kon_id", konId ?? "");
+                cmd.Parameters.AddWithValue("@pdi_status", "");            // Legacy parameter (not used)
+                cmd.Parameters.AddWithValue("@kry_id", userId ?? "");      // Legacy parameter (not used)
+                cmd.Parameters.AddWithValue("@status", status ?? "");      // Multiple status (comma-separated)
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 Console.WriteLine($"DEBUG GetAllAsync - HasRows: {reader.HasRows}");
 
                 while (await reader.ReadAsync())
                 {
-                    // Cek apakah kolom tanggal_disetujui ada (hanya ada kalau status != '')
-                    string? tanggalDisetujui = null;
+                    // SP baru menggunakan ROW_NUMBER, ada kolom rownum dan Count
+                    int totalCount = 0;
                     try
                     {
-                        tanggalDisetujui = reader["tanggal_disetujui"]?.ToString();
-                    }
-                    catch { }
-
-                    // Cek apakah kolom pdi_created_by ada
-                    string createdBy = "";
-                    try
-                    {
-                        createdBy = reader["pdi_created_by"]?.ToString() ?? "";
+                        totalCount = Convert.ToInt32(reader["Count"]);
                     }
                     catch { }
 
                     list.Add(new PengunduranDiriListResponse
                     {
                         PdiId = reader["pdi_id"]?.ToString() ?? "",
-                        IdAlternative = reader["id"]?.ToString() ?? "",
+                        IdAlternative = reader["pdi_id"]?.ToString() ?? "",
                         MhsId = reader["mhs_id"]?.ToString() ?? "",
-                        ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
-                        ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
-                        Tanggal = reader["tanggal"]?.ToString() ?? "",
-                        TanggalDisetujui = tanggalDisetujui,
+                        NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                        ApproveProdi = "",
+                        ApproveDir1 = "",
+                        Tanggal = reader["pdi_created_date"]?.ToString() ?? "",
+                        TanggalDisetujui = "",
                         SuratNo = reader["srt_no"]?.ToString() ?? "",
-                        Status = reader["status"]?.ToString() ?? "",
-                        CreatedBy = createdBy
+                        Status = reader["pdi_status"]?.ToString() ?? "",
+                        CreatedBy = reader["pdi_created_by"]?.ToString() ?? "",
+                        ProdiNama = reader["kon_nama"]?.ToString() ?? "",
+                        Konsentrasi = reader["kon_nama"]?.ToString() ?? ""
                     });
                 }
 
@@ -174,6 +185,105 @@ namespace astratech_apps_backend.Repositories.Implementations
             catch (Exception ex)
             {
                 Console.WriteLine($"ERROR GetAllAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<PaginatedResponse<PengunduranDiriListResponse>> GetAllPaginatedAsync(
+            string p1, 
+            string keyword, 
+            string sortBy, 
+            string konId, 
+            string status, 
+            string userId,
+            int page, 
+            int pageSize)
+        {
+            var list = new List<PengunduranDiriListResponse>();
+            int totalRecords = 0;
+
+            try
+            {
+                Console.WriteLine($"DEBUG GetAllPaginatedAsync - username: '{p1}', keyword: '{keyword}', konId: '{konId}', status: '{status}', userId: '{userId}'");
+                Console.WriteLine($"DEBUG GetAllPaginatedAsync - page: {page}, pageSize: {pageSize}");
+                
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_getDataPengunduranDiri", conn)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                    CommandTimeout = 30
+                };
+
+                // Parameter sesuai SP baru
+                cmd.Parameters.AddWithValue("@username", p1 ?? "");
+                cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
+                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");
+                cmd.Parameters.AddWithValue("@kon_id", konId ?? "");
+                cmd.Parameters.AddWithValue("@pdi_status", "");            // Legacy parameter (not used)
+                cmd.Parameters.AddWithValue("@kry_id", userId ?? "");      // Legacy parameter (not used)
+                cmd.Parameters.AddWithValue("@status", status ?? "");      // Multiple status (comma-separated)
+                
+                // Pagination parameters
+                cmd.Parameters.AddWithValue("@Page", page);
+                cmd.Parameters.AddWithValue("@PageSize", pageSize);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                Console.WriteLine($"DEBUG GetAllPaginatedAsync - HasRows: {reader.HasRows}");
+
+                while (await reader.ReadAsync())
+                {
+                    // SP baru menggunakan ROW_NUMBER, ada kolom Count untuk total records
+                    if (totalRecords == 0)
+                    {
+                        try
+                        {
+                            totalRecords = Convert.ToInt32(reader["Count"]);
+                        }
+                        catch { }
+                    }
+
+                    list.Add(new PengunduranDiriListResponse
+                    {
+                        PdiId = reader["pdi_id"]?.ToString() ?? "",
+                        IdAlternative = reader["pdi_id"]?.ToString() ?? "",
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                        ApproveProdi = "",
+                        ApproveDir1 = "",
+                        Tanggal = reader["pdi_created_date"]?.ToString() ?? "",
+                        TanggalDisetujui = "",
+                        SuratNo = reader["srt_no"]?.ToString() ?? "",
+                        Status = reader["pdi_status"]?.ToString() ?? "",
+                        CreatedBy = reader["pdi_created_by"]?.ToString() ?? "",
+                        ProdiNama = reader["kon_nama"]?.ToString() ?? "",
+                        Konsentrasi = reader["kon_nama"]?.ToString() ?? ""
+                    });
+                }
+
+                Console.WriteLine($"DEBUG GetAllPaginatedAsync - Total: {totalRecords}, Current: {list.Count}");
+
+                return new PaginatedResponse<PengunduranDiriListResponse>
+                {
+                    Data = list,
+                    Pagination = new PaginationInfo
+                    {
+                        CurrentPage = page,
+                        PageSize = pageSize,
+                        TotalRecords = totalRecords,
+                        TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize)
+                    }
+                };
+            }
+            catch (SqlException sqlEx)
+            {
+                Console.WriteLine($"SQL ERROR GetAllPaginatedAsync: {sqlEx.Message}");
+                throw new Exception($"Database error: {sqlEx.Message}", sqlEx);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR GetAllPaginatedAsync: {ex.Message}");
                 throw;
             }
         }
@@ -497,12 +607,14 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            cmd.Parameters.AddWithValue("@username", username);
-            cmd.Parameters.AddWithValue("@pdi_status", status);
+            cmd.Parameters.AddWithValue("@username", username ?? "");
+            cmd.Parameters.AddWithValue("@pdi_status", status ?? "");
             cmd.Parameters.AddWithValue("@unused", "");
-            cmd.Parameters.AddWithValue("@keyword", keyword);
-            cmd.Parameters.AddWithValue("@order_by", orderBy);
-            cmd.Parameters.AddWithValue("@kon_id", konsentrasi);
+            cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
+            cmd.Parameters.AddWithValue("@order_by", orderBy ?? "");
+            cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
+            cmd.Parameters.AddWithValue("@status", status ?? ""); // Support multiple status (comma-separated)
+            // No pagination parameters for non-paginated version
 
             await conn.OpenAsync();
             using var reader = await cmd.ExecuteReaderAsync();
@@ -511,20 +623,111 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 list.Add(new PengunduranDiriRiwayatResponse
                 {
-                    PdiId = reader["pdi_id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                    ApproveProdi = reader["approve_prodi"].ToString(),
-                    ApproveDir1 = reader["approve_dir1"].ToString(),
-                    Tanggal = reader["tanggal"].ToString(),
-                    TanggalDisetujui = reader["tanggal_disetujui"].ToString(),
-                    SuratNo = reader["srt_no"].ToString(),
-                    NamaMahasiswa = reader["mhs_nama"].ToString(),
-                    Konsentrasi = reader["kon_singkatan"].ToString(),
-                    Status = reader["status"].ToString()
+                    PdiId = reader["pdi_id"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
+                    ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
+                    ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
+                    Tanggal = reader["tanggal"]?.ToString() ?? "",
+                    TanggalDisetujui = reader["tanggal_disetujui"]?.ToString() ?? "",
+                    SuratNo = reader["srt_no"]?.ToString() ?? "",
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    ProdiNama = reader["prodi_nama"]?.ToString() ?? "", // Format: "Teknik Informatika" (tanpa jenjang)
+                    Konsentrasi = reader["konsentrasi"]?.ToString() ?? "", // Format: "SE", "DS", dll
+                    Status = reader["status"]?.ToString() ?? ""
                 });
             }
 
             return list;
+        }
+
+        public async Task<PaginatedResponse<PengunduranDiriRiwayatResponse>> GetRiwayatPaginatedAsync(
+            string username,
+            string status,
+            string keyword,
+            string orderBy,
+            string konsentrasi,
+            int page,
+            int pageSize)
+        {
+            var list = new List<PengunduranDiriRiwayatResponse>();
+            int totalRecords = 0;
+
+            Console.WriteLine($"DEBUG GetRiwayatPaginatedAsync - page: {page}, pageSize: {pageSize}, status: '{status}'");
+
+            // Validate and fix orderBy parameter
+            var validOrderBy = ValidateOrderBy(orderBy);
+            Console.WriteLine($"DEBUG GetRiwayatPaginatedAsync - orderBy: '{validOrderBy}'");
+
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await using var cmd = new SqlCommand("sia_getDataRiwayatPengunduranDiri", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@username", username);
+                cmd.Parameters.AddWithValue("@pdi_status", status);
+                cmd.Parameters.AddWithValue("@unused", ""); // SP asli punya parameter @unused
+                cmd.Parameters.AddWithValue("@keyword", keyword);
+                cmd.Parameters.AddWithValue("@order_by", validOrderBy);
+                cmd.Parameters.AddWithValue("@kon_id", konsentrasi);
+                cmd.Parameters.AddWithValue("@status", status ?? "");  // Support multiple status (comma-separated)
+                
+                // Pagination parameters (SP sudah support)
+                cmd.Parameters.AddWithValue("@Page", page);
+                cmd.Parameters.AddWithValue("@PageSize", pageSize);
+
+                // Output parameter for total records
+                var totalParam = new SqlParameter("@TotalRecords", SqlDbType.Int)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                cmd.Parameters.Add(totalParam);
+
+                await conn.OpenAsync();
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    list.Add(new PengunduranDiriRiwayatResponse
+                    {
+                        PdiId = reader["pdi_id"].ToString(),
+                        MhsId = reader["mhs_id"].ToString(),
+                        ApproveProdi = reader["approve_prodi"]?.ToString() ?? "",
+                        ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
+                        Tanggal = reader["tanggal"]?.ToString() ?? "",
+                        TanggalDisetujui = reader["tanggal_disetujui"]?.ToString() ?? "",
+                        SuratNo = reader["srt_no"]?.ToString() ?? "",
+                        NamaMahasiswa = reader["mhs_nama"].ToString(),
+                        ProdiNama = reader["prodi_nama"]?.ToString() ?? "",
+                        Konsentrasi = reader["konsentrasi"]?.ToString() ?? "",
+                        Status = reader["status"].ToString()
+                    });
+                }
+
+                reader.Close();
+                totalRecords = (int)totalParam.Value;
+
+                Console.WriteLine($"DEBUG GetRiwayatPaginatedAsync - Total: {totalRecords}, Current: {list.Count}");
+
+                return new PaginatedResponse<PengunduranDiriRiwayatResponse>
+                {
+                    Data = list,
+                    Pagination = new PaginationInfo
+                    {
+                        CurrentPage = page,
+                        PageSize = pageSize,
+                        TotalRecords = totalRecords,
+                        TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize)
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR GetRiwayatPaginatedAsync: {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<IEnumerable<PengunduranDiriRiwayatExcelResponse>> GetRiwayatExcelAsync(
@@ -585,10 +788,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 Console.WriteLine($"DEBUG ApproveAsync - normalizedRole: '{normalizedRole}'");
                 
-                // Check if data exists before approve
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
+                // Check if data exists before approve
                 var checkCmd = new SqlCommand(@"
                     SELECT pdi_id, pdi_status, mhs_id 
                     FROM sia_mspengundurandiri 
@@ -610,7 +813,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 // Execute approve SP
                 await using var cmd = new SqlCommand("sia_setujuiPengunduranDiri", conn)
                 {
-                    CommandType = CommandType.StoredProcedure
+                    CommandType = CommandType.StoredProcedure,
+                    CommandTimeout = 60 // Add timeout
                 };
 
                 // Required parameters
@@ -620,9 +824,9 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 Console.WriteLine($"DEBUG ApproveAsync - Executing SP with params: @pdi_id='{id}', @role='{normalizedRole}', @approved_by='{dto.ApprovedBy}'");
                 
-                var rowsAffected = await cmd.ExecuteNonQueryAsync();
+                await cmd.ExecuteNonQueryAsync();
                 
-                Console.WriteLine($"DEBUG ApproveAsync - SP executed, rowsAffected: {rowsAffected}");
+                Console.WriteLine($"DEBUG ApproveAsync - SP executed successfully");
                 
                 // Verify update
                 var verifyCmd = new SqlCommand(@"
@@ -640,6 +844,18 @@ namespace astratech_apps_backend.Repositories.Implementations
                 Console.WriteLine($"DEBUG ApproveAsync - END SUCCESS");
                 return true;
             }
+            catch (SqlException sqlEx)
+            {
+                Console.WriteLine($"SQL ERROR ApproveAsync: {sqlEx.Message}");
+                Console.WriteLine($"SQL ERROR Number: {sqlEx.Number}");
+                Console.WriteLine($"SQL ERROR State: {sqlEx.State}");
+                Console.WriteLine($"SQL ERROR StackTrace: {sqlEx.StackTrace}");
+                if (sqlEx.InnerException != null)
+                {
+                    Console.WriteLine($"SQL ERROR InnerException: {sqlEx.InnerException.Message}");
+                }
+                throw new Exception($"Database error during approve: {sqlEx.Message}", sqlEx);
+            }
             catch (Exception ex)
             {
                 Console.WriteLine($"ERROR ApproveAsync: {ex.Message}");
@@ -648,7 +864,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 {
                     Console.WriteLine($"ERROR ApproveAsync InnerException: {ex.InnerException.Message}");
                 }
-                return false;
+                throw;
             }
         }
 
@@ -863,9 +1079,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             using var cmd = new SqlCommand("sia_getListProdibySekprod", conn);
             cmd.CommandType = CommandType.StoredProcedure;
 
-            cmd.Parameters.AddWithValue("@p1", username);
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            cmd.Parameters.AddWithValue("@Username", username);
 
             await conn.OpenAsync();
             using var reader = await cmd.ExecuteReaderAsync();
@@ -1037,6 +1251,32 @@ namespace astratech_apps_backend.Repositories.Implementations
                 VaSpp = reader["dul_va_spp"]?.ToString() ?? "",
                 Status = reader["dul_status"]?.ToString() ?? ""
             };
+        }
+
+        private string ValidateOrderBy(string orderBy)
+        {
+            if (string.IsNullOrEmpty(orderBy))
+                return "pdi_created_date desc";
+
+            // Remove alias 'a.' if present
+            orderBy = orderBy.Replace("a.pdi_created_date", "pdi_created_date");
+            orderBy = orderBy.Trim();
+            
+            // Valid orderBy options based on stored procedure
+            var validOptions = new[]
+            {
+                "no asc", "no desc",
+                "nim asc", "nim desc", 
+                "pdi_created_date asc", "pdi_created_date desc"
+            };
+
+            // Check if orderBy is valid
+            if (validOptions.Contains(orderBy.ToLower()))
+                return orderBy;
+
+            // If not valid, return default
+            Console.WriteLine($"WARN: Invalid orderBy '{orderBy}', using default 'pdi_created_date desc'");
+            return "pdi_created_date desc";
         }
 
     }

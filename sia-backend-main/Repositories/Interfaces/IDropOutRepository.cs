@@ -1,5 +1,6 @@
 ﻿using astratech_apps_backend.DTOs.DropOut;
 using astratech_apps_backend.DTOs.PengunduranDiri;
+using astratech_apps_backend.DTOs.Common;
 using astratech_apps_backend.Models;
 
 namespace astratech_apps_backend.Repositories.Interfaces
@@ -15,6 +16,8 @@ namespace astratech_apps_backend.Repositories.Interfaces
         //string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi);
         Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
         string username, string keyword, string sortBy, string konsentrasi, string role, string displayName);
+        Task<PaginatedResponse<DropOutRiwayatResponse>> GetRiwayatPaginatedAsync(
+        string username, string keyword, string sortBy, string konsentrasi, string role, string displayName, string status, int page, int pageSize);
         Task<IEnumerable<DropOutRiwayatExcelResponse>> GetRiwayatExcelAsync(
         string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi);
         Task<DropOutGetIdByDraftResponse?> GetIdByDraftAsync(string id);
@@ -35,6 +38,17 @@ namespace astratech_apps_backend.Repositories.Interfaces
         string konsentrasi,
         string role,
         string displayName
+        );
+        Task<PaginatedResponse<DropOutPendingResponse>> GetPendingPaginatedAsync(
+        string username,
+        string keyword,
+        string sortBy,
+        string konsentrasi,
+        string role,
+        string displayName,
+        string status,
+        int page,
+        int pageSize
         );
 
         Task<IEnumerable<DropOutMahasiswaOptionResponse>>

@@ -1,15 +1,15 @@
-<%@ Page Title="" Language="C#" AutoEventWireup="true" CodeBehind="SK_Drop_Out.aspx.cs" Inherits="PolmanAstra_SIA.Reports.SK_Drop_Out" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="SK_Drop_Out.aspx.cs" Inherits="PolmanAstra_SIA.Reports.SK_Drop_Out" %>
 
 <!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
-    <title></title>
+    <title>SK Drop Out - PDF Generator</title>
 </head>
 <body>
-    <form id="form1" runat="server" autocomplete="off">
+    <form id="form1" runat="server">
         <div>
-            <asp:Label runat="server" ID="err"></asp:Label>
+            <asp:Label ID="err" runat="server" Text="" ForeColor="Red"></asp:Label>
         </div>
     </form>
 </body>

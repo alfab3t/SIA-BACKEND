@@ -1,6 +1,7 @@
-﻿#nullable disable
+#nullable disable
 using astratech_apps_backend.DTOs.DropOut;
 using astratech_apps_backend.DTOs.PengunduranDiri;
+using astratech_apps_backend.DTOs.Common;
 using astratech_apps_backend.Models;
 using astratech_apps_backend.Repositories.Interfaces;
 using Dapper;
@@ -65,33 +66,49 @@ namespace astratech_apps_backend.Repositories.Implementations
         public async Task<string?> CreatePengajuanDOAsync(CreatePengajuanDORequest dto, string createdBy)
         {
             await using var conn = new SqlConnection(_conn);
+            await conn.OpenAsync();
+            
+            // 1. Panggil SP untuk INSERT data dasar
             await using var cmd = new SqlCommand("sia_createPengajuanDO", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP dengan parameter deskriptif
             cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
             cmd.Parameters.AddWithValue("@dro_lampiran", dto.Lampiran ?? "");
             cmd.Parameters.AddWithValue("@dro_lampiran_surat_pengajuan", dto.LampiranSuratPengajuan ?? "");
             cmd.Parameters.AddWithValue("@dro_created_by", createdBy);
 
-            await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
 
-            // SP INSERT using new draft ID → must fetch the ID
-            // We must query latest draft ID
+            // 2. Ambil ID yang baru dibuat
             var cmd2 = new SqlCommand(@"
-        SELECT TOP 1 dro_id 
-        FROM sia_msdropout 
-        WHERE dro_created_by = @createdBy 
-        ORDER BY dro_created_date DESC",
+                SELECT TOP 1 dro_id 
+                FROM sia_msdropout 
+                WHERE dro_created_by = @createdBy 
+                ORDER BY dro_created_date DESC",
                 conn
             );
-
             cmd2.Parameters.AddWithValue("@createdBy", createdBy);
-
             var newId = (string?)await cmd2.ExecuteScalarAsync();
+
+            // 3. UPDATE menimbang dan mengingat jika ada
+            if (!string.IsNullOrEmpty(newId) && (!string.IsNullOrEmpty(dto.Menimbang) || !string.IsNullOrEmpty(dto.Mengingat)))
+            {
+                var cmd3 = new SqlCommand(@"
+                    UPDATE sia_msdropout 
+                    SET dro_menimbang = @menimbang,
+                        dro_mengingat = @mengingat,
+                        dro_modif_date = GETDATE()
+                    WHERE dro_id = @dro_id",
+                    conn
+                );
+                cmd3.Parameters.AddWithValue("@dro_id", newId);
+                cmd3.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
+                cmd3.Parameters.AddWithValue("@mengingat", dto.Mengingat ?? "");
+                
+                await cmd3.ExecuteNonQueryAsync();
+            }
 
             return newId;
         }
@@ -210,10 +227,37 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
 
+        // Helper method to safely read column value
+        private string SafeGetString(IDataReader reader, string columnName)
+        {
+            try
+            {
+                var ordinal = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ordinal) ? "" : reader.GetString(ordinal);
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private DateTime? SafeGetDateTime(IDataReader reader, string columnName)
+        {
+            try
+            {
+                var ordinal = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public async Task<DropOut?> GetByIdAsync(string id)
         {
             using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_detailDropOut", conn)
+            using var cmd = new SqlCommand("sia_detailDO", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
@@ -228,24 +272,24 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new DropOut
             {
-                Id = r["dro_id"].ToString(),
-                MhsId = r["mhs_id"].ToString(),
-                Menimbang = r["dro_menimbang"].ToString(),
-                Mengingat = r["dro_mengingat"].ToString(),
-                ApproveWadir1 = r["dro_appr_wadir1"].ToString(),
-                ApproveWadir1Date = r["dro_appr_wadir1_date"] as DateTime?,
-                ApproveDir = r["dro_appr_dir"].ToString(),
-                ApproveDirDate = r["dro_appr_dir_date"] as DateTime?,
-                SrtNo = r["srt_no"].ToString(),
-                SrtKetNo = r["dro_srt_ket_no"].ToString(),
-                Sk = r["dro_sk"].ToString(),
-                Skpb = r["dro_skpb"].ToString(),
-                AlasanTolak = r["dro_alasan_tolak"].ToString(),
-                Status = r["dro_status"].ToString(),
-                CreatedBy = r["dro_created_by"].ToString(),
-                CreatedDate = r["dro_created_date"] as DateTime?,
-                ModifiedBy = r["dro_modif_by"].ToString(),
-                ModifiedDate = r["dro_modif_date"] as DateTime?
+                Id = SafeGetString(r, "dro_id"),
+                MhsId = SafeGetString(r, "mhs_id"),
+                Menimbang = SafeGetString(r, "dro_menimbang"),
+                Mengingat = SafeGetString(r, "dro_mengingat"),
+                ApproveWadir1 = SafeGetString(r, "dro_appr_wadir1"),
+                ApproveWadir1Date = SafeGetDateTime(r, "dro_appr_wadir1_date"),
+                ApproveDir = SafeGetString(r, "dro_appr_dir"),
+                ApproveDirDate = SafeGetDateTime(r, "dro_appr_dir_date"),
+                SrtNo = SafeGetString(r, "srt_no"),
+                SrtKetNo = SafeGetString(r, "dro_srt_ket_no"),
+                Sk = SafeGetString(r, "dro_sk"),
+                Skpb = SafeGetString(r, "dro_skpb"),
+                AlasanTolak = SafeGetString(r, "dro_alasan_tolak"),
+                Status = SafeGetString(r, "dro_status"),
+                CreatedBy = SafeGetString(r, "dro_created_by"),
+                CreatedDate = SafeGetDateTime(r, "dro_created_date"),
+                ModifiedBy = SafeGetString(r, "dro_modif_by"),
+                ModifiedDate = SafeGetDateTime(r, "dro_modif_date")
             };
         }
 
@@ -482,13 +526,16 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Parameter dengan nama deskriptif
+                // Parameter sesuai SP yang baru
                 cmd.Parameters.AddWithValue("@username", username ?? "");
                 cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
-                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "a.dro_created_date desc");
+                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting
                 cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
                 cmd.Parameters.AddWithValue("@role_id", role ?? "");
                 cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
+                cmd.Parameters.AddWithValue("@status", "");  // Empty = all status
+                cmd.Parameters.AddWithValue("@Page", DBNull.Value);  // NULL = no pagination
+                cmd.Parameters.AddWithValue("@PageSize", DBNull.Value);  // NULL = no pagination
 
                 await conn.OpenAsync();
                 Console.WriteLine("DEBUG GetRiwayatAsync - Connection opened, executing SP...");
@@ -539,6 +586,120 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
+        public async Task<PaginatedResponse<DropOutRiwayatResponse>> GetRiwayatPaginatedAsync(
+            string username,
+            string keyword,
+            string sortBy,
+            string konsentrasi,
+            string role,
+            string displayName,
+            string status,
+            int page,
+            int pageSize)
+        {
+            var result = new List<DropOutRiwayatResponse>();
+            int totalRecords = 0;
+
+            Console.WriteLine($"=== DEBUG GetRiwayatPaginatedAsync START ===");
+            Console.WriteLine($"Parameters: page={page}, pageSize={pageSize}");
+            Console.WriteLine($"sortBy: '{sortBy}'");
+            Console.WriteLine($"username: '{username}', keyword: '{keyword}'");
+            Console.WriteLine($"status: '{status}'");
+
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await using var cmd = new SqlCommand("sia_getDataRiwayatDO", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                // Parameter sesuai SP yang baru (dengan ROW_NUMBER dan Count column)
+                cmd.Parameters.AddWithValue("@username", username ?? "");
+                cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
+                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting
+                cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
+                cmd.Parameters.AddWithValue("@role_id", role ?? "");
+                cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
+                cmd.Parameters.AddWithValue("@status", status ?? "");  // Multiple status support
+                
+                // Pagination parameters
+                cmd.Parameters.AddWithValue("@Page", page);
+                cmd.Parameters.AddWithValue("@PageSize", pageSize);
+
+                Console.WriteLine($"Calling SP: sia_getDataRiwayatDO with sortBy='{sortBy ?? ""}'");
+
+                await conn.OpenAsync();
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                int rowNum = 0;
+                while (await reader.ReadAsync())
+                {
+                    rowNum++;
+                    
+                    // Ambil total records dari kolom Count (ada di setiap row)
+                    if (totalRecords == 0 && reader["Count"] != DBNull.Value)
+                    {
+                        totalRecords = Convert.ToInt32(reader["Count"]);
+                    }
+
+                    var droId = reader["dro_id"]?.ToString() ?? "";
+                    var tanggal = reader["dro_created_date"]?.ToString() ?? "";
+                    
+                    // Log first 3 rows untuk debug
+                    if (rowNum <= 3)
+                    {
+                        Console.WriteLine($"Row {rowNum}: dro_id={droId}, date={tanggal}");
+                    }
+
+                    var mhsNamaFull = reader["mhs_nama"]?.ToString() ?? "";
+                    var mhsId = reader["mhs_id"]?.ToString() ?? "";
+                    
+                    var namaSaja = mhsNamaFull;
+                    if (mhsNamaFull.Contains(" - "))
+                    {
+                        var parts = mhsNamaFull.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                        if (parts.Length > 1)
+                            namaSaja = parts[1];
+                    }
+                    
+                    result.Add(new DropOutRiwayatResponse
+                    {
+                        DroId = droId,
+                        TanggalPengajuan = tanggal,
+                        DibuatOleh = reader["dro_created_by"]?.ToString() ?? "",
+                        MhsId = mhsId,
+                        NamaMahasiswa = namaSaja,
+                        Prodi = reader["kon_nama"]?.ToString() ?? "",
+                        NoSkDo = reader["srt_no"]?.ToString() ?? "",
+                        Status = reader["dro_status"]?.ToString() ?? ""
+                    });
+                }
+
+                Console.WriteLine($"Total rows from SP: {rowNum}, Total records: {totalRecords}");
+                Console.WriteLine($"=== DEBUG GetRiwayatPaginatedAsync END ===");
+
+                return new PaginatedResponse<DropOutRiwayatResponse>
+                {
+                    Data = result,
+                    Pagination = new PaginationInfo
+                    {
+                        CurrentPage = page,
+                        PageSize = pageSize,
+                        TotalRecords = totalRecords,
+                        TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize)
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR GetRiwayatPaginatedAsync: {ex.Message}");
+                Console.WriteLine($"ERROR Stack: {ex.StackTrace}");
+                throw;
+            }
+        }
+
+
         public async Task<IEnumerable<DropOutRiwayatExcelResponse>> GetRiwayatExcelAsync(
         string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi)
         {
@@ -580,48 +741,61 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"DEBUG GetIdByDraftAsync - Input ID: '{id}'");
-                
                 await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_getIdDOByDraft", conn)
+                await conn.OpenAsync();
+                
+                // First call: Execute SP to do UPDATE
+                await using var cmdExecute = new SqlCommand("sia_getIdDOByDraft", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
-
-                cmd.Parameters.AddWithValue("@dro_id_draft", id);
-
-                await conn.OpenAsync();
-                Console.WriteLine("DEBUG GetIdByDraftAsync - Connection opened, executing SP...");
+                cmdExecute.Parameters.AddWithValue("@dro_id_draft", id);
                 
-                using var reader = await cmd.ExecuteReaderAsync();
-                Console.WriteLine($"DEBUG GetIdByDraftAsync - SP executed, HasRows: {reader.HasRows}");
-
-                if (await reader.ReadAsync())
+                // Execute and consume result to ensure UPDATE is committed
+                string newId;
+                using (var reader = await cmdExecute.ExecuteReaderAsync())
                 {
-                    var newId = reader[0]?.ToString() ?? "";
-                    Console.WriteLine($"DEBUG GetIdByDraftAsync - New ID generated: '{newId}'");
-                    
-                    return new DropOutGetIdByDraftResponse
+                    if (!await reader.ReadAsync())
                     {
-                        Id = newId
-                    };
+                        return null;
+                    }
+                    
+                    newId = reader[0]?.ToString() ?? "";
+                    
+                    if (newId.StartsWith("ERROR:"))
+                    {
+                        throw new InvalidOperationException(newId.Replace("ERROR: ", ""));
+                    }
                 }
-
-                Console.WriteLine("DEBUG GetIdByDraftAsync - No rows returned from SP");
-                return null;
+                
+                // Second call: Verify the update by querying directly
+                await using var cmdVerify = new SqlCommand(
+                    "SELECT dro_id, dro_status FROM sia_msdropout WHERE dro_id = @id", 
+                    conn
+                );
+                cmdVerify.Parameters.AddWithValue("@id", newId);
+                
+                using (var verifyReader = await cmdVerify.ExecuteReaderAsync())
+                {
+                    if (await verifyReader.ReadAsync())
+                    {
+                        var status = verifyReader["dro_status"]?.ToString();
+                        // Log for debugging
+                        Console.WriteLine($"Verified - ID: {newId}, Status: {status}");
+                    }
+                }
+                
+                return new DropOutGetIdByDraftResponse
+                {
+                    Id = newId
+                };
             }
-            catch (SqlException sqlEx)
+            catch (InvalidOperationException)
             {
-                Console.WriteLine($"SQL ERROR GetIdByDraftAsync: {sqlEx.Message}");
-                Console.WriteLine($"SQL ERROR Number: {sqlEx.Number}");
-                Console.WriteLine($"SQL ERROR State: {sqlEx.State}");
-                Console.WriteLine($"SQL ERROR Stack: {sqlEx.StackTrace}");
-                throw new Exception($"Database error in GetIdByDraftAsync: {sqlEx.Message} (Error Number: {sqlEx.Number})", sqlEx);
+                throw;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR GetIdByDraftAsync: {ex.Message}");
-                Console.WriteLine($"ERROR Stack: {ex.StackTrace}");
                 throw new Exception($"Error in GetIdByDraftAsync: {ex.Message}", ex);
             }
         }
@@ -759,13 +933,16 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter dengan nama deskriptif
+            // Parameter sesuai SP yang baru
             cmd.Parameters.AddWithValue("@username", username ?? "");
             cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
-            cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "a.dro_created_date desc");
+            cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting (Draft/Revisi on top)
             cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
             cmd.Parameters.AddWithValue("@role_id", role ?? "");
             cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
+            cmd.Parameters.AddWithValue("@status", "");  // Empty = all status
+            cmd.Parameters.AddWithValue("@Page", DBNull.Value);  // NULL = no pagination
+            cmd.Parameters.AddWithValue("@PageSize", DBNull.Value);  // NULL = no pagination
 
             await conn.OpenAsync();
 
@@ -774,18 +951,100 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 result.Add(new DropOutPendingResponse
                 {
-                    Id = reader["dro_id"].ToString(),
-                    MhsId = reader["mhs_id"].ToString(),
-                    Mahasiswa = reader["mhs_nama"].ToString(),
-                    Konsentrasi = reader["kon_nama"].ToString(),
-                    CreatedDate = reader["dro_created_date"].ToString(),
-                    CreatedBy = reader["dro_created_by"].ToString(),
-                    SuratNo = reader["srt_no"].ToString(),
-                    Status = reader["dro_status"].ToString()
+                    Id = reader["dro_id"]?.ToString() ?? "",
+                    MhsId = reader["mhs_id"]?.ToString() ?? "",
+                    Mahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                    Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                    CreatedDate = reader["dro_created_date"]?.ToString() ?? "",
+                    CreatedBy = reader["dro_created_by"]?.ToString() ?? "",
+                    SuratNo = reader["srt_no"]?.ToString() ?? "",
+                    Status = reader["dro_status"]?.ToString() ?? ""
                 });
             }
 
             return result;
+        }
+
+        public async Task<PaginatedResponse<DropOutPendingResponse>> GetPendingPaginatedAsync(
+            string username,
+            string keyword,
+            string sortBy,
+            string konsentrasi,
+            string role,
+            string displayName,
+            string status,
+            int page,
+            int pageSize)
+        {
+            var result = new List<DropOutPendingResponse>();
+            int totalRecords = 0;
+
+            Console.WriteLine($"DEBUG GetPendingPaginatedAsync - page: {page}, pageSize: {pageSize}, status: '{status}'");
+
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await using var cmd = new SqlCommand("sia_getDataPendingDO", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                // Parameter sesuai SP yang baru (dengan ROW_NUMBER dan Count column)
+                cmd.Parameters.AddWithValue("@username", username ?? "");
+                cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
+                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting (Draft/Revisi on top)
+                cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
+                cmd.Parameters.AddWithValue("@role_id", role ?? "");
+                cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
+                cmd.Parameters.AddWithValue("@status", status ?? "");  // Multiple status support
+                
+                // Pagination parameters
+                cmd.Parameters.AddWithValue("@Page", page);
+                cmd.Parameters.AddWithValue("@PageSize", pageSize);
+
+                await conn.OpenAsync();
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    // Ambil total records dari kolom Count (ada di setiap row)
+                    if (totalRecords == 0 && reader["Count"] != DBNull.Value)
+                    {
+                        totalRecords = Convert.ToInt32(reader["Count"]);
+                    }
+
+                    result.Add(new DropOutPendingResponse
+                    {
+                        Id = reader["dro_id"]?.ToString() ?? "",
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        Mahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                        Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                        CreatedDate = reader["dro_created_date"]?.ToString() ?? "",
+                        CreatedBy = reader["dro_created_by"]?.ToString() ?? "",
+                        SuratNo = reader["srt_no"]?.ToString() ?? "",
+                        Status = reader["dro_status"]?.ToString() ?? ""
+                    });
+                }
+
+                Console.WriteLine($"DEBUG GetPendingPaginatedAsync - Total: {totalRecords}, Current: {result.Count}");
+
+                return new PaginatedResponse<DropOutPendingResponse>
+                {
+                    Data = result,
+                    Pagination = new PaginationInfo
+                    {
+                        CurrentPage = page,
+                        PageSize = pageSize,
+                        TotalRecords = totalRecords,
+                        TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize)
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR GetPendingPaginatedAsync: {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<IEnumerable<DropOutMahasiswaOptionResponse>>
@@ -802,12 +1061,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP sia_getListMahasiswaByKonsentrasi2 menggunakan @p1 = kon_id
-            cmd.Parameters.AddWithValue("@p1", konsentrasiId ?? "");
-
-            // p2–p50 wajib diisi
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            // SP sia_getListMahasiswaByKonsentrasi2 menggunakan @KonsentrasiId
+            cmd.Parameters.AddWithValue("@KonsentrasiId", konsentrasiId ?? "");
 
             await conn.OpenAsync();
 
@@ -834,9 +1089,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            cmd.Parameters.AddWithValue("@p1", username);
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            cmd.Parameters.AddWithValue("@Username", username);
+            
 
             await conn.OpenAsync();
             using var reader = await cmd.ExecuteReaderAsync();
