@@ -4,8 +4,6 @@ using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using Dapper;
-using Microsoft.Data.SqlClient;
-using System.Data;
 
 namespace astratech_apps_backend.Repositories.Implementations
 {
@@ -106,13 +104,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var currentStatus = (await checkCmd.ExecuteScalarAsync())?.ToString();
                 if (string.IsNullOrEmpty(currentStatus))
                 {
-                    Console.WriteLine($"[FinalizeAsync] Draft ID {draftId} not found");
                     return "";
                 }
 
                 if (currentStatus != "Draft")
                 {
-                    Console.WriteLine($"[FinalizeAsync] Draft ID {draftId} already processed with status: {currentStatus}");
                     
                     // If already finalized, try to get the existing official ID
                     if (draftId.Contains("PA/MD"))
@@ -127,7 +123,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var officialId = await GenerateOfficialIdAsync(conn);
                 if (string.IsNullOrEmpty(officialId))
                 {
-                    Console.WriteLine($"[FinalizeAsync] Failed to generate official ID");
                     return "";
                 }
 
@@ -149,18 +144,15 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 if (rowsAffected > 0)
                 {
-                    Console.WriteLine($"[FinalizeAsync] Successfully finalized Draft ID: {draftId} -> Official ID: {officialId}");
                     return officialId;
                 }
                 else
                 {
-                    Console.WriteLine($"[FinalizeAsync] Failed to update draft {draftId}");
                     return "";
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[FinalizeAsync] Error: {ex.Message}");
                 throw;
             }
         }
@@ -169,70 +161,72 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                // Get current year and month
-                var now = DateTime.Now;
-                var year = now.Year;
-                var month = now.Month;
-                var romanMonth = GetRomanNumeral(month);
-
-                // Get the highest existing sequence number for this month/year
-                var maxSql = @"
-                    SELECT ISNULL(MAX(
-                        CASE 
-                            WHEN mdu_id LIKE '[0-9][0-9][0-9]/PA/MD/' + @romanMonth + '/' + @year
-                            THEN CAST(LEFT(mdu_id, 3) AS INT)
-                            ELSE 0
-                        END
-                    ), 0) as MaxSequence
-                    FROM sia_msmeninggaldunia 
-                    WHERE mdu_id LIKE '%/PA/MD/' + @romanMonth + '/' + @year + '%'";
-
-                await using var maxCmd = new SqlCommand(maxSql, conn);
-                maxCmd.Parameters.AddWithValue("@romanMonth", romanMonth);
-                maxCmd.Parameters.AddWithValue("@year", year.ToString());
-
-                var maxSequence = (int)await maxCmd.ExecuteScalarAsync();
-                Console.WriteLine($"[GenerateOfficialIdAsync] Found max sequence: {maxSequence} for {romanMonth}/{year}");
-
-                // Start from next number
-                var nextNumber = maxSequence + 1;
-
-                // Generate ID and check for uniqueness (double-check)
-                string officialId;
-                int attempts = 0;
-                const int maxAttempts = 100;
-
-                do
-                {
-                    officialId = $"{nextNumber:D3}/PA/MD/{romanMonth}/{year}";
-                    
-                    // Check if this ID already exists
-                    var existsSql = "SELECT COUNT(*) FROM sia_msmeninggaldunia WHERE mdu_id = @officialId";
-                    await using var existsCmd = new SqlCommand(existsSql, conn);
-                    existsCmd.Parameters.AddWithValue("@officialId", officialId);
-
-                    var exists = (int)await existsCmd.ExecuteScalarAsync();
-                    
-                    if (exists == 0)
-                    {
-                        Console.WriteLine($"[GenerateOfficialIdAsync] Generated unique ID: {officialId}");
-                        return officialId;
-                    }
-
-                    Console.WriteLine($"[GenerateOfficialIdAsync] ID {officialId} already exists, trying next number...");
-                    nextNumber++;
-                    attempts++;
-                    
-                } while (attempts < maxAttempts);
-
-                Console.WriteLine($"[GenerateOfficialIdAsync] Could not generate unique ID after {maxAttempts} attempts for {romanMonth}/{year}");
-                return "";
+                var dateInfo = GetCurrentDateInfo();
+                var maxSequence = await GetMaxSequenceAsync(conn, dateInfo.romanMonth, dateInfo.year);
+                
+                return await GenerateUniqueIdAsync(conn, dateInfo.romanMonth, dateInfo.year, maxSequence + 1);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[GenerateOfficialIdAsync] Error: {ex.Message}");
                 return "";
             }
+        }
+
+        private (string romanMonth, int year) GetCurrentDateInfo()
+        {
+            var now = DateTime.Now;
+            var romanMonth = GetRomanNumeral(now.Month);
+            return (romanMonth, now.Year);
+        }
+
+        private async Task<int> GetMaxSequenceAsync(SqlConnection conn, string romanMonth, int year)
+        {
+            var maxSql = @"
+                SELECT ISNULL(MAX(
+                    CASE 
+                        WHEN mdu_id LIKE '[0-9][0-9][0-9]/PA/MD/' + @romanMonth + '/' + @year
+                        THEN CAST(LEFT(mdu_id, 3) AS INT)
+                        ELSE 0
+                    END
+                ), 0) as MaxSequence
+                FROM sia_msmeninggaldunia 
+                WHERE mdu_id LIKE '%/PA/MD/' + @romanMonth + '/' + @year + '%'";
+
+            await using var maxCmd = new SqlCommand(maxSql, conn);
+            maxCmd.Parameters.AddWithValue("@romanMonth", romanMonth);
+            maxCmd.Parameters.AddWithValue("@year", year.ToString());
+
+            var result = await maxCmd.ExecuteScalarAsync();
+            return result != null ? (int)result : 0;
+        }
+
+        private async Task<string> GenerateUniqueIdAsync(SqlConnection conn, string romanMonth, int year, int startNumber)
+        {
+            const int maxAttempts = 100;
+            
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                var candidateId = $"{(startNumber + attempt):D3}/PA/MD/{romanMonth}/{year}";
+                
+                if (await IsIdUniqueAsync(conn, candidateId))
+                {
+                    return candidateId;
+                }
+            }
+            
+            return "";
+        }
+
+        private async Task<bool> IsIdUniqueAsync(SqlConnection conn, string candidateId)
+        {
+            var existsSql = "SELECT COUNT(*) FROM sia_msmeninggaldunia WHERE mdu_id = @officialId";
+            await using var existsCmd = new SqlCommand(existsSql, conn);
+            existsCmd.Parameters.AddWithValue("@officialId", candidateId);
+
+            var existsResult = await existsCmd.ExecuteScalarAsync();
+            var exists = existsResult != null ? (int)existsResult : 0;
+            
+            return exists == 0;
         }
 
         private string GetRomanNumeral(int month)
@@ -398,7 +392,24 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             await using var conn = new SqlConnection(_conn);
             
-            // Gunakan query langsung untuk memastikan data bisa diambil
+            var sql = BuildGetAllQuery(req);
+            var cmd = CreateGetAllCommand(conn, sql, req);
+            
+            await conn.OpenAsync();
+            var reader = await cmd.ExecuteReaderAsync();
+            
+            var list = await ProcessDataReaderAsync(reader);
+            list = ApplySearchFilter(list, req.SearchKeyword);
+            list = ApplySorting(list, req.Sort);
+            
+            var total = list.Count;
+            var pagedList = ApplyPaging(list, req.PageNumber, req.PageSize);
+            
+            return (pagedList, total);
+        }
+
+        private string BuildGetAllQuery(GetAllMeninggalDuniaRequest req)
+        {
             var sql = @"
                 SELECT 
                     a.mdu_id,
@@ -418,95 +429,100 @@ namespace astratech_apps_backend.Repositories.Implementations
                 LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
                 WHERE a.mdu_status != 'Dihapus'";
 
-            // Add status filter if provided
             if (!string.IsNullOrEmpty(req.Status))
-            {
                 sql += " AND a.mdu_status = @Status";
-            }
 
-            // Add role filter if provided
             if (!string.IsNullOrEmpty(req.RoleId))
-            {
                 sql += " AND c.kon_npk = @RoleId";
-            }
 
             sql += " ORDER BY a.mdu_created_date DESC";
+            return sql;
+        }
 
-            await using var cmd = new SqlCommand(sql, conn);
+        private SqlCommand CreateGetAllCommand(SqlConnection conn, string sql, GetAllMeninggalDuniaRequest req)
+        {
+            var cmd = new SqlCommand(sql, conn);
             
             if (!string.IsNullOrEmpty(req.Status))
                 cmd.Parameters.AddWithValue("@Status", req.Status);
             
             if (!string.IsNullOrEmpty(req.RoleId))
                 cmd.Parameters.AddWithValue("@RoleId", req.RoleId);
+                
+            return cmd;
+        }
 
-            await conn.OpenAsync();
-
-            var reader = await cmd.ExecuteReaderAsync();
+        private async Task<List<MeninggalDuniaListDto>> ProcessDataReaderAsync(SqlDataReader reader)
+        {
             var list = new List<MeninggalDuniaListDto>();
 
             while (await reader.ReadAsync())
             {
                 var recordStatus = reader["mdu_status"]?.ToString() ?? "";
                 var createdDate = reader["tanggal_buat"] as DateTime?;
-                
-                // Baca nomor SK dari database (srt_no) yang sudah di-generate oleh SP
-                string nomorSK = reader["srt_no"]?.ToString() ?? "";
-                
-                // Jika srt_no kosong dan status "Disetujui", generate dinamis sebagai fallback
-                if (string.IsNullOrEmpty(nomorSK) && recordStatus == "Disetujui" && createdDate.HasValue)
-                {
-                    var month = createdDate.Value.Month;
-                    var year = createdDate.Value.Year;
-                    var romanMonth = ConvertToRoman(month);
-                    
-                    // Generate nomor SK berdasarkan ID atau timestamp
-                    var mduId = reader["mdu_id"].ToString();
-                    var sequence = GenerateSequenceFromMeninggalDuniaId(mduId);
-                    nomorSK = $"{sequence:D3}/PA-WADIR-I/SKM/{romanMonth}/{year}";
-                }
+                var nomorSK = GenerateNomorSK(reader, recordStatus, createdDate);
                 
                 list.Add(new MeninggalDuniaListDto
                 {
-                    Id = reader["mdu_id"].ToString(),
-                    NoPengajuan = reader["mdu_id_alternative"].ToString(),
+                    Id = reader["mdu_id"]?.ToString() ?? "",
+                    NoPengajuan = reader["mdu_id_alternative"]?.ToString() ?? "",
                     TanggalPengajuan = reader["mdu_created_date"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
                     Nim = reader["nim"]?.ToString() ?? "",
                     Prodi = reader["pro_nama"]?.ToString() ?? "",
-                    NomorSK = nomorSK, // Baca dari database atau generate dinamis
-                    Status = reader["mdu_status"]?.ToString() ?? ""
+                    NomorSK = nomorSK,
+                    Status = recordStatus
                 });
             }
+            
+            return list;
+        }
 
-            // Searching
-            if (!string.IsNullOrEmpty(req.SearchKeyword))
+        private string GenerateNomorSK(SqlDataReader reader, string recordStatus, DateTime? createdDate)
+        {
+            string nomorSK = reader["srt_no"]?.ToString() ?? "";
+            
+            if (string.IsNullOrEmpty(nomorSK) && recordStatus == "Disetujui" && createdDate.HasValue)
             {
-                var q = req.SearchKeyword.ToLower();
-
-                list = list.Where(x =>
-                       x.NoPengajuan.ToLower().Contains(q) ||
-                       x.NamaMahasiswa.ToLower().Contains(q))
-                    .ToList();
+                var month = createdDate.Value.Month;
+                var year = createdDate.Value.Year;
+                var romanMonth = ConvertToRoman(month);
+                var mduId = reader["mdu_id"]?.ToString() ?? "";
+                var sequence = GenerateSequenceFromMeninggalDuniaId(mduId);
+                nomorSK = $"{sequence:D3}/PA-WADIR-I/SKM/{romanMonth}/{year}";
             }
+            
+            return nomorSK;
+        }
 
-            // Sorting
-            list = req.Sort switch
+        private List<MeninggalDuniaListDto> ApplySearchFilter(List<MeninggalDuniaListDto> list, string? searchKeyword)
+        {
+            if (string.IsNullOrEmpty(searchKeyword))
+                return list;
+
+            var q = searchKeyword.ToLower();
+            return list.Where(x =>
+                x.NoPengajuan.ToLower().Contains(q) ||
+                x.NamaMahasiswa.ToLower().Contains(q))
+                .ToList();
+        }
+
+        private List<MeninggalDuniaListDto> ApplySorting(List<MeninggalDuniaListDto> list, string? sort)
+        {
+            return sort switch
             {
-                "mdu_created_date asc" => list.OrderBy(x => DateTime.Parse(x.TanggalPengajuan)).ToList(),
-                "mdu_created_date desc" => list.OrderByDescending(x => DateTime.Parse(x.TanggalPengajuan)).ToList(),
+                "mdu_created_date asc" => list.OrderBy(x => DateTime.Parse(x.TanggalPengajuan, System.Globalization.CultureInfo.InvariantCulture)).ToList(),
+                "mdu_created_date desc" => list.OrderByDescending(x => DateTime.Parse(x.TanggalPengajuan, System.Globalization.CultureInfo.InvariantCulture)).ToList(),
                 _ => list
             };
+        }
 
-            // Paging
-            int total = list.Count;
-
-            list = list
-                .Skip((req.PageNumber - 1) * req.PageSize)
-                .Take(req.PageSize)
+        private List<MeninggalDuniaListDto> ApplyPaging(List<MeninggalDuniaListDto> list, int pageNumber, int pageSize)
+        {
+            return list
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToList();
-
-            return (list, total);
         }
 
         public async Task<MeninggalDuniaReportResponse?> GetReportAsync(string id)
@@ -527,14 +543,14 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new MeninggalDuniaReportResponse
             {
-                MhsId = reader["mhs_id"].ToString(),
-                MhsNama = reader["mhs_nama"].ToString(),
-                Konsentrasi = reader["kon_nama"].ToString(),
-                TahunAjaran = reader["srt_tahun_ajaran"].ToString(),
-                SuratNo = reader["srt_no"].ToString(),
-                Kaprodi = reader["pro_kaprodi"].ToString(),
-                Wadir = reader["wadir"].ToString(),
-                Direktur = reader["dir"].ToString()
+                MhsId = reader["mhs_id"]?.ToString() ?? "",
+                MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                TahunAjaran = reader["srt_tahun_ajaran"]?.ToString() ?? "",
+                SuratNo = reader["srt_no"]?.ToString() ?? "",
+                Kaprodi = reader["pro_kaprodi"]?.ToString() ?? "",
+                Wadir = reader["wadir"]?.ToString() ?? "",
+                Direktur = reader["dir"]?.ToString() ?? ""
             };
         }
 
@@ -560,19 +576,19 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return new MeninggalDunia
             {
-                Id = reader["mdu_id"].ToString(),
-                MhsId = reader["mhs_id"].ToString(),
-                Lampiran = reader["mdu_lampiran"].ToString(),
-                ApproveDir1By = reader["mdu_approve_dir1_by"].ToString(),
+                Id = reader["mdu_id"]?.ToString() ?? "",
+                MhsId = reader["mhs_id"]?.ToString() ?? "",
+                Lampiran = reader["mdu_lampiran"]?.ToString() ?? "",
+                ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
                 ApproveDir1Date = reader["mdu_approve_dir1_date"] as DateTime?,
-                SrtNo = reader["srt_no"].ToString(),
-                NoSpkb = reader["mdu_no_spkb"].ToString(),
-                Sk = reader["mdu_sk"].ToString(),
-                Spkb = reader["mdu_spkb"].ToString(),
-                Status = reader["mdu_status"].ToString(),
-                CreatedBy = reader["mdu_created_by"].ToString(),
+                SrtNo = reader["srt_no"]?.ToString() ?? "",
+                NoSpkb = reader["mdu_no_spkb"]?.ToString() ?? "",
+                Sk = reader["mdu_sk"]?.ToString() ?? "",
+                Spkb = reader["mdu_spkb"]?.ToString() ?? "",
+                Status = reader["mdu_status"]?.ToString() ?? "",
+                CreatedBy = reader["mdu_created_by"]?.ToString() ?? "",
                 CreatedDate = reader["mdu_created_date"] as DateTime?,
-                ModifiedBy = reader["mdu_modif_by"].ToString(),
+                ModifiedBy = reader["mdu_modif_by"]?.ToString() ?? "",
                 ModifiedDate = reader["mdu_modif_date"] as DateTime?
             };
         }
@@ -599,7 +615,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     using var stream = new FileStream(filePath, FileMode.Create);
                     await dto.LampiranFile.CopyToAsync(stream);
                     
-                    Console.WriteLine($"[UpdateAsync] File uploaded: {fileName}");
                 }
 
                 // Tentukan nilai lampiran yang akan diupdate
@@ -631,7 +646,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
 
                 var rows = await cmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[UpdateAsync] Direct SQL - ID: {id}, Rows affected: {rows}, File: {fileName ?? "none"}");
 
                 if (rows > 0)
                 {
@@ -650,14 +664,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
 
                 var spRows = await spCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[UpdateAsync] SP - ID: {id}, Rows affected: {spRows}");
 
                 return spRows > 0;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[UpdateAsync] Error: {ex.Message}");
-                Console.WriteLine($"[UpdateAsync] Stack trace: {ex.StackTrace}");
                 throw;
             }
         }
@@ -687,7 +698,6 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 var directRows = await directCmd.ExecuteNonQueryAsync();
 
-                Console.WriteLine($"[SoftDeleteAsync] Direct SQL - ID: {id}, UpdatedBy: {updatedBy}, Rows affected: {directRows}");
 
                 if (directRows > 0)
                 {
@@ -705,14 +715,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
 
                 var spRows = await spCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[SoftDeleteAsync] SP - ID: {id}, UpdatedBy: {updatedBy}, Rows affected: {spRows}");
 
                 return spRows > 0;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[SoftDeleteAsync] Error: {ex.Message}");
-                Console.WriteLine($"[SoftDeleteAsync] Stack trace: {ex.StackTrace}");
                 throw;
             }
         }
@@ -723,8 +730,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Starting SK upload for ID: {id}");
-                Console.WriteLine($"[MeninggalDunia UploadSKAsync] SK: {sk}, SPKB: {spkb}, UpdatedBy: {updatedBy}");
 
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
@@ -737,26 +742,22 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var reader = await checkCmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync())
                 {
-                    reader.Close();
-                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ERROR: Record not found for ID: {id}");
+                    await reader.CloseAsync();
                     return false;
                 }
 
                 var currentStatus = reader["mdu_status"].ToString();
-                reader.Close();
+                await reader.CloseAsync();
                 
-                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Current status: {currentStatus}");
 
                 // Allow upload if status is "Menunggu Upload SK" OR "Disetujui" (untuk re-upload)
                 if (currentStatus != "Menunggu Upload SK" && currentStatus != "Disetujui")
                 {
-                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ERROR: Invalid status for SK upload: {currentStatus}");
                     return false;
                 }
 
                 // Generate SK number untuk keperluan internal/logging (tidak disimpan ke DB)
                 var skNumber = await GenerateMeninggalDuniaSKNumberAsync(conn);
-                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Generated SK number (for reference): {skNumber}");
 
                 // Update record WITHOUT srt_no field (bypass foreign key constraint)
                 var updateCmd = new SqlCommand(@"
@@ -779,11 +780,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 updateCmd.Parameters.AddWithValue("@updatedBy", updatedBy);
 
                 var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
-                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Update rows affected: {rowsAffected}");
 
                 if (rowsAffected > 0)
                 {
-                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ✓ SUCCESS! SK uploaded (Generated SK for reference: {skNumber})");
                     
                     // Verify the update worked
                     var verifyCmd = new SqlCommand(
@@ -796,22 +795,18 @@ namespace astratech_apps_backend.Repositories.Implementations
                         var finalSk = verifyReader["mdu_sk"]?.ToString() ?? "";
                         var finalSpkb = verifyReader["mdu_spkb"]?.ToString() ?? "";
                         var finalStatus = verifyReader["mdu_status"]?.ToString() ?? "";
-                        Console.WriteLine($"[MeninggalDunia UploadSKAsync] Verification - SK: '{finalSk}', SPKB: '{finalSpkb}', Status: '{finalStatus}'");
                     }
-                    verifyReader.Close();
+                    await verifyReader.CloseAsync();
                     
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"[MeninggalDunia UploadSKAsync] ✗ FAILED: No rows affected during update");
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[MeninggalDunia UploadSKAsync] ERROR: {ex.Message}");
-                Console.WriteLine($"[MeninggalDunia UploadSKAsync] Stack trace: {ex.StackTrace}");
                 throw; // Re-throw to let controller handle it
             }
         }
@@ -824,104 +819,101 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                var now = DateTime.Now;
-                var month = now.Month;
-                var year = now.Year;
-                
-                // Convert month to Roman numerals
-                string romanMonth = ConvertToRoman(month);
-                string skFormat = $"/PA-WADIR-I/SKM/{romanMonth}/{year}"; // SKM = SK Meninggal
-                
-                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Generating SK number for {romanMonth}/{year}");
-                
-                // Get the highest sequence number for current year
-                var getLastSkCmd = new SqlCommand(@"
-                    SELECT srt_no 
-                    FROM sia_msmeninggaldunia 
-                    WHERE srt_no LIKE '%/PA-WADIR-I/SKM/%/' + CAST(@year AS VARCHAR(4))
-                      AND srt_no IS NOT NULL 
-                      AND srt_no != ''
-                      AND LEN(srt_no) > 10
-                    ORDER BY srt_no DESC", conn);
-                
-                getLastSkCmd.Parameters.AddWithValue("@year", year);
-                
-                var reader = await getLastSkCmd.ExecuteReaderAsync();
-                
-                int maxSequence = 0;
-                while (await reader.ReadAsync())
-                {
-                    var srtNo = reader["srt_no"]?.ToString() ?? "";
-                    if (!string.IsNullOrEmpty(srtNo) && srtNo.Length >= 3)
-                    {
-                        try
-                        {
-                            // Extract first 3 characters as sequence
-                            var sequenceStr = srtNo.Substring(0, 3);
-                            if (int.TryParse(sequenceStr, out int sequence))
-                            {
-                                if (sequence > maxSequence)
-                                {
-                                    maxSequence = sequence;
-                                    Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Found sequence: {sequence} from SK: {srtNo}");
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Error parsing SK: {srtNo}, Error: {ex.Message}");
-                        }
-                    }
-                }
-                reader.Close();
-                
-                int nextSequence = maxSequence + 1;
-                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Max sequence found: {maxSequence}, Next will be: {nextSequence}");
-                
-                // Generate new SK number with collision protection
-                for (int attempt = 0; attempt < 100; attempt++)
-                {
-                    // Format sequence number with leading zeros (always 3 digits)
-                    string candidateSkNumber = $"{nextSequence:D3}{skFormat}";
-                    
-                    Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Attempt {attempt + 1}: Trying SK number: {candidateSkNumber}");
-                    
-                    // Check if this SK number already exists
-                    var checkExistCmd = new SqlCommand(@"
-                        SELECT COUNT(*) 
-                        FROM sia_msmeninggaldunia 
-                        WHERE srt_no = @candidateSkNumber", conn);
-                    checkExistCmd.Parameters.AddWithValue("@candidateSkNumber", candidateSkNumber);
-                    
-                    var count = (int)await checkExistCmd.ExecuteScalarAsync();
-                    if (count == 0)
-                    {
-                        Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ✓ SK number is unique: {candidateSkNumber}");
-                        return candidateSkNumber;
-                    }
-                    
-                    Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ✗ SK number collision detected, trying next sequence");
-                    nextSequence++;
-                }
-                
-                // If all attempts fail, use timestamp-based fallback
-                var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
-                var fallbackSkNumber = $"{timestamp + 500:D3}{skFormat}"; // Add 500 to avoid low numbers
-                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ⚠️ Using fallback SK number: {fallbackSkNumber}");
-                return fallbackSkNumber;
+                var dateInfo = GetCurrentDateInfoForMeninggalDunia();
+                var maxSequence = await GetMaxSequenceForMeninggalDuniaAsync(conn, dateInfo.year);
+                return await GenerateUniqueMeninggalDuniaSkNumberAsync(conn, dateInfo.romanMonth, dateInfo.year, maxSequence + 1);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] ERROR: {ex.Message}");
-                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] Stack trace: {ex.StackTrace}");
-                
                 // Emergency fallback
                 var now = DateTime.Now;
                 var romanMonth = ConvertToRoman(now.Month);
-                var emergencySkNumber = $"999/PA-WADIR-I/SKM/{romanMonth}/{now.Year}";
-                Console.WriteLine($"[GenerateMeninggalDuniaSKNumberAsync] 🚨 Using emergency fallback: {emergencySkNumber}");
-                return emergencySkNumber;
+                return $"999/PA-WADIR-I/SKM/{romanMonth}/{now.Year}";
             }
+        }
+
+        private (string romanMonth, int year) GetCurrentDateInfoForMeninggalDunia()
+        {
+            var now = DateTime.Now;
+            return (ConvertToRoman(now.Month), now.Year);
+        }
+
+        private async Task<int> GetMaxSequenceForMeninggalDuniaAsync(SqlConnection conn, int year)
+        {
+            var getLastSkCmd = new SqlCommand(@"
+                SELECT srt_no 
+                FROM sia_msmeninggaldunia 
+                WHERE srt_no LIKE '%/PA-WADIR-I/SKM/%/' + CAST(@year AS VARCHAR(4))
+                  AND srt_no IS NOT NULL 
+                  AND srt_no != ''
+                  AND LEN(srt_no) > 10
+                ORDER BY srt_no DESC", conn);
+            
+            getLastSkCmd.Parameters.AddWithValue("@year", year);
+            
+            var reader = await getLastSkCmd.ExecuteReaderAsync();
+            int maxSequence = 0;
+            
+            while (await reader.ReadAsync())
+            {
+                var srtNo = reader["srt_no"]?.ToString() ?? "";
+                var sequence = ExtractSequenceFromMeninggalDuniaSkNumber(srtNo);
+                if (sequence > maxSequence)
+                {
+                    maxSequence = sequence;
+                }
+            }
+            await reader.CloseAsync();
+            
+            return maxSequence;
+        }
+
+        private int ExtractSequenceFromMeninggalDuniaSkNumber(string srtNo)
+        {
+            if (string.IsNullOrEmpty(srtNo) || srtNo.Length < 3)
+                return 0;
+
+            try
+            {
+                var sequenceStr = srtNo.Substring(0, 3);
+                return int.TryParse(sequenceStr, out int sequence) ? sequence : 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private async Task<string> GenerateUniqueMeninggalDuniaSkNumberAsync(SqlConnection conn, string romanMonth, int year, int startSequence)
+        {
+            string skFormat = $"/PA-WADIR-I/SKM/{romanMonth}/{year}";
+            
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                string candidateSkNumber = $"{(startSequence + attempt):D3}{skFormat}";
+                
+                if (await IsMeninggalDuniaSkNumberUniqueAsync(conn, candidateSkNumber))
+                {
+                    return candidateSkNumber;
+                }
+            }
+            
+            // Fallback with timestamp
+            var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
+            return $"{timestamp + 500:D3}{skFormat}";
+        }
+
+        private async Task<bool> IsMeninggalDuniaSkNumberUniqueAsync(SqlConnection conn, string candidateSkNumber)
+        {
+            var checkExistCmd = new SqlCommand(@"
+                SELECT COUNT(*) 
+                FROM sia_msmeninggaldunia 
+                WHERE srt_no = @candidateSkNumber", conn);
+            checkExistCmd.Parameters.AddWithValue("@candidateSkNumber", candidateSkNumber);
+            
+            var countResult = await checkExistCmd.ExecuteScalarAsync();
+            var count = countResult != null ? (int)countResult : 0;
+            return count == 0;
         }
 
         /// <summary>
@@ -1093,8 +1085,8 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 list.Add(new RiwayatMeninggalDuniaListDto
                 {
-                    Id = reader["mdu_id"].ToString(),
-                    NoPengajuan = reader["mdu_id"].ToString(),
+                    Id = reader["mdu_id"]?.ToString() ?? "",
+                    NoPengajuan = reader["mdu_id"]?.ToString() ?? "",
                     TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
                     NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
                     Nim = reader["mhs_id"]?.ToString() ?? "",
@@ -1155,15 +1147,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             return list;
         }
 
-        // Method ini sudah tidak diperlukan karena kita menggunakan UploadSKAsync yang lebih baik
-        // yang sudah support file upload dan bypass foreign key constraint
-        /*
-        public async Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request)
-        {
-            // Method lama - sudah diganti dengan UploadSKAsync
-        }
-        */
-
         public async Task<MeninggalDuniaDetailResponse?> GetDetailAsync(string id)
         {
             try
@@ -1203,10 +1186,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                     SPKB = reader["mdu_spkb"]?.ToString() ?? ""
                 };
             }
-            catch (Exception ex)
+            catch
             {
                 // Log error jika perlu
-                Console.WriteLine($"Error in GetDetailAsync: {ex.Message}");
                 return null;
             }
         }
@@ -1215,7 +1197,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[ApproveAsync] Starting approval for ID: '{id}', Role: '{dto.Role}', Username: '{dto.Username}'");
                 
                 await using var conn = new SqlConnection(_conn);
                 
@@ -1226,11 +1207,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 await conn.OpenAsync();
                 var currentStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                Console.WriteLine($"[ApproveAsync] Current status before approval: '{currentStatus}'");
                 
                 if (string.IsNullOrEmpty(currentStatus))
                 {
-                    Console.WriteLine($"[ApproveAsync] Record not found for ID: '{id}'");
                     return false;
                 }
                 
@@ -1245,41 +1224,32 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@Role", dto.Role);
                 cmd.Parameters.AddWithValue("@Username", dto.Username);
                 
-                Console.WriteLine($"[ApproveAsync] Parameters - @MeninggalDuniaId: '{id}', @Role: '{dto.Role}', @Username: '{dto.Username}'");
 
-                Console.WriteLine($"[ApproveAsync] Executing stored procedure...");
                 
                 var rows = await cmd.ExecuteNonQueryAsync();
                 
-                Console.WriteLine($"[ApproveAsync] Stored procedure executed, rows affected: {rows}");
                 
                 // Check status after approval to verify if it actually changed
                 var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                Console.WriteLine($"[ApproveAsync] Status after approval: '{newStatus}'");
                 
                 // Consider approval successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
                 {
-                    Console.WriteLine($"[ApproveAsync] Approval successful - status changed from '{currentStatus}' to '{newStatus}' for ID: '{id}'");
                     return true;
                 }
                 else if (rows > 0)
                 {
-                    Console.WriteLine($"[ApproveAsync] Approval successful based on rows affected for ID: '{id}'");
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"[ApproveAsync] Approval failed - no status change and no rows affected for ID: '{id}'");
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[ApproveAsync] Error: {ex.Message}");
-                Console.WriteLine($"[ApproveAsync] Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
@@ -1288,7 +1258,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[RejectAsync] Starting rejection for ID: '{id}', Role: '{dto.Role}', Username: '{dto.Username}'");
                 
                 await using var conn = new SqlConnection(_conn);
                 
@@ -1299,11 +1268,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 await conn.OpenAsync();
                 var currentStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                Console.WriteLine($"[RejectAsync] Current status before rejection: '{currentStatus}'");
                 
                 if (string.IsNullOrEmpty(currentStatus))
                 {
-                    Console.WriteLine($"[RejectAsync] Record not found for ID: '{id}'");
                     return false;
                 }
                 
@@ -1318,41 +1285,32 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@Role", dto.Role ?? "");
                 cmd.Parameters.AddWithValue("@Username", dto.Username ?? "");
                 
-                Console.WriteLine($"[RejectAsync] Parameters - @MeninggalDuniaId: '{id}', @Role: '{dto.Role}', @Username: '{dto.Username}'");
 
-                Console.WriteLine($"[RejectAsync] Executing stored procedure...");
                 
                 var result = await cmd.ExecuteNonQueryAsync();
                 
-                Console.WriteLine($"[RejectAsync] Stored procedure executed, rows affected: {result}");
                 
                 // Check status after rejection to verify if it actually changed
                 var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                Console.WriteLine($"[RejectAsync] Status after rejection: '{newStatus}'");
                 
                 // Consider rejection successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
                 {
-                    Console.WriteLine($"[RejectAsync] Rejection successful - status changed from '{currentStatus}' to '{newStatus}' for ID: '{id}'");
                     return true;
                 }
                 else if (result > 0)
                 {
-                    Console.WriteLine($"[RejectAsync] Rejection successful based on rows affected for ID: '{id}'");
                     return true;
                 }
                 else
                 {
-                    Console.WriteLine($"[RejectAsync] Rejection failed - no status change and no rows affected for ID: '{id}'");
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[RejectAsync] Error: {ex.Message}");
-                Console.WriteLine($"[RejectAsync] Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
@@ -1361,7 +1319,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                Console.WriteLine($"[DetectUserRoleAsync] Starting role detection for username: '{username}'");
                 
                 await using var conn = new SqlConnection(_conn);
                 await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
@@ -1371,22 +1328,18 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 // Based on the error message, the SP expects @UsernameToFind parameter
                 cmd.Parameters.AddWithValue("@UsernameToFind", username);
-                Console.WriteLine($"[DetectUserRoleAsync] Set @UsernameToFind parameter to: '{username}'");
 
                 await conn.OpenAsync();
-                Console.WriteLine($"[DetectUserRoleAsync] Connection opened, executing stored procedure...");
                 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 if (await reader.ReadAsync())
                 {
                     // Log all available columns for debugging
-                    Console.WriteLine($"[DetectUserRoleAsync] Found data! Available columns:");
                     for (int i = 0; i < reader.FieldCount; i++)
                     {
                         var columnName = reader.GetName(i);
                         var columnValue = reader[i]?.ToString() ?? "NULL";
-                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
                     }
                     
                     var strMainId = reader["str_main_id"]?.ToString() ?? "";
@@ -1394,7 +1347,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
                     var rolId = reader["rol_id"]?.ToString() ?? "";
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Key fields - Username: '{username}', kry_username: '{kryUsername}', str_main_id: '{strMainId}', jab_main_id: '{jabMainId}', rol_id: '{rolId}'");
                     
                     // Role detection based on str_main_id as mentioned by user
                     var role = strMainId switch
@@ -1403,11 +1355,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                         _ => "wadir1"
                     };
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Detected role: '{role}' for str_main_id: '{strMainId}'");
                     return role;
                 }
                 
-                Console.WriteLine($"[DetectUserRoleAsync] No data found for username: '{username}' - stored procedure returned no rows");
                 
                 // Let's also try a direct query to see if the user exists in the tables
                 await using var directCmd = new SqlCommand(@"
@@ -1420,12 +1370,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var directReader = await directCmd.ExecuteReaderAsync();
                 if (await directReader.ReadAsync())
                 {
-                    Console.WriteLine($"[DetectUserRoleAsync] Direct query found data:");
                     for (int i = 0; i < directReader.FieldCount; i++)
                     {
                         var columnName = directReader.GetName(i);
                         var columnValue = directReader[i]?.ToString() ?? "NULL";
-                        Console.WriteLine($"[DetectUserRoleAsync]   {columnName}: '{columnValue}'");
                     }
                     
                     var strMainId = directReader["str_main_id"]?.ToString() ?? "";
@@ -1435,20 +1383,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                         _ => "wadir1"
                     };
                     
-                    Console.WriteLine($"[DetectUserRoleAsync] Direct query - Detected role: '{role}' for str_main_id: '{strMainId}'");
                     return role;
-                }
-                else
-                {
-                    Console.WriteLine($"[DetectUserRoleAsync] Direct query also found no data for username: '{username}'");
                 }
                 
                 return "";
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[DetectUserRoleAsync] Error: {ex.Message}");
-                Console.WriteLine($"[DetectUserRoleAsync] Stack trace: {ex.StackTrace}");
                 return "";
             }
         }

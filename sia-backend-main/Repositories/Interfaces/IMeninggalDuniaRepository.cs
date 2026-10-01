@@ -58,18 +58,11 @@ namespace astratech_apps_backend.Repositories.Interfaces
         string konsentrasi
         );
 
-        // Method UploadSKMeninggalAsync sudah tidak diperlukan karena kita menggunakan UploadSKAsync
-        // Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request);
-
         Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto);
 
         Task<bool> RejectAsync(string id, RejectMeninggalDuniaRequest dto);
 
         //ROLE DETECTION
         Task<string> DetectUserRoleAsync(string username);
-
-
-
-
     }
 }

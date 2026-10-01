@@ -89,32 +89,6 @@ namespace astratech_apps_backend.Services.Implementations
             };
         }
 
-
-        ////READ SEARCH BY ID
-        //public async Task<MeninggalDuniaResponse?> GetByIdAsync(string id)
-        //{
-        //    var x = await _repo.GetByIdAsync(id);
-        //    if (x == null) return null;
-
-        //    return new MeninggalDuniaResponse
-        //    {
-        //        Id = x.Id,
-        //        MhsId = x.MhsId,
-        //        Lampiran = x.Lampiran,
-        //        ApproveDir1By = x.ApproveDir1By,
-        //        ApproveDir1Date = x.ApproveDir1Date,
-        //        SrtNo = x.SrtNo,
-        //        NoSpkb = x.NoSpkb,
-        //        Sk = x.Sk,
-        //        Spkb = x.Spkb,
-        //        Status = x.Status,
-        //        CreatedBy = x.CreatedBy,
-        //        CreatedDate = x.CreatedDate,
-        //        ModifiedBy = x.ModifiedBy,
-        //        ModifiedDate = x.ModifiedDate
-        //    };
-        //}
-
         public async Task<MeninggalDuniaDetailResponse?> GetDetailAsync(string id)
         {
             return await _repo.GetDetailAsync(id);
@@ -201,17 +175,6 @@ namespace astratech_apps_backend.Services.Implementations
         {
             return await _repo.GetRiwayatExcelAsync(sort, konsentrasi);
         }
-
-        /// <summary>
-        /// Method UploadSKMeninggalAsync sudah tidak diperlukan karena kita menggunakan UploadSKAsync
-        /// yang sudah support file upload dan bypass foreign key constraint
-        /// </summary>
-        /*
-        public async Task<bool> UploadSKMeninggalAsync(UploadSKMeninggalRequest request)
-        {
-            // Method lama - sudah diganti dengan UploadSKAsync
-        }
-        */
 
         public async Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto)
         {

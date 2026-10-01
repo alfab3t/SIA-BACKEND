@@ -2,7 +2,7 @@
 {
     public class UploadSKMeninggalDuniaDto
     {
-        public IFormFile SkFile { get; set; }
-        public IFormFile SpkbFile { get; set; }
+        public required IFormFile SkFile { get; set; }
+        public required IFormFile SpkbFile { get; set; }
     }
 }
