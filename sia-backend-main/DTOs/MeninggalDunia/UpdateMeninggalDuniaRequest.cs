@@ -2,7 +2,8 @@
 {
     public class UpdateMeninggalDuniaRequest
     {
-        
-        public string Lampiran { get; set; } = "";
+        public string? MhsId { get; set; }
+        public string? Lampiran { get; set; }
+        public IFormFile? LampiranFile { get; set; }
     }
 }

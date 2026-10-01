@@ -11,4 +11,3 @@ public class UpdateCutiAkademikRequest
 
     public string ModifiedBy { get; set; } = string.Empty;
 }
-
