@@ -1,1078 +1,619 @@
-#nullable disable
+using System.Data;
+using Microsoft.Data.SqlClient;
+using astratech_apps_backend.DTOs.Common;
 using astratech_apps_backend.DTOs.DropOut;
 using astratech_apps_backend.DTOs.PengunduranDiri;
-using astratech_apps_backend.DTOs.Common;
 using astratech_apps_backend.Models;
 using astratech_apps_backend.Repositories.Interfaces;
-using Dapper;
-using Microsoft.Data.SqlClient;
-using System.Data;
 
 namespace astratech_apps_backend.Repositories.Implementations
 {
     public class DropOutRepository : IDropOutRepository
     {
-        private readonly string _conn = string.Empty;
+        private readonly string _conn;
 
-        public DropOutRepository(IConfiguration config)
+        public DropOutRepository(IConfiguration configuration)
         {
-            try
-            {
-                var encryptedConn = config.GetConnectionString("DefaultConnection")!;
-                var decryptKey = Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING");
-                
-                Console.WriteLine($"DEBUG DropOut: Encrypted connection string exists: {!string.IsNullOrEmpty(encryptedConn)}");
-                Console.WriteLine($"DEBUG DropOut: Decrypt key exists: {!string.IsNullOrEmpty(decryptKey)}");
-                
-                if (string.IsNullOrEmpty(decryptKey))
-                {
-                    Console.WriteLine("WARNING DropOut: DECRYPT_KEY_CONNECTION_STRING environment variable not found. Using fallback connection.");
-                    _conn = "Server=.\\SQLEXPRESS;Database=ERP_PolmanAstra_NDA;Integrated Security=true;TrustServerCertificate=true;";
-                }
-                else
-                {
-                    _conn = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(encryptedConn, decryptKey);
-                    Console.WriteLine($"DEBUG DropOut: Decrypted connection string: {_conn?.Substring(0, Math.Min(50, _conn?.Length ?? 0))}...");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ERROR DropOut in decryption: {ex.Message}");
-                Console.WriteLine($"ERROR DropOut Stack: {ex.StackTrace}");
-                // Fallback connection string
-                _conn = "Server=.\\SQLEXPRESS;Database=ERP_PolmanAstra_NDA;Integrated Security=true;TrustServerCertificate=true;";
-                Console.WriteLine("Using fallback connection string for DropOut");
-            }
+            _conn = configuration.GetConnectionString("DefaultConnection")
+                    ?? throw new InvalidOperationException("DefaultConnection string not found.");
         }
 
-        //public async Task<string> CreateAsync(CreateDropOutRequest dto, string createdBy)
-        //{
-        //    using var conn = new SqlConnection(_conn);
-        //    using var cmd = new SqlCommand("USE [ERP_PolmanAstra_NDA]\r\nGO\r\n/****** Object:  StoredProcedure [dbo].[sia_createPengajuanDO]    Script Date: 12/30/2025 10:17:52 AM ******/\r\nSET ANSI_NULLS ON\r\nGO\r\nSET QUOTED_IDENTIFIER ON\r\nGO\r\nALTER PROCEDURE [dbo].[sia_createPengajuanDO]\r\n\t@p1 varchar(max), @p2 varchar(max), @p3 varchar(max), @p4 varchar(max), @p5 varchar(max),\r\n\t@p6 varchar(max), @p7 varchar(max), @p8 varchar(max), @p9 varchar(max), @p10 varchar(max),\r\n\t@p11 varchar(max), @p12 varchar(max), @p13 varchar(max), @p14 varchar(max), @p15 varchar(max),\r\n\t@p16 varchar(max), @p17 varchar(max), @p18 varchar(max), @p19 varchar(max), @p20 varchar(max),\r\n\t@p21 varchar(max), @p22 varchar(max), @p23 varchar(max), @p24 varchar(max), @p25 varchar(max),\r\n\t@p26 varchar(max), @p27 varchar(max), @p28 varchar(max), @p29 varchar(max), @p30 varchar(max),\r\n\t@p31 varchar(max), @p32 varchar(max), @p33 varchar(max), @p34 varchar(max), @p35 varchar(max),\r\n\t@p36 varchar(max), @p37 varchar(max), @p38 varchar(max), @p39 varchar(max), @p40 varchar(max),\r\n\t@p41 varchar(max), @p42 varchar(max), @p43 varchar(max), @p44 varchar(max), @p45 varchar(max),\r\n\t@p46 varchar(max), @p47 varchar(max), @p48 varchar(max), @p49 varchar(max), @p50 varchar(max)\r\nAS\r\nBEGIN\r\n\tSET NOCOUNT ON;\r\n\t\r\n\tdeclare @tempIdDraft int;\r\n\t\r\n\tselect @tempIdDraft = (select top 1 dro_id from sia_msdropout where dro_id not like '%DO%' order by dro_created_date desc);\r\n\r\n\tif @tempIdDraft is null\r\n\t\tselect @tempIdDraft = 0;\r\n\tselect @tempIdDraft = @tempIdDraft + 1;\r\n\tinsert into sia_msdropout values (CAST(@tempIdDraft as varchar), @p1, @p2, @p3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Draft', @p4, GETDATE(), NULL, NULL);\r\n\t\r\nEND\r\n\r\n\r\n\r\n", conn)
-        //    {
-        //        CommandType = CommandType.StoredProcedure
-        //    };
-
-        //    cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
-        //    cmd.Parameters.AddWithValue("@dro_menimbang", dto.Menimbang ?? "");
-        //    cmd.Parameters.AddWithValue("@dro_mengingat", dto.Mengingat ?? "");
-        //    cmd.Parameters.AddWithValue("@createdBy", createdBy);
-
-        //    await conn.OpenAsync();
-        //    var id = await cmd.ExecuteScalarAsync();
-        //    return id?.ToString() ?? "";
-        //}
-
-        public async Task<string?> CreatePengajuanDOAsync(CreatePengajuanDORequest dto, string createdBy)
+        public async Task<(IEnumerable<DropOutPendingResponse> Data, int TotalData)> GetPendingPaginatedAsync(
+            string username, string keyword, string sortBy, string konsentrasi, string role, string displayName, string status, int page, int pageSize)
         {
+            var list = new List<DropOutPendingResponse>();
+            int totalCount = 0;
+
             await using var conn = new SqlConnection(_conn);
-            await conn.OpenAsync();
-            
-            // 1. Panggil SP untuk INSERT data dasar
-            await using var cmd = new SqlCommand("sia_createPengajuanDO", conn)
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetPending", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
-            cmd.Parameters.AddWithValue("@dro_lampiran", dto.Lampiran ?? "");
-            cmd.Parameters.AddWithValue("@dro_lampiran_surat_pengajuan", dto.LampiranSuratPengajuan ?? "");
-            cmd.Parameters.AddWithValue("@dro_created_by", createdBy);
+            cmd.Parameters.AddWithValue("@Username", username ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Keyword", keyword ?? string.Empty);
+            cmd.Parameters.AddWithValue("@SortBy", string.IsNullOrWhiteSpace(sortBy) ? "a.dro_created_date DESC" : sortBy);
+            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Role", role ?? string.Empty);
+            cmd.Parameters.AddWithValue("@DisplayName", displayName ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Status", status ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Page", page < 1 ? 1 : page);
+            cmd.Parameters.AddWithValue("@PageSize", pageSize < 1 ? 10 : (pageSize > 100 ? 100 : pageSize));
 
-            await cmd.ExecuteNonQueryAsync();
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
-            // 2. Ambil ID yang baru dibuat
-            var cmd2 = new SqlCommand(@"
-                SELECT TOP 1 dro_id 
-                FROM sia_msdropout 
-                WHERE dro_created_by = @createdBy 
-                ORDER BY dro_created_date DESC",
-                conn
-            );
-            cmd2.Parameters.AddWithValue("@createdBy", createdBy);
-            var newId = (string?)await cmd2.ExecuteScalarAsync();
-
-            // 3. UPDATE menimbang dan mengingat jika ada
-            if (!string.IsNullOrEmpty(newId) && (!string.IsNullOrEmpty(dto.Menimbang) || !string.IsNullOrEmpty(dto.Mengingat)))
+            while (await reader.ReadAsync())
             {
-                var cmd3 = new SqlCommand(@"
-                    UPDATE sia_msdropout 
-                    SET dro_menimbang = @menimbang,
-                        dro_mengingat = @mengingat,
-                        dro_modif_date = GETDATE()
-                    WHERE dro_id = @dro_id",
-                    conn
-                );
-                cmd3.Parameters.AddWithValue("@dro_id", newId);
-                cmd3.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
-                cmd3.Parameters.AddWithValue("@mengingat", dto.Mengingat ?? "");
-                
-                await cmd3.ExecuteNonQueryAsync();
-            }
-
-            return newId;
-        }
-
-
-        public async Task<IEnumerable<DropOut>> GetAllAsync(string keyword, int page, int limit)
-        {
-            var list = new List<DropOut>();
-
-            try
-            {
-                Console.WriteLine($"DEBUG DropOut GetAllAsync - keyword: '{keyword}', page: {page}, limit: {limit}");
-                Console.WriteLine($"DEBUG DropOut GetAllAsync - Testing connection: {_conn?.Substring(0, Math.Min(50, _conn?.Length ?? 0))}...");
-
-                using var conn = new SqlConnection(_conn);
-                // Menggunakan sia_getDataRiwayatDO karena sia_getDataDropOut tidak ada
-                using var cmd = new SqlCommand("sia_getDataRiwayatDO", conn)
+                if (totalCount == 0 && reader["TotalCount"] != DBNull.Value)
                 {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                // Parameter sesuai dengan SP sia_getDataRiwayatDO:
-                // @p1 = username, @p2 = keyword, @p3 = sortBy, @p4 = konsentrasi, @p5 = role, @p6 = displayName
-                cmd.Parameters.AddWithValue("@p1", ""); // username - kosong untuk get all
-                cmd.Parameters.AddWithValue("@p2", keyword ?? ""); // keyword pencarian
-                cmd.Parameters.AddWithValue("@p3", "a.dro_created_date desc"); // sortBy
-                cmd.Parameters.AddWithValue("@p4", ""); // konsentrasi
-                cmd.Parameters.AddWithValue("@p5", ""); // role
-                cmd.Parameters.AddWithValue("@p6", ""); // displayName
-                
-                // Parameter p7-p50 wajib ada
-                for (int i = 7; i <= 50; i++)
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
-
-                Console.WriteLine($"DEBUG DropOut GetAllAsync - Parameters: @p1='', @p2='{keyword}', @p3='a.dro_created_date desc'");
-
-                await conn.OpenAsync();
-                Console.WriteLine("DEBUG DropOut GetAllAsync - Connection opened successfully");
-                
-                using var r = await cmd.ExecuteReaderAsync();
-                Console.WriteLine($"DEBUG DropOut GetAllAsync - Command executed, HasRows: {r.HasRows}");
-
-                int rowCount = 0;
-                while (await r.ReadAsync())
-                {
-                    rowCount++;
-                    if (rowCount <= 3)
-                        Console.WriteLine($"DEBUG DropOut GetAllAsync - Reading row {rowCount}");
-                    
-                    list.Add(new DropOut
-                    {
-                        Id = r["dro_id"]?.ToString() ?? "",
-                        MhsId = r["mhs_id"]?.ToString() ?? "",
-                        SrtNo = r["srt_no"]?.ToString() ?? "",
-                        Status = r["dro_status"]?.ToString() ?? "",
-                        CreatedBy = r["dro_created_by"]?.ToString() ?? ""
-                    });
+                    totalCount = Convert.ToInt32(reader["TotalCount"]);
                 }
 
-                Console.WriteLine($"DEBUG DropOut GetAllAsync - Total rows processed: {rowCount}, List count: {list.Count}");
-                return list;
+                var droId = reader["dro_id"]?.ToString() ?? string.Empty;
+                var noPengajuan = reader["dro_no_pengajuan"]?.ToString() ?? string.Empty;
+                var mhsId = reader["mhs_id"]?.ToString() ?? string.Empty;
+                var mhsNama = reader["mhs_nama"]?.ToString() ?? string.Empty;
+                var konNama = reader["kon_nama"]?.ToString() ?? string.Empty;
+                var proNama = reader["pro_nama"]?.ToString() ?? string.Empty;
+                var droStatus = reader["dro_status"]?.ToString() ?? string.Empty;
+                var createdBy = reader["dro_created_by"]?.ToString() ?? string.Empty;
+                var createdDate = reader["dro_created_date"] is DBNull
+                    ? string.Empty
+                    : Convert.ToDateTime(reader["dro_created_date"]).ToString("yyyy-MM-dd HH:mm");
+
+                list.Add(new DropOutPendingResponse
+                {
+                    Id = droId,
+                    DroId = droId,
+                    NoPengajuan = noPengajuan,
+                    SuratNo = noPengajuan,
+                    MhsId = mhsId,
+                    Mahasiswa = mhsNama,
+                    NamaMahasiswa = mhsNama,
+                    Konsentrasi = konNama,
+                    Prodi = proNama,
+                    CreatedDate = createdDate,
+                    TanggalPengajuan = createdDate,
+                    CreatedBy = createdBy,
+                    DibuatOleh = createdBy,
+                    Status = droStatus
+                });
             }
-            catch (SqlException sqlEx)
+
+            return (list, totalCount);
+        }
+
+        public async Task<IEnumerable<DropOutPendingResponse>> GetPendingAsync(
+            string username, string keyword, string sortBy, string konsentrasi, string role, string displayName)
+        {
+            var list = new List<DropOutPendingResponse>();
+
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetPendingAll", conn)
             {
-                Console.WriteLine($"SQL ERROR DropOut GetAllAsync: {sqlEx.Message}");
-                Console.WriteLine($"SQL ERROR Number: {sqlEx.Number}");
-                Console.WriteLine($"SQL ERROR State: {sqlEx.State}");
-                throw new Exception($"Database error in DropOut GetAllAsync: {sqlEx.Message} (Error Number: {sqlEx.Number})", sqlEx);
-            }
-            catch (Exception ex)
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@Username", username ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Keyword", keyword ?? string.Empty);
+            cmd.Parameters.AddWithValue("@SortBy", string.IsNullOrWhiteSpace(sortBy) ? "a.dro_created_date DESC" : sortBy);
+            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Role", role ?? string.Empty);
+            cmd.Parameters.AddWithValue("@DisplayName", displayName ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Status", string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
             {
-                Console.WriteLine($"ERROR DropOut GetAllAsync: {ex.Message}");
-                Console.WriteLine($"ERROR Stack: {ex.StackTrace}");
-                throw new Exception($"Error in DropOut GetAllAsync: {ex.Message}", ex);
+                var droId = reader["dro_id"]?.ToString() ?? string.Empty;
+                var noPengajuan = reader["dro_no_pengajuan"]?.ToString() ?? string.Empty;
+                var mhsId = reader["mhs_id"]?.ToString() ?? string.Empty;
+                var mhsNama = reader["mhs_nama"]?.ToString() ?? string.Empty;
+                var konNama = reader["kon_nama"]?.ToString() ?? string.Empty;
+                var proNama = reader["pro_nama"]?.ToString() ?? string.Empty;
+                var droStatus = reader["dro_status"]?.ToString() ?? string.Empty;
+                var createdBy = reader["dro_created_by"]?.ToString() ?? string.Empty;
+                var createdDate = reader["dro_created_date"] is DBNull
+                    ? string.Empty
+                    : Convert.ToDateTime(reader["dro_created_date"]).ToString("yyyy-MM-dd HH:mm");
+
+                list.Add(new DropOutPendingResponse
+                {
+                    Id = droId,
+                    DroId = droId,
+                    NoPengajuan = noPengajuan,
+                    SuratNo = noPengajuan,
+                    MhsId = mhsId,
+                    Mahasiswa = mhsNama,
+                    NamaMahasiswa = mhsNama,
+                    Konsentrasi = konNama,
+                    Prodi = proNama,
+                    CreatedDate = createdDate,
+                    TanggalPengajuan = createdDate,
+                    CreatedBy = createdBy,
+                    DibuatOleh = createdBy,
+                    Status = droStatus
+                });
             }
+
+            return list;
+        }
+
+        public async Task<(IEnumerable<DropOutRiwayatResponse> Data, int TotalData)> GetRiwayatPaginatedAsync(
+            string username, string keyword, string sortBy, string konsentrasi, string role, string displayName, string status, int page, int pageSize)
+        {
+            var list = new List<DropOutRiwayatResponse>();
+            int totalCount = 0;
+
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetRiwayat", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@Username", username ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Keyword", keyword ?? string.Empty);
+            cmd.Parameters.AddWithValue("@SortBy", string.IsNullOrWhiteSpace(sortBy) ? "a.dro_created_date DESC" : sortBy);
+            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Role", role ?? string.Empty);
+            cmd.Parameters.AddWithValue("@DisplayName", displayName ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Status", status ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Page", page < 1 ? 1 : page);
+            cmd.Parameters.AddWithValue("@PageSize", pageSize < 1 ? 10 : (pageSize > 100 ? 100 : pageSize));
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                if (totalCount == 0 && reader["TotalCount"] != DBNull.Value)
+                {
+                    totalCount = Convert.ToInt32(reader["TotalCount"]);
+                }
+
+                var droId = reader["dro_id"]?.ToString() ?? string.Empty;
+                var noPengajuan = reader["dro_no_pengajuan"]?.ToString() ?? string.Empty;
+                var mhsId = reader["mhs_id"]?.ToString() ?? string.Empty;
+                var mhsNama = reader["mhs_nama"]?.ToString() ?? string.Empty;
+                var konNama = reader["kon_nama"]?.ToString() ?? string.Empty;
+                var proNama = reader["pro_nama"]?.ToString() ?? string.Empty;
+                var droStatus = reader["dro_status"]?.ToString() ?? string.Empty;
+                var createdBy = reader["dro_created_by"]?.ToString() ?? string.Empty;
+                var sk = reader["dro_sk"]?.ToString() ?? string.Empty;
+                var createdDate = reader["dro_created_date"] is DBNull
+                    ? string.Empty
+                    : Convert.ToDateTime(reader["dro_created_date"]).ToString("yyyy-MM-dd HH:mm");
+
+                list.Add(new DropOutRiwayatResponse
+                {
+                    Id = droId,
+                    DroId = droId,
+                    MhsId = mhsId,
+                    TanggalPengajuan = createdDate,
+                    CreatedDate = createdDate,
+                    DibuatOleh = createdBy,
+                    CreatedBy = createdBy,
+                    NamaMahasiswa = mhsNama,
+                    Mahasiswa = mhsNama,
+                    Prodi = proNama,
+                    Konsentrasi = konNama,
+                    NoSkDo = sk,
+                    SuratNo = noPengajuan,
+                    Status = droStatus
+                });
+            }
+
+            return (list, totalCount);
+        }
+
+        public async Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
+            string username, string keyword, string sortBy, string konsentrasi, string role, string displayName)
+        {
+            var (data, _) = await GetRiwayatPaginatedAsync(
+                username, keyword, sortBy, konsentrasi, role, displayName, string.Empty, 1, 1000);
+            return data;
+        }
+
+        public async Task<IEnumerable<DropOutRiwayatExcelResponse>> GetRiwayatExcelAsync(
+            string username, string keyword, string sortBy, string konsentrasi, string role, string displayName)
+        {
+            var list = new List<DropOutRiwayatExcelResponse>();
+
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetExcelRiwayat", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@Username", username ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Keyword", keyword ?? string.Empty);
+            cmd.Parameters.AddWithValue("@SortBy", string.IsNullOrWhiteSpace(sortBy) ? "a.dro_created_date DESC" : sortBy);
+            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Role", role ?? string.Empty);
+            cmd.Parameters.AddWithValue("@DisplayName", displayName ?? string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                var createdDate = reader["dro_created_date"] is DBNull
+                    ? string.Empty
+                    : Convert.ToDateTime(reader["dro_created_date"]).ToString("yyyy-MM-dd HH:mm");
+
+                list.Add(new DropOutRiwayatExcelResponse
+                {
+                    NIM = reader["mhs_id"]?.ToString() ?? string.Empty,
+                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? string.Empty,
+                    Konsentrasi = reader["kon_nama"]?.ToString() ?? string.Empty,
+                    TanggalPengajuan = createdDate,
+                    NoSK = reader["dro_sk"]?.ToString() ?? string.Empty,
+                    NoPengajuan = reader["dro_no_pengajuan"]?.ToString() ?? string.Empty
+                });
+            }
+
+            return list;
         }
 
         public async Task<DropOutDetailResponse?> GetDetailAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_detailDO", conn)
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetById", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            cmd.Parameters.AddWithValue("@dro_id", id);
+            cmd.Parameters.AddWithValue("@DroId", id ?? string.Empty);
 
             await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
-            if (!reader.Read())
+            if (!await reader.ReadAsync())
                 return null;
+
+            var droId = reader["dro_id"]?.ToString() ?? string.Empty;
+            var noPengajuan = reader["dro_no_pengajuan"]?.ToString() ?? string.Empty;
+            var mhsId = reader["mhs_id"]?.ToString() ?? string.Empty;
+            var mhsNama = reader["mhs_nama"]?.ToString() ?? string.Empty;
+            var konNama = reader["kon_nama"]?.ToString() ?? string.Empty;
+            var proNama = reader["pro_nama"]?.ToString() ?? string.Empty;
+            var angkatan = reader["mhs_angkatan"]?.ToString() ?? string.Empty;
+            var email = reader["mhs_email"]?.ToString() ?? string.Empty;
+            var menimbang = reader["dro_menimbang"]?.ToString() ?? string.Empty;
+            var mengingat = reader["dro_mengingat"]?.ToString() ?? string.Empty;
+            var lampiran = reader["dro_lampiran"]?.ToString() ?? string.Empty;
+            var lampiranSurat = reader["dro_lampiran_surat_pengajuan"]?.ToString() ?? string.Empty;
+            var status = reader["dro_status"]?.ToString() ?? string.Empty;
+            var createdBy = reader["dro_created_by"]?.ToString() ?? string.Empty;
+            var sk = reader["dro_sk"]?.ToString() ?? string.Empty;
+            var skpb = reader["dro_skpb"]?.ToString() ?? string.Empty;
+            var alasanTolak = reader["dro_alasan_tolak"]?.ToString() ?? string.Empty;
+            var catatanWadir1 = reader["dro_catatan_wadir1"]?.ToString() ?? string.Empty;
+            var catatanDirektur = reader["dro_catatan_direktur"]?.ToString() ?? string.Empty;
+
+            var createdDate = reader["dro_created_date"] is DBNull
+                ? string.Empty
+                : Convert.ToDateTime(reader["dro_created_date"]).ToString("yyyy-MM-dd HH:mm");
+            var accWadir1Date = reader["dro_tgl_acc_wadir1"] is DBNull
+                ? string.Empty
+                : Convert.ToDateTime(reader["dro_tgl_acc_wadir1"]).ToString("yyyy-MM-dd HH:mm");
+            var accDirDate = reader["dro_tgl_acc_direktur"] is DBNull
+                ? string.Empty
+                : Convert.ToDateTime(reader["dro_tgl_acc_direktur"]).ToString("yyyy-MM-dd HH:mm");
 
             return new DropOutDetailResponse
             {
-                Id = reader["dro_id"]?.ToString() ?? "",
-                MhsId = reader["mhs_id"]?.ToString() ?? "",
-                MhsText = reader["mhstext"]?.ToString() ?? "",
-                Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
-                Angkatan = reader["mhs_angkatan"]?.ToString() ?? "",
-                Menimbang = reader["dro_menimbang"]?.ToString() ?? "",
-                Mengingat = reader["dro_mengingat"]?.ToString() ?? "",
-                Status = reader["dro_status"]?.ToString() ?? "",
-                CreatedBy = reader["dro_created_by"]?.ToString() ?? "",
-                Sk = reader["dro_sk"]?.ToString() ?? "",
-                ApproveWadir1Date = reader["dro_appr_wadir1_date"]?.ToString() ?? "",
-                ApproveWadir1By = reader["dro_appr_wadir1"]?.ToString() ?? "",
-                ApproveDirDate = reader["dro_appr_dir_date"]?.ToString() ?? "",
-                ApproveDirBy = reader["dro_appr_dir"]?.ToString() ?? "",
-                AlasanTolak = reader["dro_alasan_tolak"]?.ToString() ?? "",
-                Konsentrasi2 = reader["kon_nama2"]?.ToString() ?? "",
-                Prodi = reader["pro_nama"]?.ToString() ?? "",
-                SuratKeteranganNo = reader["dro_srt_ket_no"]?.ToString() ?? ""
+                Id = droId,
+                DroId = droId,
+                NoPengajuan = noPengajuan,
+                MhsId = mhsId,
+                MhsText = $"{mhsId} - {mhsNama}",
+                NamaMahasiswa = mhsNama,
+                Konsentrasi = konNama,
+                Prodi = proNama,
+                Angkatan = angkatan,
+                Email = email,
+                Menimbang = menimbang,
+                Mengingat = mengingat,
+                Lampiran = lampiran,
+                LampiranSuratPengajuan = lampiranSurat,
+                Status = status,
+                CreatedBy = createdBy,
+                CreatedDate = createdDate,
+                Sk = sk,
+                Skpb = skpb,
+                ApproveWadir1Date = accWadir1Date,
+                ApproveWadir1By = catatanWadir1,
+                ApproveDirDate = accDirDate,
+                ApproveDirBy = catatanDirektur,
+                AlasanTolak = alasanTolak,
+                CatatanWadir1 = catatanWadir1,
+                CatatanDirektur = catatanDirektur,
+                SuratKeteranganNo = noPengajuan
             };
-        }
-
-
-
-        // Helper method to safely read column value
-        private string SafeGetString(IDataReader reader, string columnName)
-        {
-            try
-            {
-                var ordinal = reader.GetOrdinal(columnName);
-                return reader.IsDBNull(ordinal) ? "" : reader.GetString(ordinal);
-            }
-            catch
-            {
-                return "";
-            }
-        }
-
-        private DateTime? SafeGetDateTime(IDataReader reader, string columnName)
-        {
-            try
-            {
-                var ordinal = reader.GetOrdinal(columnName);
-                return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         public async Task<DropOut?> GetByIdAsync(string id)
         {
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_detailDO", conn)
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetById", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            cmd.Parameters.AddWithValue("@dro_id", id);
+            cmd.Parameters.AddWithValue("@DroId", id ?? string.Empty);
 
             await conn.OpenAsync();
-            using var r = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
-            if (!await r.ReadAsync())
+            if (!await reader.ReadAsync())
                 return null;
 
             return new DropOut
             {
-                Id = SafeGetString(r, "dro_id"),
-                MhsId = SafeGetString(r, "mhs_id"),
-                Menimbang = SafeGetString(r, "dro_menimbang"),
-                Mengingat = SafeGetString(r, "dro_mengingat"),
-                ApproveWadir1 = SafeGetString(r, "dro_appr_wadir1"),
-                ApproveWadir1Date = SafeGetDateTime(r, "dro_appr_wadir1_date"),
-                ApproveDir = SafeGetString(r, "dro_appr_dir"),
-                ApproveDirDate = SafeGetDateTime(r, "dro_appr_dir_date"),
-                SrtNo = SafeGetString(r, "srt_no"),
-                SrtKetNo = SafeGetString(r, "dro_srt_ket_no"),
-                Sk = SafeGetString(r, "dro_sk"),
-                Skpb = SafeGetString(r, "dro_skpb"),
-                AlasanTolak = SafeGetString(r, "dro_alasan_tolak"),
-                Status = SafeGetString(r, "dro_status"),
-                CreatedBy = SafeGetString(r, "dro_created_by"),
-                CreatedDate = SafeGetDateTime(r, "dro_created_date"),
-                ModifiedBy = SafeGetString(r, "dro_modif_by"),
-                ModifiedDate = SafeGetDateTime(r, "dro_modif_date")
+                Id = reader["dro_id"]?.ToString() ?? string.Empty,
+                NoPengajuan = reader["dro_no_pengajuan"]?.ToString() ?? string.Empty,
+                MhsId = reader["mhs_id"]?.ToString() ?? string.Empty,
+                MhsNama = reader["mhs_nama"]?.ToString() ?? string.Empty,
+                MhsAngkatan = reader["mhs_angkatan"]?.ToString() ?? string.Empty,
+                MhsEmail = reader["mhs_email"]?.ToString() ?? string.Empty,
+                KonId = reader["kon_id"]?.ToString() ?? string.Empty,
+                KonNama = reader["kon_nama"]?.ToString() ?? string.Empty,
+                ProId = reader["pro_id"]?.ToString() ?? string.Empty,
+                ProNama = reader["pro_nama"]?.ToString() ?? string.Empty,
+                Menimbang = reader["dro_menimbang"]?.ToString() ?? string.Empty,
+                Mengingat = reader["dro_mengingat"]?.ToString() ?? string.Empty,
+                Lampiran = reader["dro_lampiran"]?.ToString() ?? string.Empty,
+                LampiranSuratPengajuan = reader["dro_lampiran_surat_pengajuan"]?.ToString() ?? string.Empty,
+                Sk = reader["dro_sk"]?.ToString() ?? string.Empty,
+                Skpb = reader["dro_skpb"]?.ToString() ?? string.Empty,
+                CatatanWadir1 = reader["dro_catatan_wadir1"]?.ToString() ?? string.Empty,
+                CatatanDirektur = reader["dro_catatan_direktur"]?.ToString() ?? string.Empty,
+                TglAccWadir1 = reader["dro_tgl_acc_wadir1"] is DBNull ? null : Convert.ToDateTime(reader["dro_tgl_acc_wadir1"]),
+                TglAccDirektur = reader["dro_tgl_acc_direktur"] is DBNull ? null : Convert.ToDateTime(reader["dro_tgl_acc_direktur"]),
+                AlasanTolak = reader["dro_alasan_tolak"]?.ToString() ?? string.Empty,
+                Status = reader["dro_status"]?.ToString() ?? string.Empty,
+                CreatedBy = reader["dro_created_by"]?.ToString() ?? string.Empty,
+                CreatedDate = reader["dro_created_date"] is DBNull ? null : Convert.ToDateTime(reader["dro_created_date"]),
+                ModifiedBy = reader["dro_updated_by"]?.ToString() ?? string.Empty,
+                ModifiedDate = reader["dro_updated_date"] is DBNull ? null : Convert.ToDateTime(reader["dro_updated_date"])
             };
         }
 
-        public async Task<bool> UpdateAsync(string id, UpdateDropOutRequest dto, string updatedBy)
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_editDO", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                cmd.Parameters.AddWithValue("@dro_id", id);
-                cmd.Parameters.AddWithValue("@dro_menimbang", dto.Menimbang ?? "");
-                cmd.Parameters.AddWithValue("@dro_mengingat", dto.Mengingat ?? "");
-                cmd.Parameters.AddWithValue("@dro_modif_by", updatedBy);
-
-                await conn.OpenAsync();
-                await cmd.ExecuteNonQueryAsync();
-
-                return true; // SP legacy dengan SET NOCOUNT ON tidak return rows
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-
-
-        public async Task<bool> DeleteAsync(string id)
+        public async Task<(bool Success, string Message, string? NewId)> CreatePengajuanDOAsync(
+            CreatePengajuanDORequest dto, string createdBy)
         {
             await using var conn = new SqlConnection(_conn);
-            await conn.OpenAsync();
-
-            // 1️⃣ Cek dulu data ada atau tidak
-            var checkCmd = new SqlCommand(
-                "SELECT COUNT(*) FROM sia_msdropout WHERE dro_id = @id",
-                conn
-            );
-            checkCmd.Parameters.AddWithValue("@id", id);
-
-            var exists = (int)await checkCmd.ExecuteScalarAsync();
-            if (exists == 0)
-                return false;
-
-            // 2️⃣ Baru delete
-            await using var deleteCmd = new SqlCommand("sia_deleteDropOut", conn)
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_CreatePengajuan", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            deleteCmd.Parameters.AddWithValue("@dro_id", id);
-
-            await deleteCmd.ExecuteNonQueryAsync();
-
-            return true;
-        }
-
-        public async Task<bool> ApproveByWadirAsync(string id, ApproveDropOutRequest dto)
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-
-                // Jalankan SP approve langsung
-                await using var cmd = new SqlCommand("sia_approveDropOut", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                cmd.Parameters.AddWithValue("@dro_id", id);
-                cmd.Parameters.AddWithValue("@username", dto.Username);
-
-                await cmd.ExecuteNonQueryAsync();
-
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-
-        public async Task<string?> CheckReportAsync(string id)
-        {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_checkReportDropOut", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@dro_id", id);
-
-            await conn.OpenAsync();
-            var result = await cmd.ExecuteScalarAsync();
-
-            return result?.ToString();
-        }
-
-        public async Task<DropOutReportSuketResponse?> GetReportSuketAsync(string suratNo)
-        {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_detailReportDOSuket", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@p1", suratNo);
+            cmd.Parameters.AddWithValue("@MhsId", dto.MhsId ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Mengingat", dto.Mengingat ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Lampiran", dto.Lampiran ?? string.Empty);
+            cmd.Parameters.AddWithValue("@LampiranSurat", dto.LampiranSuratPengajuan ?? string.Empty);
+            cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? string.Empty);
 
             await conn.OpenAsync();
             await using var reader = await cmd.ExecuteReaderAsync();
 
-            if (!await reader.ReadAsync())
-                return null;
-
-            return new DropOutReportSuketResponse
+            if (await reader.ReadAsync())
             {
-                Nama = reader.GetString(0),
-                Konsentrasi = reader.GetString(1),
-                Angkatan = reader.GetString(2),
-                SuratNo = reader.GetString(3),
-                TanggalLahir = reader.GetString(4),
-                TanggalLahirID = reader.GetString(5),
-                Alamat = reader.GetString(6),
-                KodePos = reader.GetString(7),
-                Prodi = reader.GetString(8),
-                Kaprodi = reader.GetString(9),
-                Direktur = reader.GetString(10),
-                Wadir1 = reader.GetString(11),
-                Wadir2 = reader.GetString(12),
-                Wadir3 = reader.GetString(13),
-                Tingkat = reader.GetString(14),
-                Semester = reader.GetInt32(15),
-                TahunAjaran = reader.GetString(16),
-                SemesterText = reader.GetString(17),
-                StatusKuliah = reader.GetString(18),
-                TahunLulus = reader.IsDBNull(19) ? "" : reader.GetString(19),
-                TempatLahir = reader.GetString(20),
-                MhsId = reader.GetString(21)
+                var resultCode = Convert.ToInt32(reader["ResultCode"]);
+                var message = reader["Message"]?.ToString() ?? string.Empty;
+                var droId = reader["DroId"]?.ToString();
+
+                return (resultCode > 0, message, droId);
+            }
+
+            return (false, "Gagal membuat pengajuan Drop Out.", null);
+        }
+
+        public async Task<(bool Success, string Message)> UpdateAsync(
+            string id, UpdateDropOutRequest dto, string updatedBy)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_Update", conn)
+            {
+                CommandType = CommandType.StoredProcedure
             };
+
+            cmd.Parameters.AddWithValue("@DroId", id ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Mengingat", dto.Mengingat ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Lampiran", dto.Lampiran ?? string.Empty);
+            cmd.Parameters.AddWithValue("@LampiranSurat", dto.LampiranSuratPengajuan ?? string.Empty);
+            cmd.Parameters.AddWithValue("@ModifiedBy", updatedBy ?? string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                var resultCode = Convert.ToInt32(reader["ResultCode"]);
+                var message = reader["Message"]?.ToString() ?? string.Empty;
+                return (resultCode > 0, message);
+            }
+
+            return (false, "Gagal memperbarui pengajuan.");
+        }
+
+        public async Task<(bool Success, string Message, string? NoPengajuan)> SubmitDraftAsync(
+            string id, string submittedBy)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_Submit", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@DroId", id ?? string.Empty);
+            cmd.Parameters.AddWithValue("@SubmittedBy", submittedBy ?? string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                var resultCode = Convert.ToInt32(reader["ResultCode"]);
+                var message = reader["Message"]?.ToString() ?? string.Empty;
+                var noPengajuan = reader["NoPengajuan"]?.ToString();
+
+                return (resultCode > 0, message, noPengajuan);
+            }
+
+            return (false, "Gagal mengajukan pengajuan Drop Out.", null);
+        }
+
+        public async Task<(bool Success, string Message)> ApproveAsync(
+            string id, string role, string catatan, string approvedBy)
+        {
+            // Ambil detail untuk menentukan level persetujuan (Wadir 1 atau Direktur)
+            var detail = await GetByIdAsync(id);
+            if (detail == null)
+                return (false, "Data Drop Out tidak ditemukan.");
+
+            string spName = detail.Status == "Belum Disetujui Direktur" || role == "ROL03"
+                ? "dbo.SP_DropOut_SetujuiDirektur"
+                : "dbo.SP_DropOut_SetujuiWadir1";
+
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand(spName, conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@DroId", id ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Catatan", catatan ?? string.Empty);
+            cmd.Parameters.AddWithValue("@UpdatedBy", approvedBy ?? string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                var resultCode = Convert.ToInt32(reader["ResultCode"]);
+                var message = reader["Message"]?.ToString() ?? string.Empty;
+                return (resultCode > 0, message);
+            }
+
+            return (false, "Gagal menyetujui pengajuan.");
+        }
+
+        public async Task<(bool Success, string Message)> RejectAsync(
+            string id, string catatan, string rejectedBy)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_Tolak", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@DroId", id ?? string.Empty);
+            cmd.Parameters.AddWithValue("@Catatan", catatan ?? string.Empty);
+            cmd.Parameters.AddWithValue("@UpdatedBy", rejectedBy ?? string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                var resultCode = Convert.ToInt32(reader["ResultCode"]);
+                var message = reader["Message"]?.ToString() ?? string.Empty;
+                return (resultCode > 0, message);
+            }
+
+            return (false, "Gagal menolak pengajuan.");
+        }
+
+        public async Task<(bool Success, string Message)> UploadSKDOAsync(UploadSKDORequest request)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_UploadSK", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@DroId", request.DroId ?? string.Empty);
+            cmd.Parameters.AddWithValue("@SkFile", request.SK ?? string.Empty);
+            cmd.Parameters.AddWithValue("@SkpbFile", request.SKPB ?? string.Empty);
+            cmd.Parameters.AddWithValue("@UpdatedBy", request.ModifiedBy ?? string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                var resultCode = Convert.ToInt32(reader["ResultCode"]);
+                var message = reader["Message"]?.ToString() ?? string.Empty;
+                return (resultCode > 0, message);
+            }
+
+            return (false, "Gagal menyimpan berkas SK.");
+        }
+
+        public async Task<(bool Success, string Message)> DeleteAsync(string id, string deletedBy)
+        {
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_Delete", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+            cmd.Parameters.AddWithValue("@DroId", id ?? string.Empty);
+            cmd.Parameters.AddWithValue("@DeletedBy", deletedBy ?? string.Empty);
+
+            await conn.OpenAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                var resultCode = Convert.ToInt32(reader["ResultCode"]);
+                var message = reader["Message"]?.ToString() ?? string.Empty;
+                return (resultCode > 0, message);
+            }
+
+            return (false, "Gagal menghapus pengajuan.");
         }
 
         public async Task<DropOutDownloadSkResponse?> DownloadSKAsync(string droId)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_downloadSKDO", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@dro_id", droId);
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            if (!await reader.ReadAsync())
-                return null;
+            var detail = await GetByIdAsync(droId);
+            if (detail == null) return null;
 
             return new DropOutDownloadSkResponse
             {
-                Sk = reader.IsDBNull(0) ? "" : reader.GetString(0),
-                Skpb = reader.IsDBNull(1) ? "" : reader.GetString(1)
+                Sk = detail.Sk,
+                Skpb = detail.Skpb
             };
         }
 
-        //    public async Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
-        //string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi)
-        //    {
-        //        var result = new List<DropOutRiwayatResponse>();
-
-        //        await using var conn = new SqlConnection(_conn);
-        //        await using var cmd = new SqlCommand("sia_getDataRiwayatDO", conn)
-        //        {
-        //            CommandType = CommandType.StoredProcedure
-        //        };
-
-        //        cmd.Parameters.AddWithValue("@p1", username);
-        //        cmd.Parameters.AddWithValue("@p2", keyword);
-        //        cmd.Parameters.AddWithValue("@p3", sortBy);
-        //        cmd.Parameters.AddWithValue("@p4", konsentrasi);
-        //        cmd.Parameters.AddWithValue("@p5", role);
-        //        cmd.Parameters.AddWithValue("@p6", sekprodi);
-
-        //        // sisanya p7 - p50 = "" (kosong)
-        //        for (int i = 7; i <= 50; i++)
-        //        {
-        //            cmd.Parameters.AddWithValue($"@p{i}", "");
-        //        }
-
-        //        await conn.OpenAsync();
-        //        using var reader = await cmd.ExecuteReaderAsync();
-
-        //        while (await reader.ReadAsync())
-        //        {
-        //            result.Add(new DropOutRiwayatResponse
-        //            {
-        //                Id = reader["dro_id"].ToString(),
-        //                MhsId = reader["mhs_id"].ToString(),
-        //                Mahasiswa = reader["mhs_nama"].ToString(),
-        //                Konsentrasi = reader["kon_nama"].ToString(),
-        //                Tanggal = reader["dro_created_date"].ToString(),
-        //                CreatedBy = reader["dro_created_by"].ToString(),
-        //                SuratNo = reader["srt_no"].ToString(),
-        //                Status = reader["dro_status"].ToString()
-        //            });
-        //        }
-
-        //        return result;
-        //    }
-
-
-        public async Task<IEnumerable<DropOutRiwayatResponse>> GetRiwayatAsync(
-     string username,
-     string keyword,
-     string sortBy,
-     string konsentrasi,
-     string role,
-     string displayName)
-        {
-            var result = new List<DropOutRiwayatResponse>();
-
-            Console.WriteLine($"DEBUG GetRiwayatAsync - username: '{username}', keyword: '{keyword}', sortBy: '{sortBy}'");
-            Console.WriteLine($"DEBUG GetRiwayatAsync - konsentrasi: '{konsentrasi}', role: '{role}', displayName: '{displayName}'");
-
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_getDataRiwayatDO", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                // Parameter sesuai SP yang baru
-                cmd.Parameters.AddWithValue("@username", username ?? "");
-                cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
-                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting
-                cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
-                cmd.Parameters.AddWithValue("@role_id", role ?? "");
-                cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
-                cmd.Parameters.AddWithValue("@status", "");  // Empty = all status
-                cmd.Parameters.AddWithValue("@Page", DBNull.Value);  // NULL = no pagination
-                cmd.Parameters.AddWithValue("@PageSize", DBNull.Value);  // NULL = no pagination
-
-                await conn.OpenAsync();
-                Console.WriteLine("DEBUG GetRiwayatAsync - Connection opened, executing SP...");
-                
-                using var reader = await cmd.ExecuteReaderAsync();
-                Console.WriteLine($"DEBUG GetRiwayatAsync - SP executed, HasRows: {reader.HasRows}");
-
-                int rowCount = 0;
-                while (await reader.ReadAsync())
-                {
-                    rowCount++;
-                    
-                    // SP return mhs_nama dalam format "mhs_id - nama_lengkap"
-                    var mhsNamaFull = reader["mhs_nama"]?.ToString() ?? "";
-                    var mhsId = reader["mhs_id"]?.ToString() ?? "";
-                    
-                    // Split untuk mendapatkan nama saja (tanpa mhs_id)
-                    var namaSaja = mhsNamaFull;
-                    if (mhsNamaFull.Contains(" - "))
-                    {
-                        var parts = mhsNamaFull.Split(new[] { " - " }, 2, StringSplitOptions.None);
-                        if (parts.Length > 1)
-                            namaSaja = parts[1];
-                    }
-                    
-                    result.Add(new DropOutRiwayatResponse
-                    {
-                        DroId = reader["dro_id"]?.ToString() ?? "",
-                        TanggalPengajuan = reader["dro_created_date"]?.ToString() ?? "",
-                        DibuatOleh = reader["dro_created_by"]?.ToString() ?? "",
-                        MhsId = mhsId,
-                        NamaMahasiswa = namaSaja,
-                        Prodi = reader["kon_nama"]?.ToString() ?? "",
-                        NoSkDo = reader["srt_no"]?.ToString() ?? "",
-                        Status = reader["dro_status"]?.ToString() ?? ""
-                    });
-                }
-
-                Console.WriteLine($"DEBUG GetRiwayatAsync - Total rows: {rowCount}");
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ERROR GetRiwayatAsync: {ex.Message}");
-                Console.WriteLine($"ERROR Stack: {ex.StackTrace}");
-                throw;
-            }
-        }
-
-
-        public async Task<PaginatedResponse<DropOutRiwayatResponse>> GetRiwayatPaginatedAsync(
-            string username,
-            string keyword,
-            string sortBy,
-            string konsentrasi,
-            string role,
-            string displayName,
-            string status,
-            int page,
-            int pageSize)
-        {
-            var result = new List<DropOutRiwayatResponse>();
-            int totalRecords = 0;
-
-            Console.WriteLine($"=== DEBUG GetRiwayatPaginatedAsync START ===");
-            Console.WriteLine($"Parameters: page={page}, pageSize={pageSize}");
-            Console.WriteLine($"sortBy: '{sortBy}'");
-            Console.WriteLine($"username: '{username}', keyword: '{keyword}'");
-            Console.WriteLine($"status: '{status}'");
-
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_getDataRiwayatDO", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                // Parameter sesuai SP yang baru (dengan ROW_NUMBER dan Count column)
-                cmd.Parameters.AddWithValue("@username", username ?? "");
-                cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
-                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting
-                cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
-                cmd.Parameters.AddWithValue("@role_id", role ?? "");
-                cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
-                cmd.Parameters.AddWithValue("@status", status ?? "");  // Multiple status support
-                
-                // Pagination parameters
-                cmd.Parameters.AddWithValue("@Page", page);
-                cmd.Parameters.AddWithValue("@PageSize", pageSize);
-
-                Console.WriteLine($"Calling SP: sia_getDataRiwayatDO with sortBy='{sortBy ?? ""}'");
-
-                await conn.OpenAsync();
-                using var reader = await cmd.ExecuteReaderAsync();
-
-                int rowNum = 0;
-                while (await reader.ReadAsync())
-                {
-                    rowNum++;
-                    
-                    // Ambil total records dari kolom Count (ada di setiap row)
-                    if (totalRecords == 0 && reader["Count"] != DBNull.Value)
-                    {
-                        totalRecords = Convert.ToInt32(reader["Count"]);
-                    }
-
-                    var droId = reader["dro_id"]?.ToString() ?? "";
-                    var tanggal = reader["dro_created_date"]?.ToString() ?? "";
-                    
-                    // Log first 3 rows untuk debug
-                    if (rowNum <= 3)
-                    {
-                        Console.WriteLine($"Row {rowNum}: dro_id={droId}, date={tanggal}");
-                    }
-
-                    var mhsNamaFull = reader["mhs_nama"]?.ToString() ?? "";
-                    var mhsId = reader["mhs_id"]?.ToString() ?? "";
-                    
-                    var namaSaja = mhsNamaFull;
-                    if (mhsNamaFull.Contains(" - "))
-                    {
-                        var parts = mhsNamaFull.Split(new[] { " - " }, 2, StringSplitOptions.None);
-                        if (parts.Length > 1)
-                            namaSaja = parts[1];
-                    }
-                    
-                    result.Add(new DropOutRiwayatResponse
-                    {
-                        DroId = droId,
-                        TanggalPengajuan = tanggal,
-                        DibuatOleh = reader["dro_created_by"]?.ToString() ?? "",
-                        MhsId = mhsId,
-                        NamaMahasiswa = namaSaja,
-                        Prodi = reader["kon_nama"]?.ToString() ?? "",
-                        NoSkDo = reader["srt_no"]?.ToString() ?? "",
-                        Status = reader["dro_status"]?.ToString() ?? ""
-                    });
-                }
-
-                Console.WriteLine($"Total rows from SP: {rowNum}, Total records: {totalRecords}");
-                Console.WriteLine($"=== DEBUG GetRiwayatPaginatedAsync END ===");
-
-                return new PaginatedResponse<DropOutRiwayatResponse>
-                {
-                    Data = result,
-                    Pagination = new PaginationInfo
-                    {
-                        CurrentPage = page,
-                        PageSize = pageSize,
-                        TotalRecords = totalRecords,
-                        TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize)
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ERROR GetRiwayatPaginatedAsync: {ex.Message}");
-                Console.WriteLine($"ERROR Stack: {ex.StackTrace}");
-                throw;
-            }
-        }
-
-
-        public async Task<IEnumerable<DropOutRiwayatExcelResponse>> GetRiwayatExcelAsync(
-        string username, string keyword, string sortBy, string konsentrasi, string role, string sekprodi)
-        {
-            var result = new List<DropOutRiwayatExcelResponse>();
-
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataRiwayatDOExcel", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@username", username);
-            cmd.Parameters.AddWithValue("@keyword", keyword);
-            cmd.Parameters.AddWithValue("@sort_by", sortBy);
-            cmd.Parameters.AddWithValue("@kon_id", konsentrasi);
-            cmd.Parameters.AddWithValue("@role_id", role);
-            cmd.Parameters.AddWithValue("@display_name", sekprodi);
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                result.Add(new DropOutRiwayatExcelResponse
-                {
-                    NIM = reader["NIM"].ToString(),
-                    NamaMahasiswa = reader["Nama Mahasiswa"].ToString(),
-                    Konsentrasi = reader["Konsenstrasi"].ToString(),
-                    TanggalPengajuan = reader["Tanggal Pengajuan"].ToString(),
-                    NoSK = reader["No SK"].ToString(),
-                    NoPengajuan = reader["No Pengajuan"].ToString()
-                });
-            }
-
-            return result;
-        }
-
-        public async Task<DropOutGetIdByDraftResponse?> GetIdByDraftAsync(string id)
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-                
-                // First call: Execute SP to do UPDATE
-                await using var cmdExecute = new SqlCommand("sia_getIdDOByDraft", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-                cmdExecute.Parameters.AddWithValue("@dro_id_draft", id);
-                
-                // Execute and consume result to ensure UPDATE is committed
-                string newId;
-                using (var reader = await cmdExecute.ExecuteReaderAsync())
-                {
-                    if (!await reader.ReadAsync())
-                    {
-                        return null;
-                    }
-                    
-                    newId = reader[0]?.ToString() ?? "";
-                    
-                    if (newId.StartsWith("ERROR:"))
-                    {
-                        throw new InvalidOperationException(newId.Replace("ERROR: ", ""));
-                    }
-                }
-                
-                // Second call: Verify the update by querying directly
-                await using var cmdVerify = new SqlCommand(
-                    "SELECT dro_id, dro_status FROM sia_msdropout WHERE dro_id = @id", 
-                    conn
-                );
-                cmdVerify.Parameters.AddWithValue("@id", newId);
-                
-                using (var verifyReader = await cmdVerify.ExecuteReaderAsync())
-                {
-                    if (await verifyReader.ReadAsync())
-                    {
-                        var status = verifyReader["dro_status"]?.ToString();
-                        // Log for debugging
-                        Console.WriteLine($"Verified - ID: {newId}, Status: {status}");
-                    }
-                }
-                
-                return new DropOutGetIdByDraftResponse
-                {
-                    Id = newId
-                };
-            }
-            catch (InvalidOperationException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error in GetIdByDraftAsync: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<bool> RejectByWadirAsync(string id, RejectDropOutRequest dto)
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-
-                // Jalankan SP reject langsung
-                await using var cmd = new SqlCommand("sia_rejectDropOut", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                cmd.Parameters.AddWithValue("@dro_id", id);
-                cmd.Parameters.AddWithValue("@username", dto.Username);
-                cmd.Parameters.AddWithValue("@alasan_tolak", dto.Reason);
-
-                await cmd.ExecuteNonQueryAsync();
-
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-
-
-
-        public async Task<SKDOReportResponse?> GetReportSKDOAsync(string id)
-        {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_reportSKDO", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@dro_id", id);
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            if (!reader.Read())
-                return null;
-
-            return new SKDOReportResponse
-            {
-                DropOutId = reader["dro_id"].ToString(),
-                SuratNo = reader["srt_no"].ToString(),
-                Menimbang = reader["dro_menimbang"].ToString(),
-                Mengingat = reader["dro_mengingat"].ToString(),
-                MahasiswaNama = reader["mhs_nama"].ToString(),
-                MahasiswaId = reader["mhs_id"].ToString(),
-                ProdiNama = reader["pro_nama"].ToString(),
-                KonsentrasiNama = reader["kon_nama"].ToString(),
-                TahunAjaran = reader["srt_tahun_ajaran"].ToString(),
-                Direktur = reader["direktur"].ToString(),
-                Wadir1 = reader["wadir1"].ToString(),
-                Kaprodi = reader["kaprod"].ToString()
-            };
-        }
-
-        public async Task<List<SKDOReportSubResponse>> GetReportSKDOSubAsync(string id)
-        {
-            var result = new List<SKDOReportSubResponse>();
-
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_reportSKDOsub", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@dro_id", id);
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                result.Add(new SKDOReportSubResponse
-                {
-                    DropOutId = reader["dro_id"].ToString(),
-                    Jenis = reader["jenis"].ToString(),
-                    Isi = reader["isi"].ToString()
-                });
-            }
-
-            return result;
-        }
-
-        public async Task<bool> UploadSKDOAsync(UploadSKDORequest request)
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_uploadSKDO", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                cmd.Parameters.AddWithValue("@dro_id", request.DroId);
-                cmd.Parameters.AddWithValue("@dro_sk", request.SK);
-                cmd.Parameters.AddWithValue("@dro_skpb", request.SKPB);
-                cmd.Parameters.AddWithValue("@dro_modif_by", request.ModifiedBy);
-
-                await conn.OpenAsync();
-                await cmd.ExecuteNonQueryAsync();
-
-                return true; // SP legacy dengan SET NOCOUNT ON tidak return rows
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        public async Task<IEnumerable<DropOutPendingResponse>> GetPendingAsync(
-    string username,
-    string keyword,
-    string sortBy,
-    string konsentrasi,
-    string role,
-    string displayName)
-        {
-            var result = new List<DropOutPendingResponse>();
-
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_getDataPendingDO", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            // Parameter sesuai SP yang baru
-            cmd.Parameters.AddWithValue("@username", username ?? "");
-            cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
-            cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting (Draft/Revisi on top)
-            cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
-            cmd.Parameters.AddWithValue("@role_id", role ?? "");
-            cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
-            cmd.Parameters.AddWithValue("@status", "");  // Empty = all status
-            cmd.Parameters.AddWithValue("@Page", DBNull.Value);  // NULL = no pagination
-            cmd.Parameters.AddWithValue("@PageSize", DBNull.Value);  // NULL = no pagination
-
-            await conn.OpenAsync();
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                result.Add(new DropOutPendingResponse
-                {
-                    Id = reader["dro_id"]?.ToString() ?? "",
-                    MhsId = reader["mhs_id"]?.ToString() ?? "",
-                    Mahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                    Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
-                    CreatedDate = reader["dro_created_date"]?.ToString() ?? "",
-                    CreatedBy = reader["dro_created_by"]?.ToString() ?? "",
-                    SuratNo = reader["srt_no"]?.ToString() ?? "",
-                    Status = reader["dro_status"]?.ToString() ?? ""
-                });
-            }
-
-            return result;
-        }
-
-        public async Task<PaginatedResponse<DropOutPendingResponse>> GetPendingPaginatedAsync(
-            string username,
-            string keyword,
-            string sortBy,
-            string konsentrasi,
-            string role,
-            string displayName,
-            string status,
-            int page,
-            int pageSize)
-        {
-            var result = new List<DropOutPendingResponse>();
-            int totalRecords = 0;
-
-            Console.WriteLine($"DEBUG GetPendingPaginatedAsync - page: {page}, pageSize: {pageSize}, status: '{status}'");
-
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_getDataPendingDO", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                // Parameter sesuai SP yang baru (dengan ROW_NUMBER dan Count column)
-                cmd.Parameters.AddWithValue("@username", username ?? "");
-                cmd.Parameters.AddWithValue("@keyword", keyword ?? "");
-                cmd.Parameters.AddWithValue("@sort_by", sortBy ?? "");  // Empty = default sorting (Draft/Revisi on top)
-                cmd.Parameters.AddWithValue("@kon_id", konsentrasi ?? "");
-                cmd.Parameters.AddWithValue("@role_id", role ?? "");
-                cmd.Parameters.AddWithValue("@display_name", displayName ?? "");
-                cmd.Parameters.AddWithValue("@status", status ?? "");  // Multiple status support
-                
-                // Pagination parameters
-                cmd.Parameters.AddWithValue("@Page", page);
-                cmd.Parameters.AddWithValue("@PageSize", pageSize);
-
-                await conn.OpenAsync();
-                using var reader = await cmd.ExecuteReaderAsync();
-
-                while (await reader.ReadAsync())
-                {
-                    // Ambil total records dari kolom Count (ada di setiap row)
-                    if (totalRecords == 0 && reader["Count"] != DBNull.Value)
-                    {
-                        totalRecords = Convert.ToInt32(reader["Count"]);
-                    }
-
-                    result.Add(new DropOutPendingResponse
-                    {
-                        Id = reader["dro_id"]?.ToString() ?? "",
-                        MhsId = reader["mhs_id"]?.ToString() ?? "",
-                        Mahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                        Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
-                        CreatedDate = reader["dro_created_date"]?.ToString() ?? "",
-                        CreatedBy = reader["dro_created_by"]?.ToString() ?? "",
-                        SuratNo = reader["srt_no"]?.ToString() ?? "",
-                        Status = reader["dro_status"]?.ToString() ?? ""
-                    });
-                }
-
-                Console.WriteLine($"DEBUG GetPendingPaginatedAsync - Total: {totalRecords}, Current: {result.Count}");
-
-                return new PaginatedResponse<DropOutPendingResponse>
-                {
-                    Data = result,
-                    Pagination = new PaginationInfo
-                    {
-                        CurrentPage = page,
-                        PageSize = pageSize,
-                        TotalRecords = totalRecords,
-                        TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize)
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ERROR GetPendingPaginatedAsync: {ex.Message}");
-                throw;
-            }
-        }
-
-        public async Task<IEnumerable<DropOutMahasiswaOptionResponse>>
-    GetMahasiswaByKonsentrasiAsync(string konsentrasiId)
+        public async Task<IEnumerable<DropOutMahasiswaOptionResponse>> GetMahasiswaByKonsentrasiAsync(string konsentrasiId)
         {
             var result = new List<DropOutMahasiswaOptionResponse>();
 
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand(
-                "sia_getListMahasiswaByKonsentrasi2",
-                conn
-            )
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetMahasiswaByKonsentrasi", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP sia_getListMahasiswaByKonsentrasi2 menggunakan @KonsentrasiId
-            cmd.Parameters.AddWithValue("@KonsentrasiId", konsentrasiId ?? "");
+            cmd.Parameters.AddWithValue("@KonsentrasiId", konsentrasiId ?? string.Empty);
 
             await conn.OpenAsync();
-
             await using var reader = await cmd.ExecuteReaderAsync();
+
             while (await reader.ReadAsync())
             {
                 result.Add(new DropOutMahasiswaOptionResponse
                 {
-                    Value = reader["mhs_id"].ToString() ?? "",
-                    Text = reader["mhs_nama"].ToString() ?? ""
+                    Value = reader["mhs_id"]?.ToString() ?? string.Empty,
+                    Text = reader["mhs_nama"]?.ToString() ?? string.Empty
                 });
             }
 
@@ -1089,18 +630,17 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            cmd.Parameters.AddWithValue("@Username", username);
-            
+            cmd.Parameters.AddWithValue("@username", username ?? string.Empty);
 
             await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
                 result.Add(new DropOutProdiOptionResponse
                 {
-                    Value = reader["pro_id"].ToString(),
-                    Text = reader["pro_nama"].ToString()
+                    Value = reader["pro_id"]?.ToString() ?? string.Empty,
+                    Text = reader["pro_nama"]?.ToString() ?? string.Empty
                 });
             }
 
@@ -1118,75 +658,41 @@ namespace astratech_apps_backend.Repositories.Implementations
             };
 
             await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
                 result.Add(new DropOutProdiOptionResponse
                 {
-                    Value = reader["pro_id"].ToString() ?? "",
-                    Text = reader["pro_nama"].ToString() ?? ""
+                    Value = reader["pro_id"]?.ToString() ?? string.Empty,
+                    Text = reader["pro_nama"]?.ToString() ?? string.Empty
                 });
             }
 
             return result;
         }
 
-        public async Task<IEnumerable<DropOutKonsentrasiOptionResponse>> GetKonsentrasiAsync(string username)
+        public async Task<IEnumerable<DropOutKonsentrasiOptionResponse>> GetKonsentrasiByProdiAsync(string prodiId, string sekprodiUsername)
         {
             var result = new List<DropOutKonsentrasiOptionResponse>();
 
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_getListKonsentrasiByProdi", conn)
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("sia_getListKonsentrasiByProdi2", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP HANYA TERIMA PARAMETER INI
-            cmd.Parameters.AddWithValue("@SekprodiUsername", username);
+            cmd.Parameters.AddWithValue("@ProdiId", prodiId ?? string.Empty);
 
             await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
                 result.Add(new DropOutKonsentrasiOptionResponse
                 {
-                    Value = reader["kon_id"].ToString(),
-                    Text = reader["kon_nama"].ToString()
-                });
-            }
-
-            return result;
-        }
-
-        public async Task<IEnumerable<DropOutKonsentrasiOptionResponse>>
-    GetKonsentrasiByProdiAsync(string prodiId, string sekprodiUsername)
-        {
-            var result = new List<DropOutKonsentrasiOptionResponse>();
-
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_getListKonsentrasiByProdi2", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            // SP hanya pakai @p1 = pro_id
-            cmd.Parameters.AddWithValue("@p1", prodiId);
-
-            // p2 – p50 WAJIB ada (signature legacy)
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                result.Add(new DropOutKonsentrasiOptionResponse
-                {
-                    Value = reader["kon_id"].ToString(),
-                    Text = reader["kon_nama"].ToString()
+                    Value = reader["kon_id"]?.ToString() ?? string.Empty,
+                    Text = reader["kon_nama"]?.ToString() ?? string.Empty
                 });
             }
 
@@ -1196,211 +702,82 @@ namespace astratech_apps_backend.Repositories.Implementations
         public async Task<string?> GetAngkatanByMahasiswaAsync(string mhsId)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand(
-                "sia_getListAngkatanByMahasiswa",
-                conn
-            )
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_GetAngkatanByMahasiswa", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP hanya pakai @p1
-            cmd.Parameters.AddWithValue("@p1", mhsId);
-
-            // p2–p50 WAJIB ADA (SP legacy)
-            for (int i = 2; i <= 50; i++)
-                cmd.Parameters.AddWithValue($"@p{i}", "");
+            cmd.Parameters.AddWithValue("@MhsId", mhsId ?? string.Empty);
 
             await conn.OpenAsync();
-
             var result = await cmd.ExecuteScalarAsync();
 
             return result?.ToString();
         }
 
-        public async Task<MahasiswaProfilResponse?> GetMahasiswaProfilAsync(string mhsId)
+        public async Task<BebasTanggunganResponse?> CekBebasTanggunganAsync(string mhsId)
         {
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_getMahasiswaByNIM", conn)
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("dbo.SP_DropOut_CheckBebasTanggungan", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            cmd.Parameters.AddWithValue("@Id", mhsId);
+            cmd.Parameters.AddWithValue("@MhsId", mhsId ?? string.Empty);
 
             await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
             if (!await reader.ReadAsync())
-                return null;
-
-            return new MahasiswaProfilResponse
             {
-                Nama = reader["mhs_nama"].ToString(),
-                ProdiKonsentrasi = reader["kon_nama"].ToString(),
-                Angkatan = reader["mhs_angkatan"].ToString(),
-                Kelas = reader["kelas"].ToString()
-            };
-        }
-
-        public async Task<BebasTanggunganResponse?> CekBebasTanggunganAsync(string mhsId)
-        {
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_checkBebasTanggungan", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
-
-            cmd.Parameters.AddWithValue("@UserId", mhsId);
-
-            await conn.OpenAsync();
-            var result = await cmd.ExecuteScalarAsync();
-            
-            var status = result?.ToString() ?? "";
-            var isBebasTanggungan = status == "OK";
-            
-            string message;
-            if (isBebasTanggungan)
-            {
-                message = "Mahasiswa bebas tanggungan dan dapat melanjutkan proses Drop Out.";
+                return new BebasTanggunganResponse
+                {
+                    MhsId = mhsId ?? string.Empty,
+                    Status = "NOK",
+                    IsBebasTanggungan = false,
+                    Message = "Data mahasiswa tidak ditemukan."
+                };
             }
-            else
-            {
-                message = "Mahasiswa masih memiliki tanggungan. Silakan selesaikan tanggungan terlebih dahulu.";
-            }
+
+            var isBebas = Convert.ToInt32(reader["IsBebas"]) == 1;
+            var message = reader["Message"]?.ToString() ?? string.Empty;
 
             return new BebasTanggunganResponse
             {
-                MhsId = mhsId,
-                Status = status,
-                IsBebasTanggungan = isBebasTanggungan,
+                MhsId = mhsId ?? string.Empty,
+                Status = isBebas ? "OK" : "NOK",
+                IsBebasTanggungan = isBebas,
                 Message = message,
-                StatusKeuangan = "",
-                StatusJam = "",
-                StatusPeminjamanAlat = ""
+                StatusKeuangan = isBebas ? "OK" : "NOK"
             };
         }
 
         public async Task<MahasiswaProfilDetailResponse?> GetProfilMahasiswaDetailAsync(string mhsId)
         {
-            using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_getProfilMahasiswa", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
+            await using var conn = new SqlConnection(_conn);
+            await using var cmd = new SqlCommand("sia_getProfilMahasiswa", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
-            cmd.Parameters.AddWithValue("@NIM", mhsId);
+            cmd.Parameters.AddWithValue("@mhs_id", mhsId ?? string.Empty);
 
             await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
             if (!await reader.ReadAsync())
                 return null;
 
             return new MahasiswaProfilDetailResponse
             {
-                MhsId = reader["mhs_id"]?.ToString() ?? "",
-                MhsNama = reader["mhs_nama"]?.ToString() ?? "",
-                JenisKelamin = reader["mhs_jenis_kelamin"]?.ToString() ?? "",
-                Ttl = reader["ttl"]?.ToString() ?? "",
-                Prodi = reader["prodi"]?.ToString() ?? "",
-                Angkatan = reader["awal"]?.ToString() ?? "",
-                JalurMasuk = reader["dul_jalur"]?.ToString() ?? "",
-                StatusKuliah = reader["mhs_status_kuliah"]?.ToString() ?? "",
-                StatusBeasiswa = reader["statusBeasiswa"]?.ToString() ?? "",
-                DosenWali = reader["mhs_dosen_akademik"]?.ToString() ?? "",
-                Email = reader["dul_email"]?.ToString() ?? "",
-                VaWisuda = reader["mhs_va_wisuda"]?.ToString() ?? "",
-                VaCuti = reader["mhs_va_cuti"]?.ToString() ?? "",
-                VaIdcard = reader["mhs_va_idcard"]?.ToString() ?? "",
-                VaLainnya = reader["mhs_va_lainnya"]?.ToString() ?? "",
-                Nik = reader["dul_nik"]?.ToString() ?? "",
-                Nisn = reader["dul_nisn"]?.ToString() ?? "",
-                Agama = reader["dul_agama"]?.ToString() ?? "",
-                Kewarganegaraan = reader["dul_kewarganegaraan"]?.ToString() ?? "",
-                GolonganDarah = reader["dul_golongan_darah"]?.ToString() ?? "",
-                Alamat = reader["dul_alamat"]?.ToString() ?? "",
-                Kodepos = reader["dul_kodepos"]?.ToString() ?? "",
-                Hp = reader["dul_hp"]?.ToString() ?? "",
-                Sd = reader["dul_sd"]?.ToString() ?? "",
-                SdTahunLulus = reader["dul_sd_tahun_lulus"]?.ToString() ?? "",
-                Smp = reader["dul_smp"]?.ToString() ?? "",
-                SmpTahunLulus = reader["dul_smp_tahun_lulus"]?.ToString() ?? "",
-                Sma = reader["dul_sma"]?.ToString() ?? "",
-                SmaTahunLulus = reader["dul_sma_tahun_lulus"]?.ToString() ?? "",
-                Pt = reader["dul_pt"]?.ToString() ?? "",
-                PtTahunLulus = reader["dul_pt_tahun_lulus"]?.ToString() ?? "",
-                Kursus = reader["dul_kursus"]?.ToString() ?? "",
-                Hobby = reader["dul_hobby"]?.ToString() ?? "",
-                PengalamanKerja = reader["dul_pengalaman_kerja"]?.ToString() ?? "",
-                Organisasi = reader["dul_organisasi"]?.ToString() ?? "",
-                StatusKawin = reader["dul_status_kawin"]?.ToString() ?? "",
-                UkuranSepatu = reader["dul_ukuran_sepatu"]?.ToString() ?? "",
-                UkuranKemeja = reader["dul_ukuran_kemeja"]?.ToString() ?? "",
-                TinggiBadan = reader["dul_tinggi_badan"]?.ToString() ?? "",
-                BeratBadan = reader["dul_berat_badan"]?.ToString() ?? "",
-                NamaAyah = reader["dul_nama_ayah"]?.ToString() ?? "",
-                NikAyah = reader["dul_nik_ayah"]?.ToString() ?? "",
-                StatusAyah = reader["dul_status_ayah"]?.ToString() ?? "",
-                KewarganegaraanAyah = reader["dul_kewarganegaraan_ayah"]?.ToString() ?? "",
-                AgamaAyah = reader["dul_agama_ayah"]?.ToString() ?? "",
-                AlamatAyah = reader["dul_alamat_ayah"]?.ToString() ?? "",
-                KodeposAyah = reader["dul_kodepos_ayah"]?.ToString() ?? "",
-                HpAyah = reader["dul_hp_ayah"]?.ToString() ?? "",
-                PendidikanAyah = reader["dul_pendidikan_ayah"]?.ToString() ?? "",
-                PekerjaanAyah = reader["dul_pekerjaan_ayah"]?.ToString() ?? "",
-                PerusahaanAyah = reader["dul_perusahaan_ayah"]?.ToString() ?? "",
-                AlamatPerusahaanAyah = reader["dul_alamat_perusahaan_ayah"]?.ToString() ?? "",
-                PenghasilanAyah = reader["dul_penghasilan_ayah"]?.ToString() ?? "",
-                NamaIbu = reader["dul_nama_ibu"]?.ToString() ?? "",
-                NikIbu = reader["dul_nik_ibu"]?.ToString() ?? "",
-                StatusIbu = reader["dul_status_ibu"]?.ToString() ?? "",
-                KewarganegaraanIbu = reader["dul_kewarganegaraan_ibu"]?.ToString() ?? "",
-                AgamaIbu = reader["dul_agama_ibu"]?.ToString() ?? "",
-                AlamatIbu = reader["dul_alamat_ibu"]?.ToString() ?? "",
-                KodeposIbu = reader["dul_kodepos_ibu"]?.ToString() ?? "",
-                HpIbu = reader["dul_hp_ibu"]?.ToString() ?? "",
-                PendidikanIbu = reader["dul_pendidikan_ibu"]?.ToString() ?? "",
-                PekerjaanIbu = reader["dul_pekerjaan_ibu"]?.ToString() ?? "",
-                PerusahaanIbu = reader["dul_perusahaan_ibu"]?.ToString() ?? "",
-                AlamatPerusahaanIbu = reader["dul_alamat_perusahaan_ibu"]?.ToString() ?? "",
-                PenghasilanIbu = reader["dul_penghasilan_ibu"]?.ToString() ?? "",
-                NamaWali = reader["dul_nama_wali"]?.ToString() ?? "",
-                NikWali = reader["dul_nik_wali"]?.ToString() ?? "",
-                StatusWali = reader["dul_status_wali"]?.ToString() ?? "",
-                KewarganegaraanWali = reader["dul_kewarganegaraan_wali"]?.ToString() ?? "",
-                AgamaWali = reader["dul_agama_wali"]?.ToString() ?? "",
-                AlamatWali = reader["dul_alamat_wali"]?.ToString() ?? "",
-                KodeposWali = reader["dul_kodepos_wali"]?.ToString() ?? "",
-                HpWali = reader["dul_hp_wali"]?.ToString() ?? "",
-                PendidikanWali = reader["dul_pendidikan_wali"]?.ToString() ?? "",
-                PekerjaanWali = reader["dul_pekerjaan_wali"]?.ToString() ?? "",
-                PerusahaanWali = reader["dul_perusahaan_wali"]?.ToString() ?? "",
-                AlamatPerusahaanWali = reader["dul_alamat_perusahaan_wali"]?.ToString() ?? "",
-                PenghasilanWali = reader["dul_penghasilan_wali"]?.ToString() ?? "",
-                JumlahSaudara = reader["dul_jumlah_saudara"]?.ToString() ?? "",
-                JumlahKakak = reader["dul_jumlah_kakak"]?.ToString() ?? "",
-                JumlahAdik = reader["dul_jumlah_adik"]?.ToString() ?? "",
-                SaudaraSekolah = reader["dul_saudara_sekolah"]?.ToString() ?? "",
-                SaudaraBekerja = reader["dul_saudara_bekerja"]?.ToString() ?? "",
-                AstraGrup = reader["dul_astra_grup"]?.ToString() ?? "",
-                AstraHubungan = reader["dul_astra_hubungan"]?.ToString() ?? "",
-                AstraPerusahaan = reader["dul_astra_perusahaan"]?.ToString() ?? "",
-                PasFoto = reader["dul_pas_foto"]?.ToString() ?? "",
-                KtpSim = reader["dul_ktp_sim"]?.ToString() ?? "",
-                AktaKelahiran = reader["dul_akta_kelahiran"]?.ToString() ?? "",
-                KartuKeluarga = reader["dul_kartu_keluarga"]?.ToString() ?? "",
-                Ijazah = reader["dul_ijazah"]?.ToString() ?? "",
-                Skhun = reader["dul_skhun"]?.ToString() ?? "",
-                BebasNarkoba = reader["dul_bebas_narkoba"]?.ToString() ?? "",
-                SanggupBayar = reader["dul_sanggup_bayar"]?.ToString() ?? "",
-                BuktiBayar = reader["dul_bukti_bayar"]?.ToString() ?? "",
-                AtasNama = reader["atasnama"]?.ToString() ?? "",
-                NoRek = reader["norek"]?.ToString() ?? "",
-                NamaBank = reader["namabank"]?.ToString() ?? "",
-                VaSumbangan = reader["dul_va_sumbangan"]?.ToString() ?? "",
-                VaSpp = reader["dul_va_spp"]?.ToString() ?? "",
-                Status = reader["dul_status"]?.ToString() ?? ""
+                MhsId = reader["mhs_id"]?.ToString() ?? string.Empty,
+                MhsNama = reader["mhs_nama"]?.ToString() ?? string.Empty,
+                Prodi = reader["pro_nama"]?.ToString() ?? (reader["kon_nama"]?.ToString() ?? string.Empty),
+                Angkatan = reader["mhs_angkatan"]?.ToString() ?? string.Empty,
+                StatusKuliah = reader["mhs_status"]?.ToString() ?? string.Empty,
+                Email = reader["mhs_email"]?.ToString() ?? string.Empty,
+                Hp = reader["mhs_tlp"]?.ToString() ?? string.Empty
             };
         }
-
-
-
     }
 }

@@ -1,12 +1,12 @@
-﻿namespace astratech_apps_backend.DTOs.DropOut
+namespace astratech_apps_backend.DTOs.DropOut
 {
     public class DropOutRiwayatExcelResponse
     {
-        public string NIM { get; set; } = "";
-        public string NamaMahasiswa { get; set; } = "";
-        public string Konsentrasi { get; set; } = "";
-        public string TanggalPengajuan { get; set; } = "";
-        public string NoSK { get; set; } = "";
-        public string NoPengajuan { get; set; } = "";
+        public string NIM { get; set; } = string.Empty;
+        public string NamaMahasiswa { get; set; } = string.Empty;
+        public string Konsentrasi { get; set; } = string.Empty;
+        public string TanggalPengajuan { get; set; } = string.Empty;
+        public string NoSK { get; set; } = string.Empty;
+        public string NoPengajuan { get; set; } = string.Empty;
     }
 }

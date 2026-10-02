@@ -1,7 +1,13 @@
-﻿namespace astratech_apps_backend.DTOs.DropOut
+using System.ComponentModel.DataAnnotations;
+
+namespace astratech_apps_backend.DTOs.DropOut
 {
     public class ApproveDropOutRequest
     {
-        public string Username { get; set; } = ""; // @p2
+        [StringLength(100)]
+        public string Username { get; set; } = string.Empty;
+
+        [StringLength(1000)]
+        public string Catatan { get; set; } = string.Empty;
     }
 }

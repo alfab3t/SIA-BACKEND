@@ -1,33 +1,25 @@
-﻿using System;
-
 namespace astratech_apps_backend.DTOs.DropOut
 {
     public class DropOutResponse
     {
-        public string Id { get; set; } = "";
-        public string MhsId { get; set; } = "";
-
-        public string Menimbang { get; set; } = "";
-        public string Mengingat { get; set; } = "";
-
-        public string ApproveWadir1 { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public long RowNumber { get; set; } = 0;
+        public string MhsId { get; set; } = string.Empty;
+        public string Menimbang { get; set; } = string.Empty;
+        public string Mengingat { get; set; } = string.Empty;
+        public string ApproveWadir1 { get; set; } = string.Empty;
         public DateTime? ApproveWadir1Date { get; set; }
-
-        public string ApproveDir { get; set; } = "";
+        public string ApproveDir { get; set; } = string.Empty;
         public DateTime? ApproveDirDate { get; set; }
-
-        public string SrtNo { get; set; } = "";
-        public string SrtKetNo { get; set; } = "";
-        public string Sk { get; set; } = "";
-        public string Skpb { get; set; } = "";
-
-        public string AlasanTolak { get; set; } = "";
-        public string Status { get; set; } = "";
-
-        public string CreatedBy { get; set; } = "";
+        public string SrtNo { get; set; } = string.Empty;
+        public string SrtKetNo { get; set; } = string.Empty;
+        public string Sk { get; set; } = string.Empty;
+        public string Skpb { get; set; } = string.Empty;
+        public string AlasanTolak { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
         public DateTime? CreatedDate { get; set; }
-
-        public string ModifiedBy { get; set; } = "";
+        public string ModifiedBy { get; set; } = string.Empty;
         public DateTime? ModifiedDate { get; set; }
     }
 }
