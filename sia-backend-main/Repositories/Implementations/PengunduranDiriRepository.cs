@@ -1,4 +1,4 @@
-﻿#nullable disable
+#nullable disable
 using astratech_apps_backend.DTOs.PengunduranDiri;
 using astratech_apps_backend.DTOs.Common;
 using astratech_apps_backend.Models;
@@ -128,7 +128,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                await using var cmd = new SqlCommand("sia_getDataPengunduranDiri", conn)
+                await using var cmd = new SqlCommand("SP_PengunduranDiri_GetPending", conn)
                 {
                     CommandType = CommandType.StoredProcedure,
                     CommandTimeout = 30
@@ -210,7 +210,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                await using var cmd = new SqlCommand("sia_getDataPengunduranDiri", conn)
+                await using var cmd = new SqlCommand("SP_PengunduranDiri_GetPending", conn)
                 {
                     CommandType = CommandType.StoredProcedure,
                     CommandTimeout = 30
@@ -292,7 +292,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         public async Task<PengunduranDiri?> GetByIdAsync(string id)
         {
             using var conn = new SqlConnection(_conn);
-            using var cmd = new SqlCommand("sia_detailPengunduranDIri", conn)
+            using var cmd = new SqlCommand("SP_PengunduranDiri_GetById", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
@@ -521,7 +521,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         public async Task<PengunduranDiriDetailResponse?> GetDetailAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDetailPengunduranDiri", conn)
+            await using var cmd = new SqlCommand("SP_PengunduranDiri_GetById", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
@@ -568,7 +568,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         public async Task<PengunduranDiriNotifResponse?> GetNotifAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_detailPengunduranDiriNotif", conn)
+            await using var cmd = new SqlCommand("SP_PengunduranDiri_GetById", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
@@ -602,7 +602,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             var list = new List<PengunduranDiriRiwayatResponse>();
 
             await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataRiwayatPengunduranDiri", conn)
+            await using var cmd = new SqlCommand("SP_PengunduranDiri_GetRiwayat", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
@@ -661,7 +661,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             try
             {
                 await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_getDataRiwayatPengunduranDiri", conn)
+                await using var cmd = new SqlCommand("SP_PengunduranDiri_GetRiwayat", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
@@ -811,7 +811,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 reader.Close();
                 
                 // Execute approve SP
-                await using var cmd = new SqlCommand("sia_setujuiPengunduranDiri", conn)
+                await using var cmd = new SqlCommand("SP_PengunduranDiri_Setujui", conn)
                 {
                     CommandType = CommandType.StoredProcedure,
                     CommandTimeout = 60 // Add timeout
@@ -873,7 +873,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             try
             {
                 await using var conn = new SqlConnection(_conn);
-                await using var cmd = new SqlCommand("sia_tolakPengunduranDiri", conn)
+                await using var cmd = new SqlCommand("SP_PengunduranDiri_Tolak", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
@@ -1281,3 +1281,4 @@ namespace astratech_apps_backend.Repositories.Implementations
 
     }
 }
+
