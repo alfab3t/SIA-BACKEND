@@ -4,7 +4,6 @@ using astratech_apps_backend.Helpers;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 
 namespace astratech_apps_backend.Controllers
 {
@@ -25,127 +24,6 @@ namespace astratech_apps_backend.Controllers
 
 
 
-        [Authorize]
-        [RequiresPermission("drop_out.view")]
-        [HttpGet("debug-claims")]
-        public IActionResult DebugClaims()
-        {
-            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
-            return Ok(new { 
-                claims = claims,
-                identityName = User.Identity?.Name,
-                isAuthenticated = User.Identity?.IsAuthenticated
-            });
-        }
-
-        [Authorize]
-        [RequiresPermission("drop_out.view")]
-        [HttpGet("debug/database-info")]
-        public async Task<IActionResult> GetDatabaseInfo()
-        {
-            try
-            {
-                var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
-                    Configuration.GetConnectionString("DefaultConnection")!,
-                    Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
-                );
-                
-                await using var conn = new SqlConnection(connString);
-                await conn.OpenAsync();
-                
-                var cmd = new SqlCommand(@"
-                    SELECT 
-                        DB_NAME() AS DatabaseName,
-                        @@SERVERNAME AS ServerName,
-                        SUSER_NAME() AS LoginName,
-                        USER_NAME() AS UserName,
-                        GETDATE() AS ServerTime
-                ", conn);
-                
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    return Ok(new {
-                        database = reader["DatabaseName"]?.ToString(),
-                        server = reader["ServerName"]?.ToString(),
-                        login = reader["LoginName"]?.ToString(),
-                        user = reader["UserName"]?.ToString(),
-                        serverTime = reader["ServerTime"]?.ToString(),
-                        message = "Backend is connected to this database"
-                    });
-                }
-                
-                return Ok(new { message = "Unable to get database info" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { 
-                    message = "Error getting database info",
-                    error = ex.Message 
-                });
-            }
-        }
-
-        [Authorize]
-        [RequiresPermission("drop_out.view")]
-        [HttpGet("debug/check-status/{id}")]
-        public async Task<IActionResult> DebugCheckStatus(string id)
-        {
-            try
-            {
-                var connString = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
-                    Configuration.GetConnectionString("DefaultConnection")!,
-                    Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
-                );
-                
-                await using var conn = new SqlConnection(connString);
-                await conn.OpenAsync();
-                
-                var cmd = new SqlCommand(@"
-                    SELECT 
-                        dro_id,
-                        dro_status,
-                        dro_created_date,
-                        dro_updated_date,
-                        dro_created_by,
-                        dro_updated_by,
-                        DB_NAME() as CurrentDatabase,
-                        @@SERVERNAME as CurrentServer
-                    FROM sia_msdropout 
-                    WHERE dro_id = @id
-                ", conn);
-                cmd.Parameters.AddWithValue("@id", id);
-                
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    return Ok(new {
-                        id = reader["dro_id"]?.ToString(),
-                        status = reader["dro_status"]?.ToString(),
-                        createdDate = reader["dro_created_date"]?.ToString(),
-                        updatedDate = reader["dro_updated_date"]?.ToString(),
-                        createdBy = reader["dro_created_by"]?.ToString(),
-                        updatedBy = reader["dro_updated_by"]?.ToString(),
-                        database = reader["CurrentDatabase"]?.ToString(),
-                        server = reader["CurrentServer"]?.ToString(),
-                        message = "Data found in backend database"
-                    });
-                }
-                
-                return NotFound(new { 
-                    message = $"Data with ID '{id}' not found in backend database",
-                    database = conn.Database,
-                    server = conn.DataSource
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { 
-                    message = "Error checking status",
-                    error = ex.Message 
-                });
-            }
-        }
 
         [Authorize]
         [RequiresPermission("drop_out.view")]
@@ -156,44 +34,28 @@ namespace astratech_apps_backend.Controllers
             [FromQuery] string keyword = "",
             [FromQuery] string sortBy = "a.dro_created_date desc",
             [FromQuery] string konsentrasi = "",
-            [FromQuery] string status = "")  // NEW: Support multiple status (comma-separated)
+            [FromQuery] string status = "")
         {
-            // Ambil dari JWT claims
             var username = User.FindFirst("namaakun")?.Value ?? "";
             var role = User.FindFirst("role")?.Value ?? "";
             var idrole = User.FindFirst("idrole")?.Value ?? "";
-            var displayName = User.FindFirst("displayname")?.Value 
-                           ?? User.FindFirst("name")?.Value 
+            var displayName = User.FindFirst("displayname")?.Value
+                           ?? User.FindFirst("name")?.Value
                            ?? "";
-            
-            // Debug semua claims
-            Console.WriteLine("=== DEBUG ALL JWT CLAIMS ===");
-            foreach (var claim in User.Claims)
-            {
-                Console.WriteLine($"Claim Type: {claim.Type}, Value: {claim.Value}");
-            }
-            Console.WriteLine("=== END CLAIMS ===");
-            
-            Console.WriteLine($"DEBUG GetAll DO - username: {username}, role: {role}, idrole: {idrole}, displayName: {displayName}");
-            
-            // Gunakan idrole bukan role
+
             var roleToUse = string.IsNullOrEmpty(idrole) ? role : idrole;
-            
-            // Jika page dan pageSize ada, gunakan pagination
+
             if (page.HasValue && pageSize.HasValue)
             {
                 var pageVal = page.Value < 1 ? 1 : page.Value;
                 var pageSizeVal = pageSize.Value < 1 ? 10 : (pageSize.Value > 100 ? 100 : pageSize.Value);
-                
-                Console.WriteLine($"DEBUG GetAll - Using pagination: page={pageVal}, pageSize={pageSizeVal}");
-                
+
                 var result = await _repo.GetPendingPaginatedAsync(
                     username, keyword, sortBy, konsentrasi, roleToUse, displayName, status, pageVal, pageSizeVal);
-                
+
                 return Ok(result);
             }
-            
-            // Jika tidak ada pagination, return semua data (backward compatibility)
+
             return Ok(await _repo.GetPendingAsync(username, keyword, sortBy, konsentrasi, roleToUse, displayName));
         }
 
