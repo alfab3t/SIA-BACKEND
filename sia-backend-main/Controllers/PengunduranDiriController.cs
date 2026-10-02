@@ -14,7 +14,7 @@ namespace astratech_apps_backend.Controllers
     {
         private readonly IPengunduranDiriRepository _repo = repo;
 
-        [HttpGet]
+        [HttpGet("GetAllPengunduranDiri")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetAll(
             [FromQuery] string p1 = "",
@@ -55,7 +55,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(allData);
         }
 
-        [HttpGet("riwayat")]
+        [HttpGet("RiwayatPengunduranDiri")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetRiwayat(
             [FromQuery] string p1 = "",
@@ -96,7 +96,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(allRiwayat);
         }
 
-        [HttpGet("riwayat/excel")]
+        [HttpGet("ExportExcelRiwayatPengunduranDiri")]
         [RequiresPermission("pengunduran_diri.export")]
         public async Task<IActionResult> GetRiwayatExcel(
             [FromQuery] string konsentrasi = "",
@@ -106,7 +106,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(list);
         }
 
-        [HttpGet("detail")]
+        [HttpGet("DetailPengunduranDiri")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetDetail([FromQuery] string id)
         {
@@ -120,18 +120,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("{id}")]
-        [RequiresPermission("pengunduran_diri.view")]
-        public async Task<IActionResult> GetById(string id)
-        {
-            var data = await _repo.GetDetailAsync(id);
-            if (data == null)
-                return NotFound(new { message = "Data Pengunduran Diri tidak ditemukan." });
-
-            return Ok(data);
-        }
-
-        [HttpPost("create")]
+        [HttpPost("CreatePengajuanPengunduranDiri")]
         [RequiresPermission("pengunduran_diri.create")]
         public async Task<IActionResult> CreatePengajuan([FromBody] CreatePengunduranDiriRequest dto)
         {
@@ -150,7 +139,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message, id = newId, pdiId = newId, draftId = newId });
         }
 
-        [HttpPost("create-by-prodi/draft")]
+        [HttpPost("CreateDraftPengunduranDiriProdi")]
         [RequiresPermission("pengunduran_diri.create")]
         public async Task<IActionResult> CreateByProdiDraft([FromBody] CreatePengunduranDiriByProdiRequest dto)
         {
@@ -172,7 +161,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message, id = newId, pdiId = newId, draftId = newId });
         }
 
-        [HttpPut("submit/{draftId}")]
+        [HttpPut("SubmitDraftPengunduranDiri/{draftId}")]
         [RequiresPermission("pengunduran_diri.create")]
         public async Task<IActionResult> SubmitDraft(string draftId)
         {
@@ -185,14 +174,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message, id = noPengajuan, newId = noPengajuan });
         }
 
-        [HttpPut("draft/{id}/generate-id")]
-        [RequiresPermission("pengunduran_diri.create")]
-        public async Task<IActionResult> GenerateIdFromDraft(string id)
-        {
-            return await SubmitDraft(id);
-        }
-
-        [HttpPut("{id}")]
+        [HttpPut("EditPengunduranDiri/{id}")]
         [RequiresPermission("pengunduran_diri.edit")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdatePengunduranDiriRequest dto)
         {
@@ -211,7 +193,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpPut("approve")]
+        [HttpPut("ApprovePengunduranDiri")]
         [RequiresPermission("pengunduran_diri.approve")]
         public async Task<IActionResult> Approve(
             [FromQuery] string id,
@@ -229,14 +211,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpPut("Approve/{id}")]
-        [RequiresPermission("pengunduran_diri.approve")]
-        public async Task<IActionResult> ApproveByRoute(string id, [FromBody] ApprovePengunduranDiriRequest? dto)
-        {
-            return await Approve(id, dto);
-        }
-
-        [HttpPut("reject")]
+        [HttpPut("RejectPengunduranDiri")]
         [RequiresPermission("pengunduran_diri.reject")]
         public async Task<IActionResult> Reject(
             [FromQuery] string id,
@@ -257,14 +232,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpPut("Reject/{id}")]
-        [RequiresPermission("pengunduran_diri.reject")]
-        public async Task<IActionResult> RejectByRoute(string id, [FromBody] RejectPengunduranDiriRequest dto)
-        {
-            return await Reject(id, dto);
-        }
-
-        [HttpPost("upload-sk-file")]
+        [HttpPost("UploadSKFilePengunduranDiri")]
         [Consumes("multipart/form-data")]
         [RequiresPermission("pengunduran_diri.edit")]
         public async Task<IActionResult> UploadSKFile([FromForm] UploadSKFileRequest request)
@@ -322,7 +290,7 @@ namespace astratech_apps_backend.Controllers
             });
         }
 
-        [HttpPut("upload-sk")]
+        [HttpPut("UploadSKPengunduranDiri")]
         [RequiresPermission("pengunduran_diri.edit")]
         public async Task<IActionResult> UploadSK(
             [FromBody] UploadSKPengunduranDiriRequest dto,
@@ -344,7 +312,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("DeletePengunduranDiri/{id}")]
         [RequiresPermission("pengunduran_diri.delete")]
         public async Task<IActionResult> Delete(string id)
         {
@@ -357,7 +325,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpGet("download-sk/{id}")]
+        [HttpGet("GetInfoSKPengunduranDiri/{id}")]
         [RequiresPermission("pengunduran_diri.export")]
         public async Task<IActionResult> DownloadSK(string id)
         {
@@ -389,11 +357,43 @@ namespace astratech_apps_backend.Controllers
             return File(fileBytes, contentType, fileName);
         }
 
+        [HttpGet("DownloadFilePengunduranDiri/{filename}")]
+        [AllowAnonymous]
+        public IActionResult DownloadFilePengunduranDiri(string filename)
+        {
+            var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var possiblePaths = new[]
+            {
+                Path.Combine(webRoot, "uploads", "pengundurandiri", filename),
+                Path.Combine(webRoot, "Uploads", "pengundurandiri", filename),
+                Path.Combine(webRoot, "uploads", "pengundurandiri", "lampiran", filename),
+                Path.Combine(webRoot, "uploads", "pengundurandiri", "sk", filename),
+                Path.Combine(webRoot, "uploads", "pengundurandiri", "skpb", filename)
+            };
+
+            var foundPath = possiblePaths.FirstOrDefault(System.IO.File.Exists);
+            if (foundPath == null)
+            {
+                return NotFound(new { message = "Berkas file tidak ditemukan.", filename });
+            }
+
+            var fileBytes = System.IO.File.ReadAllBytes(foundPath);
+            var extension = Path.GetExtension(foundPath).ToLower();
+            var contentType = extension switch
+            {
+                ".pdf" => "application/pdf",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                _ => "application/octet-stream"
+            };
+            return File(fileBytes, contentType, filename);
+        }
+
         // ==========================================
         // Helper Master Data Dropdowns
         // ==========================================
 
-        [HttpGet("prodi")]
+        [HttpGet("GetProdiByUser")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetProdi()
         {
@@ -402,7 +402,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("prodi/list")]
+        [HttpGet("GetListProdi")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetListProdi()
         {
@@ -410,7 +410,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/list")]
+        [HttpGet("GetListMahasiswa")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetMahasiswaList()
         {
@@ -418,7 +418,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/by-prodi")]
+        [HttpGet("GetMahasiswaByProdi")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetMahasiswaByProdi()
         {
@@ -427,7 +427,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/by-konsentrasi")]
+        [HttpGet("GetMahasiswaByKonsentrasi")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetMahasiswaByKonsentrasi()
         {
@@ -436,7 +436,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/{mhsId}/prodi")]
+        [HttpGet("GetProdiMahasiswa/{mhsId}")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
         {
@@ -447,7 +447,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/{mhsId}/angkatan")]
+        [HttpGet("GetAngkatanMahasiswa/{mhsId}")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetMahasiswaAngkatan(string mhsId)
         {
@@ -455,7 +455,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/{mhsId}/bebas-tanggungan")]
+        [HttpGet("CekBebasTanggungan/{mhsId}")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> CekBebasTanggungan(string mhsId)
         {
@@ -463,7 +463,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
-        [HttpGet("mahasiswa/{mhsId}/profil")]
+        [HttpGet("GetProfilMahasiswa/{mhsId}")]
         [RequiresPermission("pengunduran_diri.view")]
         public async Task<IActionResult> GetProfilMahasiswa(string mhsId)
         {

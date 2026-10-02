@@ -28,8 +28,6 @@ namespace astratech_apps_backend.Controllers
         // 1. GET ALL MENINGGAL DUNIA (PENGAJUAN AKTIF)
         // ============================================
         [HttpGet("GetAllMeninggalDunia")]
-        [HttpGet("GetAll")]
-        [HttpGet]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetAllMeninggalDunia([FromQuery] GetAllMeninggalDuniaRequest req)
         {
@@ -54,8 +52,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 2. GET RIWAYAT MENINGGAL DUNIA
         // ============================================
-        [HttpGet("GetRiwayatMeninggalDunia")]
-        [HttpGet("Riwayat")]
+        [HttpGet("RiwayatMeninggalDunia")]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
@@ -75,9 +72,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 3. GET DETAIL MENINGGAL DUNIA
         // ============================================
-        [HttpGet("GetDetailMeninggalDunia/{id}")]
-        [HttpGet("detail/{id}")]
-        [HttpGet("{id}")]
+        [HttpGet("DetailMeninggalDunia/{id}")]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetDetailMeninggalDunia(string id)
         {
@@ -95,8 +90,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 4. CREATE DRAFT (PENGAJUAN MENINGGAL DUNIA)
         // ============================================
-        [HttpPost("CreateMeninggalDunia")]
-        [HttpPost]
+        [HttpPost("CreateDraftMeninggalDunia")]
         [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> CreateMeninggalDunia([FromForm] CreateMeninggalDuniaRequest dto)
         {
@@ -129,7 +123,6 @@ namespace astratech_apps_backend.Controllers
         // 5. FINALIZE DRAFT -> PENGAJUAN RESMI
         // ============================================
         [HttpPost("FinalizeMeninggalDunia/{draftId}")]
-        [HttpPost("finalize/{draftId}")]
         [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> FinalizeMeninggalDunia(string draftId)
         {
@@ -157,8 +150,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 6. UPDATE MENINGGAL DUNIA
         // ============================================
-        [HttpPut("UpdateMeninggalDunia/{id}")]
-        [HttpPut("{id}")]
+        [HttpPut("EditMeninggalDunia/{id}")]
         [RequiresPermission("meninggal_dunia.edit")]
         public async Task<IActionResult> UpdateMeninggalDunia(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
         {
@@ -188,7 +180,6 @@ namespace astratech_apps_backend.Controllers
         // 7. SOFT DELETE MENINGGAL DUNIA
         // ============================================
         [HttpDelete("DeleteMeninggalDunia/{id}")]
-        [HttpDelete("{id}")]
         [RequiresPermission("meninggal_dunia.delete")]
         public async Task<IActionResult> DeleteMeninggalDunia(string id)
         {
@@ -207,7 +198,6 @@ namespace astratech_apps_backend.Controllers
         // 8. APPROVE MENINGGAL DUNIA (WADIR 1)
         // ============================================
         [HttpPut("ApproveMeninggalDunia/{id}")]
-        [HttpPut("approve/{id}")]
         [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> ApproveMeninggalDunia(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
         {
@@ -235,7 +225,6 @@ namespace astratech_apps_backend.Controllers
         // 9. REJECT MENINGGAL DUNIA
         // ============================================
         [HttpPut("RejectMeninggalDunia/{id}")]
-        [HttpPut("reject/{id}")]
         [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> RejectMeninggalDunia(string id, [FromBody] RejectMeninggalDuniaRequest dto)
         {
@@ -263,7 +252,6 @@ namespace astratech_apps_backend.Controllers
         // 10. UPLOAD SK & SPKB MENINGGAL DUNIA (DAAK)
         // ============================================
         [HttpPut("UploadSKMeninggalDunia")]
-        [HttpPut("upload-sk")]
         [RequiresPermission("meninggal_dunia.import")]
         public async Task<IActionResult> UploadSKMeninggalDunia([FromForm] UploadSKMeninggalRequest request)
         {
@@ -297,8 +285,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 11. EXPORT RIWAYAT TO EXCEL
         // ============================================
-        [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]
-        [HttpGet("Riwayat/excel")]
+        [HttpGet("ExportExcelRiwayatMeninggalDunia")]
         [RequiresPermission("meninggal_dunia.export")]
         public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel(
             [FromQuery] string sort = "",
@@ -359,7 +346,6 @@ namespace astratech_apps_backend.Controllers
         // 12. DOWNLOAD FILE LAMPIRAN
         // ============================================
         [HttpGet("DownloadFileMeninggalDunia/{filename}")]
-        [HttpGet("file/{filename}")]
         [AllowAnonymous]
         public IActionResult DownloadFileMeninggalDunia(string filename)
         {
@@ -385,9 +371,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 13. CETAK SK / DOWNLOAD PDF SK
         // ============================================
-        [HttpPost("DownloadPdfSKMeninggalDunia/{id}")]
-        [HttpGet("cetak-sk/{id}")]
-        [HttpPost("cetak-sk/{id}")]
+        [HttpGet("CetakSKMeninggalDunia/{id}")]
         [RequiresPermission("meninggal_dunia.print")]
         public async Task<IActionResult> CetakSK(string id)
         {
@@ -442,8 +426,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 14. HELPER DROPDOWN MAHASISWA
         // ============================================
-        [HttpGet("GetMahasiswaListMeninggalDunia")]
-        [HttpGet("mahasiswa")]
+        [HttpGet("GetListMahasiswa")]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaList([FromQuery] string? search = null)
         {
@@ -451,8 +434,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("GetMahasiswaDetailMeninggalDunia/{mhsId}")]
-        [HttpGet("mahasiswa/{mhsId}")]
+        [HttpGet("GetDetailMahasiswa/{mhsId}")]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaDetail(string mhsId)
         {
@@ -464,8 +446,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("GetMahasiswaProdiMeninggalDunia/{mhsId}")]
-        [HttpGet("mahasiswa/{mhsId}/prodi")]
+        [HttpGet("GetProdiMahasiswa/{mhsId}")]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
         {

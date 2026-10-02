@@ -14,7 +14,7 @@ namespace astratech_apps_backend.Controllers
     {
         private readonly IDropOutRepository _repo = repo;
 
-        [HttpGet]
+        [HttpGet("GetAllDropOut")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetAll(
             [FromQuery] int? page = null,
@@ -53,7 +53,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(allData);
         }
 
-        [HttpGet("riwayat")]
+        [HttpGet("RiwayatDropOut")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetRiwayat(
             [FromQuery] int? page = null,
@@ -92,7 +92,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(allRiwayat);
         }
 
-        [HttpGet("riwayat/excel")]
+        [HttpGet("ExportExcelRiwayatDropOut")]
         [RequiresPermission("drop_out.export")]
         public async Task<IActionResult> GetRiwayatExcel(
             [FromQuery] string keyword = "",
@@ -107,7 +107,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(list);
         }
 
-        [HttpGet("detail")]
+        [HttpGet("DetailDropOut")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetDetail([FromQuery] string id)
         {
@@ -121,18 +121,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("{id}")]
-        [RequiresPermission("drop_out.view")]
-        public async Task<IActionResult> GetById(string id)
-        {
-            var data = await _repo.GetDetailAsync(id);
-            if (data == null)
-                return NotFound(new { message = "Data Drop Out tidak ditemukan." });
-
-            return Ok(data);
-        }
-
-        [HttpPost("create-pengajuan")]
+        [HttpPost("CreatePengajuanDropOut")]
         [RequiresPermission("drop_out.create")]
         public async Task<IActionResult> CreatePengajuan([FromBody] CreatePengajuanDORequest dto)
         {
@@ -151,7 +140,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message, id = newId, newId });
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("EditDropOut/{id}")]
         [RequiresPermission("drop_out.edit")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateDropOutRequest dto)
         {
@@ -170,10 +159,14 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpPut("draft/{id}/generate-id")]
+        [HttpPut("SubmitDraftDropOut")]
+        [HttpPut("SubmitDraftDropOut/{id}")]
         [RequiresPermission("drop_out.create")]
-        public async Task<IActionResult> SubmitDraft(string id)
+        public async Task<IActionResult> SubmitDraft([FromQuery] string id)
         {
+            if (string.IsNullOrEmpty(id))
+                return BadRequest(new { message = "Parameter id wajib diisi." });
+
             var username = User.FindFirstValue("namaakun") ?? User.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
             var (success, message, noPengajuan) = await _repo.SubmitDraftAsync(id, username);
 
@@ -183,14 +176,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message, id = noPengajuan, newId = noPengajuan });
         }
 
-        [HttpPut("draft/generate-id")]
-        [RequiresPermission("drop_out.create")]
-        public async Task<IActionResult> SubmitDraftByQuery([FromQuery] string id)
-        {
-            return await SubmitDraft(id);
-        }
-
-        [HttpPut("wadir/approve")]
+        [HttpPut("ApproveWadirDropOut")]
         [RequiresPermission("drop_out.approve")]
         public async Task<IActionResult> Approve(
             [FromQuery] string id,
@@ -208,7 +194,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpPut("wadir/reject")]
+        [HttpPut("RejectWadirDropOut")]
         [RequiresPermission("drop_out.reject")]
         public async Task<IActionResult> Reject(
             [FromQuery] string id,
@@ -226,7 +212,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpPost("upload-sk-file")]
+        [HttpPost("UploadSKFileDropOut")]
         [Consumes("multipart/form-data")]
         [RequiresPermission("drop_out.edit")]
         public async Task<IActionResult> UploadSKFile([FromForm] UploadSKFileRequest request)
@@ -284,7 +270,7 @@ namespace astratech_apps_backend.Controllers
             });
         }
 
-        [HttpPut("upload-sk")]
+        [HttpPut("UploadSKDropOut")]
         [RequiresPermission("drop_out.edit")]
         public async Task<IActionResult> UploadSK([FromBody] UploadSKDORequest request)
         {
@@ -302,7 +288,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("DeleteDropOut/{id}")]
         [RequiresPermission("drop_out.delete")]
         public async Task<IActionResult> Delete(string id)
         {
@@ -315,7 +301,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpGet("download-sk/{droId}")]
+        [HttpGet("GetInfoSKDropOut/{droId}")]
         [RequiresPermission("drop_out.export")]
         public async Task<IActionResult> DownloadSK(string droId)
         {
@@ -326,21 +312,9 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
-        [HttpGet("download-sk-file")]
+        [HttpGet("DownloadSKFileDropOut")]
         [RequiresPermission("drop_out.export")]
-        public async Task<IActionResult> DownloadSKFileByQuery([FromQuery] string id)
-        {
-            return await HandleDownloadSKFile(id);
-        }
-
-        [HttpGet("download-sk-file/{droId}")]
-        [RequiresPermission("drop_out.export")]
-        public async Task<IActionResult> DownloadSKFile(string droId)
-        {
-            return await HandleDownloadSKFile(droId);
-        }
-
-        private async Task<IActionResult> HandleDownloadSKFile(string id)
+        public async Task<IActionResult> DownloadSKFile([FromQuery] string id)
         {
             if (string.IsNullOrEmpty(id))
                 return BadRequest(new { message = "Parameter id wajib diisi." });
@@ -370,7 +344,7 @@ namespace astratech_apps_backend.Controllers
             return File(fileBytes, contentType, fileName);
         }
 
-        [HttpGet("check-sk-status")]
+        [HttpGet("CheckSKStatusDropOut")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> CheckSKStatus([FromQuery] string id)
         {
@@ -393,7 +367,7 @@ namespace astratech_apps_backend.Controllers
             });
         }
 
-        [HttpGet("template-sk")]
+        [HttpGet("TemplateSKDropOut")]
         public IActionResult DownloadTemplateSK([FromQuery] string? type = "rpt")
         {
             var fileMapping = new Dictionary<string, (string Path, string ContentType, string FileName)>
@@ -418,7 +392,7 @@ namespace astratech_apps_backend.Controllers
         // Helper Master Data Dropdowns
         // ==========================================
 
-        [HttpGet("prodi")]
+        [HttpGet("GetProdiByUser")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetProdi()
         {
@@ -427,7 +401,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("prodi/list")]
+        [HttpGet("GetListProdi")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetListProdi()
         {
@@ -435,7 +409,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("konsentrasi")]
+        [HttpGet("GetListKonsentrasi")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetKonsentrasiByProdi([FromQuery] string prodiId)
         {
@@ -444,7 +418,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa-by-konsentrasi")]
+        [HttpGet("GetMahasiswaByKonsentrasi")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetMahasiswaByKonsentrasi([FromQuery] string konsentrasiId)
         {
@@ -452,7 +426,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("angkatan-by-mahasiswa")]
+        [HttpGet("GetAngkatanByMahasiswa")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetAngkatanByMahasiswa([FromQuery] string mhsId)
         {
@@ -460,7 +434,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { angkatan = angkatan ?? string.Empty });
         }
 
-        [HttpGet("mahasiswa/{mhsId}/bebas-tanggungan")]
+        [HttpGet("CekBebasTanggungan/{mhsId}")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> CekBebasTanggungan(string mhsId)
         {
@@ -468,7 +442,7 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
-        [HttpGet("mahasiswa/{mhsId}/profil")]
+        [HttpGet("GetProfilMahasiswa/{mhsId}")]
         [RequiresPermission("drop_out.view")]
         public async Task<IActionResult> GetProfilMahasiswaDetail(string mhsId)
         {

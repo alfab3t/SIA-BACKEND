@@ -27,7 +27,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 1. GET ALL PENGURUSAN AKTIF CUTI AKADEMIK
         // ============================================
-        [HttpGet]
+        [HttpGet("GetAllCutiAkademik")]
         [RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetAll(
             [FromQuery] string mhsId = "%",
@@ -70,7 +70,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 2. GET RIWAYAT CUTI AKADEMIK
         // ============================================
-        [HttpGet("riwayat")]
+        [HttpGet("RiwayatCutiAkademik")]
         [RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetRiwayat(
             [FromQuery] string userId = "",
@@ -108,18 +108,16 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 3. GET DETAIL CUTI AKADEMIK
         // ============================================
-        [HttpGet("detail")]
-        [HttpGet("detail/{id}")]
+        [HttpGet("DetailCutiAkademik")]
         [RequiresPermission("cuti_akademik.view")]
-        public async Task<IActionResult> GetDetail([FromQuery] string? id, [FromRoute] string? idRoute = null)
+        public async Task<IActionResult> GetDetail([FromQuery] string id)
         {
-            var cutiId = !string.IsNullOrEmpty(id) ? id : idRoute;
-            if (string.IsNullOrEmpty(cutiId))
+            if (string.IsNullOrEmpty(id))
             {
                 return BadRequest(new { message = "Parameter ID harus diisi." });
             }
 
-            var detail = await _repo.GetDetailAsync(cutiId);
+            var detail = await _repo.GetDetailAsync(id);
             if (detail == null)
             {
                 return NotFound(new { message = "Data cuti akademik tidak ditemukan." });
@@ -131,8 +129,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 4. CREATE DRAFT (MAHASISWA)
         // ============================================
-        [HttpPost("draft")]
-        [HttpPost]
+        [HttpPost("CreateDraftCutiAkademik")]
         [RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> CreateDraft([FromForm] CreateDraftCutiRequest dto)
         {
@@ -165,8 +162,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 5. GENERATE FINAL ID (MAHASISWA)
         // ============================================
-        [HttpPut("generate-id")]
-        [HttpPost("generate-id")]
+        [HttpPut("SubmitCutiAkademik")]
         [RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> GenerateId([FromBody] GenerateCutiIdRequest dto)
         {
@@ -189,7 +185,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 6. CREATE DRAFT BY PRODI
         // ============================================
-        [HttpPost("prodi/draft")]
+        [HttpPost("CreateDraftCutiAkademikProdi")]
         [RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> CreateDraftByProdi([FromForm] CreateCutiProdiRequest dto)
         {
@@ -222,8 +218,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 7. GENERATE FINAL ID BY PRODI
         // ============================================
-        [HttpPut("prodi/generate-id")]
-        [HttpPost("prodi/generate-id")]
+        [HttpPut("SubmitCutiAkademikProdi")]
         [RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> GenerateIdByProdi([FromBody] GenerateCutiProdiIdRequest dto)
         {
@@ -246,8 +241,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 8. APPROVE CUTI AKADEMIK (PRODI / WADIR 1 / FINANCE)
         // ============================================
-        [HttpPut("approve")]
-        [HttpPost("approve")]
+        [HttpPut("ApproveCutiAkademik")]
         [RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> ApproveCuti([FromBody] ApproveCutiAkademikRequest dto)
         {
@@ -280,8 +274,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 9. APPROVE CUTI OLEH PRODI (DENGAN MENIMBANG)
         // ============================================
-        [HttpPut("approve/prodi")]
-        [HttpPost("approve/prodi")]
+        [HttpPut("ApproveCutiAkademikProdi")]
         [RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> ApproveProdiCuti([FromBody] ApproveProdiCutiRequest dto)
         {
@@ -314,8 +307,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 10. REJECT CUTI AKADEMIK
         // ============================================
-        [HttpPut("reject")]
-        [HttpPost("reject")]
+        [HttpPut("RejectCutiAkademik")]
         [RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> RejectCuti([FromBody] RejectCutiAkademikRequest dto)
         {
@@ -347,8 +339,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 11. UPLOAD SK CUTI AKADEMIK (DAAK)
         // ============================================
-        [HttpPut("upload-sk")]
-        [HttpPost("upload-sk")]
+        [HttpPut("UploadSKCutiAkademik")]
         [RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> UploadSK([FromForm] UploadSKRequest dto)
         {
@@ -386,7 +377,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 12. UPDATE DRAFT CUTI AKADEMIK
         // ============================================
-        [HttpPut("{id}")]
+        [HttpPut("EditCutiAkademik/{id}")]
         [RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> UpdateDraft(string id, [FromForm] UpdateCutiAkademikRequest dto)
         {
@@ -420,7 +411,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 13. DELETE DRAFT CUTI AKADEMIK
         // ============================================
-        [HttpDelete("{id}")]
+        [HttpDelete("DeleteCutiAkademik/{id}")]
         [RequiresPermission("cuti_akademik.delete")]
         public async Task<IActionResult> Delete(string id)
         {
@@ -438,7 +429,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 14. DOWNLOAD / SERVE FILE LAMPIRAN
         // ============================================
-        [HttpGet("file/{filename}")]
+        [HttpGet("DownloadFileCutiAkademik/{filename}")]
         [AllowAnonymous]
         public IActionResult DownloadFile(string filename)
         {
@@ -463,7 +454,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 15. EXPORT RIWAYAT TO EXCEL
         // ============================================
-        [HttpGet("riwayat/excel")]
+        [HttpGet("ExportExcelRiwayatCutiAkademik")]
         [RequiresPermission("cuti_akademik.export")]
         public async Task<IActionResult> GetRiwayatExcel([FromQuery] string userId = "")
         {
@@ -521,8 +512,7 @@ namespace astratech_apps_backend.Controllers
         // ============================================
         // 16. CETAK SK CUTI AKADEMIK / DOWNLOAD PDF
         // ============================================
-        [HttpGet("cetak-sk/{id}")]
-        [HttpPost("DownloadPdf/{id}")]
+        [HttpGet("CetakSKCutiAkademik/{id}")]
         public async Task<IActionResult> CetakSK(string id)
         {
             var unescapedId = Uri.UnescapeDataString(id);
