@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using OfficeOpenXml;
+using Microsoft.Extensions.FileProviders;
 
 namespace astratech_apps_backend
 {
@@ -16,6 +18,8 @@ namespace astratech_apps_backend
     {
         public static void Main(string[] args)
         {
+            ExcelPackage.License.SetNonCommercialOrganization("Politeknik Astra");
+
             var builder = WebApplication.CreateBuilder(args);
             var configuration = builder.Configuration;
 
@@ -39,20 +43,7 @@ namespace astratech_apps_backend
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
-                options.SwaggerDoc("v1", new OpenApiInfo 
-                { 
-                    Title = "ASTRATECH API", 
-                    Version = "v1",
-                    Description = "API untuk sistem informasi akademik ASTRATECH"
-                });
-
-                var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-                if (File.Exists(xmlPath))
-                {
-                    options.IncludeXmlComments(xmlPath);
-                }
-
+                options.SwaggerDoc("v1", new OpenApiInfo { Title = "ASTRATECH API", Version = "v1" });
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,
@@ -77,10 +68,9 @@ namespace astratech_apps_backend
                     }
                 });
             });
+
             builder.Services.AddAutoMapper(typeof(Program));
             builder.Services.AddHttpContextAccessor();
-            
-            // Add HttpClient for external service calls
             builder.Services.AddHttpClient();
 
             builder.Services.AddScoped<ILdapService, LdapService>();
@@ -89,25 +79,19 @@ namespace astratech_apps_backend
             builder.Services.AddScoped<IAuthorizationHandler, HasPermissionHandler>();
 
             builder.Services.AddScoped<IInstitusiRepository, InstitusiRepository>();
+            builder.Services.AddScoped<IMahasiswaRepository, MahasiswaRepository>();
 
-            // Cuti Akademik
+            // Modul Administrasi Akademik
             builder.Services.AddScoped<ICutiAkademikRepository, CutiAkademikRepository>();
-            builder.Services.AddScoped<ICutiAkademikService, CutiAkademikService>();
 
-            // Meninggal Dunia
             builder.Services.AddScoped<IMeninggalDuniaRepository, MeninggalDuniaRepository>();
             builder.Services.AddScoped<IMeninggalDuniaService, MeninggalDuniaService>();
 
-            // Mahasiswa (dropdown & search)
-            builder.Services.AddScoped<IMahasiswaRepository, MahasiswaRepository>();
+            builder.Services.AddScoped<IDropOutRepository, DropOutRepository>();
+            builder.Services.AddScoped<IPengunduranDiriRepository, PengunduranDiriRepository>();
 
-            // Employee Identity (Wadir / Finance check)
             builder.Services.AddScoped<IEmployeeIdentityRepository, EmployeeIdentityRepository>();
             builder.Services.AddScoped<IEmployeeIdentityService, EmployeeIdentityService>();
-
-            // DropOut dan PengunduranDiri langsung pakai Repository (tanpa Service)
-            builder.Services.AddScoped<IPengunduranDiriRepository, PengunduranDiriRepository>();
-            builder.Services.AddScoped<IDropOutRepository, DropOutRepository>();
 
             builder.Services.AddAuthorizationBuilder()
                 .AddPolicy("HasPermission", policy =>
@@ -121,9 +105,8 @@ namespace astratech_apps_backend
                     builderCors =>
                     {
                         builderCors.WithOrigins(corsOrigin!)
-                                .AllowAnyHeader()
-                                .AllowAnyMethod()
-                                .AllowCredentials();
+                                   .AllowAnyHeader()
+                                   .AllowAnyMethod();
                     });
             });
 
@@ -162,6 +145,9 @@ namespace astratech_apps_backend
                 };
             });
 
+#pragma warning disable CS0618
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+#pragma warning restore CS0618
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
@@ -173,8 +159,16 @@ namespace astratech_apps_backend
             {
                 app.UseHttpsRedirection();
             }
+            app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(
+                    Path.Combine(Directory.GetCurrentDirectory(), "Uploads")
+                ),
+                RequestPath = "/Uploads"
+            });
+            app.UseStaticFiles();
             app.UseCors("AllowSpecificOrigin");
-            app.UseStaticFiles(); // Enable static files dari wwwroot
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

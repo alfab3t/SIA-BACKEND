@@ -2,28 +2,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace astratech_apps_backend.DTOs.CutiAkademik
 {
-    /// <summary>
-    /// Request untuk menyetujui cuti akademik oleh prodi
-    /// </summary>
     public class ApproveProdiCutiRequest
     {
-        /// <summary>
-        /// ID cuti akademik yang akan disetujui
-        /// </summary>
-        [Required(ErrorMessage = "ID cuti akademik harus diisi")]
-        public string Id { get; set; } = "";
-        
-        /// <summary>
-        /// Pertimbangan/alasan persetujuan (WAJIB diisi)
-        /// </summary>
-        [Required(ErrorMessage = "Menimbang/pertimbangan harus diisi")]
-        [MinLength(10, ErrorMessage = "Menimbang minimal 10 karakter")]
-        public string Menimbang { get; set; } = "";
-        
-        /// <summary>
-        /// Username prodi yang menyetujui
-        /// </summary>
-        [Required(ErrorMessage = "ApprovedBy harus diisi")]
-        public string ApprovedBy { get; set; } = "";
+        [Required(ErrorMessage = "ID cuti akademik harus diisi.")]
+        [StringLength(30, ErrorMessage = "ID cuti akademik maksimal 30 karakter.")]
+        public string Id { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Pertimbangan harus diisi.")]
+        [StringLength(500, ErrorMessage = "Pertimbangan maksimal 500 karakter.")]
+        public string Menimbang { get; set; } = string.Empty;
+
+        [StringLength(50, ErrorMessage = "ApprovedBy maksimal 50 karakter.")]
+        public string ApprovedBy { get; set; } = string.Empty;
     }
 }

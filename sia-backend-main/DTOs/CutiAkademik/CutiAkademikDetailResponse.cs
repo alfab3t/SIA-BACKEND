@@ -1,4 +1,4 @@
-﻿namespace astratech_apps_backend.DTOs.CutiAkademik
+namespace astratech_apps_backend.DTOs.CutiAkademik
 {
     public class CutiAkademikDetailResponse
     {
@@ -23,8 +23,11 @@
         public string? ApprovalProdi { get; set; }
         public string? AppDir1Date { get; set; }
         public string? ApprovalDir1 { get; set; }
+        public string? AppDakapDate { get; set; }
+        public string? ApprovalDakap { get; set; }
         public string? Alamat { get; set; }
         public string? Menimbang { get; set; }
+        public string? Keterangan { get; set; }
         public string? BulanCuti { get; set; }
         public string? Direktur { get; set; }
         public string? Wadir1 { get; set; }

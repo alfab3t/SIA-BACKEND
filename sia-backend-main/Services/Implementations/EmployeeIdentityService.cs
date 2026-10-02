@@ -22,7 +22,7 @@ namespace astratech_apps_backend.Services.Implementations
         {
             var identity = await _employeeIdentityRepository.GetEmployeeIdentityByUserAsync(username);
             
-            if (identity?.ErrorMessage != null)
+            if (identity == null || identity.ErrorMessage != null || string.IsNullOrEmpty(identity.JabMainId))
                 return false;
 
             // Check if the employee has wadir position based on jab_main_id
@@ -36,7 +36,7 @@ namespace astratech_apps_backend.Services.Implementations
         {
             var identity = await _employeeIdentityRepository.GetEmployeeIdentityByUserAsync(username);
             
-            if (identity?.ErrorMessage != null)
+            if (identity == null || identity.ErrorMessage != null)
                 return false;
 
             // More specific check for finance - check username pattern or specific combination
@@ -58,7 +58,7 @@ namespace astratech_apps_backend.Services.Implementations
         {
             var identity = await _employeeIdentityRepository.GetEmployeeIdentityByUserAsync(username);
             
-            if (identity?.ErrorMessage != null)
+            if (identity == null || identity.ErrorMessage != null)
                 return false;
 
             // Check if the employee has prodi position based on jabMainId = "6"

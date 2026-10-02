@@ -1,4 +1,4 @@
-﻿using astratech_apps_backend.DTOs.MeninggalDunia;
+using astratech_apps_backend.DTOs.MeninggalDunia;
 using astratech_apps_backend.Models;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
@@ -12,7 +12,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         private readonly string _conn = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(config.GetConnectionString("DefaultConnection")!, Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING"));
 
         //CREATE DRAFT
-        public async Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
+        public Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
         {
             // This method is kept for backward compatibility
             // Use CreateWithMahasiswaDataAsync for new implementation

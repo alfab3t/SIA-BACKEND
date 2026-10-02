@@ -2,27 +2,28 @@ using System.ComponentModel.DataAnnotations;
 
 namespace astratech_apps_backend.DTOs.CutiAkademik
 {
-    /// <summary>
-    /// Request untuk menolak cuti akademik
-    /// </summary>
     public class RejectCutiAkademikRequest
     {
-        /// <summary>
-        /// ID cuti akademik yang akan ditolak
-        /// </summary>
-        [Required(ErrorMessage = "ID cuti akademik harus diisi")]
-        public string Id { get; set; } = "";
-        
-        /// <summary>
-        /// Role yang menolak: "prodi", "wadir1", "finance"
-        /// </summary>
-        [Required(ErrorMessage = "Role harus diisi")]
-        public string Role { get; set; } = "";
-        
-        /// <summary>
-        /// Username yang menolak
-        /// </summary>
-        [Required(ErrorMessage = "Username harus diisi")]
-        public string Username { get; set; } = "";
+        [Required(ErrorMessage = "ID cuti akademik harus diisi.")]
+        [StringLength(30, ErrorMessage = "ID cuti akademik maksimal 30 karakter.")]
+        public string Id { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Role harus diisi.")]
+        [StringLength(20, ErrorMessage = "Role maksimal 20 karakter.")]
+        public string Role { get; set; } = string.Empty;
+
+        [StringLength(50, ErrorMessage = "Username maksimal 50 karakter.")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Alasan penolakan harus diisi.")]
+        [StringLength(500, ErrorMessage = "Alasan penolakan maksimal 500 karakter.")]
+        public string Keterangan { get; set; } = string.Empty;
+
+        // Alias untuk fleksibilitas frontend jika mengirimkan field 'reason'
+        public string Reason
+        {
+            get => Keterangan;
+            set { if (!string.IsNullOrEmpty(value)) Keterangan = value; }
+        }
     }
 }

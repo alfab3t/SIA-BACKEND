@@ -1,28 +1,21 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace astratech_apps_backend.DTOs.CutiAkademik
 {
-    /// <summary>
-    /// Request untuk upload SK Cuti Akademik
-    /// </summary>
     public class UploadSKRequest
     {
-        /// <summary>
-        /// ID cuti akademik yang akan diupload SK-nya
-        /// </summary>
-        [Required(ErrorMessage = "ID cuti akademik harus diisi")]
-        public string Id { get; set; } = "";
-        
-        /// <summary>
-        /// File SK yang akan diupload
-        /// </summary>
-        [Required(ErrorMessage = "File SK harus diupload")]
+        [Required(ErrorMessage = "ID cuti akademik harus diisi.")]
+        [StringLength(30, ErrorMessage = "ID cuti akademik maksimal 30 karakter.")]
+        public string Id { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "File SK harus diunggah.")]
         public IFormFile FileSK { get; set; } = null!;
-        
-        /// <summary>
-        /// Username admin yang mengupload
-        /// </summary>
-        [Required(ErrorMessage = "UploadBy harus diisi")]
-        public string UploadBy { get; set; } = "";
+
+        [StringLength(100, ErrorMessage = "Nomor SK maksimal 100 karakter.")]
+        public string NomorSK { get; set; } = string.Empty;
+
+        [StringLength(50, ErrorMessage = "UploadBy maksimal 50 karakter.")]
+        public string UploadBy { get; set; } = string.Empty;
     }
 }
