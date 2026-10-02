@@ -194,7 +194,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("ApprovePengunduranDiri")]
-        [RequiresPermission("pengunduran_diri.approve")]
+        [RequiresPermission("pengunduran_diri.approve_reject")]
         public async Task<IActionResult> Approve(
             [FromQuery] string id,
             [FromBody] ApprovePengunduranDiriRequest? dto)
@@ -212,7 +212,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("RejectPengunduranDiri")]
-        [RequiresPermission("pengunduran_diri.reject")]
+        [RequiresPermission("pengunduran_diri.approve_reject")]
         public async Task<IActionResult> Reject(
             [FromQuery] string id,
             [FromBody] RejectPengunduranDiriRequest dto)
@@ -233,7 +233,6 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("UploadSKFilePengunduranDiri")]
-        [Consumes("multipart/form-data")]
         [RequiresPermission("pengunduran_diri.edit")]
         public async Task<IActionResult> UploadSKFile([FromForm] UploadSKFileRequest request)
         {
@@ -358,7 +357,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("DownloadFilePengunduranDiri/{filename}")]
-        [AllowAnonymous]
+        [RequiresPermission("pengunduran_diri.export")]
         public IActionResult DownloadFilePengunduranDiri(string filename)
         {
             var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");

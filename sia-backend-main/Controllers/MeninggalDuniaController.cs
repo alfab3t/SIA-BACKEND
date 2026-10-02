@@ -346,7 +346,7 @@ namespace astratech_apps_backend.Controllers
         // 12. DOWNLOAD FILE LAMPIRAN
         // ============================================
         [HttpGet("DownloadFileMeninggalDunia/{filename}")]
-        [AllowAnonymous]
+        [RequiresPermission("meninggal_dunia.export")]
         public IActionResult DownloadFileMeninggalDunia(string filename)
         {
             var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");

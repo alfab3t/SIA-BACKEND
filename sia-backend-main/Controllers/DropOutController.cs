@@ -159,16 +159,16 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { success = true, message });
         }
 
-        [HttpPut("SubmitDraftDropOut")]
         [HttpPut("SubmitDraftDropOut/{id}")]
         [RequiresPermission("drop_out.create")]
-        public async Task<IActionResult> SubmitDraft([FromQuery] string id)
+        public async Task<IActionResult> SubmitDraft(string id)
         {
-            if (string.IsNullOrEmpty(id))
+            var unescapedId = Uri.UnescapeDataString(id);
+            if (string.IsNullOrEmpty(unescapedId))
                 return BadRequest(new { message = "Parameter id wajib diisi." });
 
             var username = User.FindFirstValue("namaakun") ?? User.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
-            var (success, message, noPengajuan) = await _repo.SubmitDraftAsync(id, username);
+            var (success, message, noPengajuan) = await _repo.SubmitDraftAsync(unescapedId, username);
 
             if (!success)
                 return BadRequest(new { error = true, message });
@@ -177,7 +177,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("ApproveWadirDropOut")]
-        [RequiresPermission("drop_out.approve")]
+        [RequiresPermission("drop_out.approve_reject")]
         public async Task<IActionResult> Approve(
             [FromQuery] string id,
             [FromBody] ApproveDropOutRequest? dto)
@@ -195,7 +195,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("RejectWadirDropOut")]
-        [RequiresPermission("drop_out.reject")]
+        [RequiresPermission("drop_out.approve_reject")]
         public async Task<IActionResult> Reject(
             [FromQuery] string id,
             [FromBody] RejectDropOutRequest dto)
@@ -213,7 +213,6 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("UploadSKFileDropOut")]
-        [Consumes("multipart/form-data")]
         [RequiresPermission("drop_out.edit")]
         public async Task<IActionResult> UploadSKFile([FromForm] UploadSKFileRequest request)
         {
@@ -368,6 +367,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("TemplateSKDropOut")]
+        [RequiresPermission("drop_out.export")]
         public IActionResult DownloadTemplateSK([FromQuery] string? type = "rpt")
         {
             var fileMapping = new Dictionary<string, (string Path, string ContentType, string FileName)>

@@ -242,7 +242,7 @@ namespace astratech_apps_backend.Controllers
         // 8. APPROVE CUTI AKADEMIK (PRODI / WADIR 1 / FINANCE)
         // ============================================
         [HttpPut("ApproveCutiAkademik")]
-        [RequiresPermission("cuti_akademik.edit")]
+        [RequiresPermission("cuti_akademik.approve_reject")]
         public async Task<IActionResult> ApproveCuti([FromBody] ApproveCutiAkademikRequest dto)
         {
             if (!ModelState.IsValid)
@@ -275,7 +275,7 @@ namespace astratech_apps_backend.Controllers
         // 9. APPROVE CUTI OLEH PRODI (DENGAN MENIMBANG)
         // ============================================
         [HttpPut("ApproveCutiAkademikProdi")]
-        [RequiresPermission("cuti_akademik.edit")]
+        [RequiresPermission("cuti_akademik.approve_reject")]
         public async Task<IActionResult> ApproveProdiCuti([FromBody] ApproveProdiCutiRequest dto)
         {
             if (!ModelState.IsValid)
@@ -308,7 +308,7 @@ namespace astratech_apps_backend.Controllers
         // 10. REJECT CUTI AKADEMIK
         // ============================================
         [HttpPut("RejectCutiAkademik")]
-        [RequiresPermission("cuti_akademik.edit")]
+        [RequiresPermission("cuti_akademik.approve_reject")]
         public async Task<IActionResult> RejectCuti([FromBody] RejectCutiAkademikRequest dto)
         {
             if (!ModelState.IsValid)
@@ -430,7 +430,7 @@ namespace astratech_apps_backend.Controllers
         // 14. DOWNLOAD / SERVE FILE LAMPIRAN
         // ============================================
         [HttpGet("DownloadFileCutiAkademik/{filename}")]
-        [AllowAnonymous]
+        [RequiresPermission("cuti_akademik.export")]
         public IActionResult DownloadFile(string filename)
         {
             var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
@@ -513,6 +513,7 @@ namespace astratech_apps_backend.Controllers
         // 16. CETAK SK CUTI AKADEMIK / DOWNLOAD PDF
         // ============================================
         [HttpGet("CetakSKCutiAkademik/{id}")]
+        [RequiresPermission("cuti_akademik.print")]
         public async Task<IActionResult> CetakSK(string id)
         {
             var unescapedId = Uri.UnescapeDataString(id);
