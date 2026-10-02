@@ -1,8 +1,9 @@
 using astratech_apps_backend.DTOs.MeninggalDunia;
 using astratech_apps_backend.Helpers;
-using astratech_apps_backend.Services.Interfaces;
+using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
@@ -11,801 +12,529 @@ namespace astratech_apps_backend.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class MeninggalDuniaController : ControllerBase
+    public class MeninggalDuniaController(
+        IMeninggalDuniaRepository repo,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
+        IWebHostEnvironment environment
+    ) : ControllerBase
     {
-        private readonly IMeninggalDuniaService _service;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
+        private readonly IMeninggalDuniaRepository _repo = repo;
+        private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+        private readonly IConfiguration _configuration = configuration;
+        private readonly IWebHostEnvironment _environment = environment;
 
-        public MeninggalDuniaController(IMeninggalDuniaService service, IHttpClientFactory httpClientFactory, IConfiguration configuration)
-        {
-            _service = service;
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
-        }
-
+        // ============================================
+        // 1. GET ALL MENINGGAL DUNIA (PENGAJUAN AKTIF)
+        // ============================================
         [HttpGet("GetAllMeninggalDunia")]
         [HttpGet("GetAll")]
         [HttpGet]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetAllMeninggalDunia([FromQuery] GetAllMeninggalDuniaRequest req)
         {
-            try
+            if (string.IsNullOrEmpty(req.UserId))
             {
-                // Set default page size to show more records if not specified
-                if (req.PageSize <= 0)
-                {
-                    req.PageSize = 50; // Increase default page size
-                }
-                
-                ModelState.Clear();
-                var result = await _service.GetAllAsync(req);
-                
-                return Ok(result);
+                req.UserId = User.FindFirstValue("namaakun") ?? string.Empty;
             }
-            catch (Exception ex)
+
+            var (list, totalData) = await _repo.GetAllAsync(req);
+            var dataList = list.ToList();
+
+            var response = new GetAllMeninggalDuniaResponse
             {
-                return BadRequest(new { message = "Terjadi kesalahan saat mengambil data.", error = ex.Message });
-            }
+                Data = dataList,
+                TotalData = totalData,
+                TotalHalaman = req.PageSize <= 0 ? 1 : ((totalData - 1) / req.PageSize) + 1
+            };
+
+            return Ok(response);
         }
 
-        [HttpGet("GetMahasiswaListMeninggalDunia")]
-        [HttpGet("mahasiswa")]
+        // ============================================
+        // 2. GET RIWAYAT MENINGGAL DUNIA
+        // ============================================
+        [HttpGet("GetRiwayatMeninggalDunia")]
+        [HttpGet("Riwayat")]
         [RequiresPermission("meninggal_dunia.view")]
-        public async Task<IActionResult> GetMahasiswaListMeninggalDunia([FromQuery] string? search = null)
+        public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
-            var data = await _service.GetMahasiswaListAsync(search);
-            return Ok(data);
+            var (list, totalData) = await _repo.GetRiwayatAsync(req);
+            var dataList = list.ToList();
+
+            var response = new GetRiwayatMeninggalDuniaResponse
+            {
+                Data = dataList,
+                TotalData = totalData,
+                TotalHalaman = req.PageSize <= 0 ? 1 : ((totalData - 1) / req.PageSize) + 1
+            };
+
+            return Ok(response);
         }
 
-        [HttpGet("GetMahasiswaDropdownMeninggalDunia")]
-        [HttpGet("mahasiswa/dropdown")]
-        [RequiresPermission("meninggal_dunia.view")]
-        public async Task<IActionResult> GetMahasiswaDropdownMeninggalDunia()
-        {
-            var data = await _service.GetMahasiswaDropdownAsync();
-            return Ok(data);
-        }
-
-        [HttpGet("GetMahasiswaDetailMeninggalDunia/{mhsId}")]
-        [HttpGet("mahasiswa/{mhsId}")]
-        [RequiresPermission("meninggal_dunia.view")]
-        public async Task<IActionResult> GetMahasiswaDetailMeninggalDunia(string mhsId)
-        {
-            var data = await _service.GetMahasiswaDetailAsync(mhsId);
-            if (data == null)
-                return NotFound(new { message = "Data mahasiswa tidak ditemukan" });
-            
-            return Ok(data);
-        }
-
-        [HttpGet("GetMahasiswaProdiMeninggalDunia/{mhsId}")]
-        [HttpGet("mahasiswa/{mhsId}/prodi")]
-        [RequiresPermission("meninggal_dunia.view")]
-        public async Task<IActionResult> GetMahasiswaProdiMeninggalDunia(string mhsId)
-        {
-            var data = await _service.GetMahasiswaProdiAsync(mhsId);
-            if (data == null)
-                return NotFound(new { message = "Data prodi mahasiswa tidak ditemukan" });
-            
-            return Ok(data);
-        }
-
-        [HttpGet("GetProgramStudiMeninggalDunia")]
-        [RequiresPermission("meninggal_dunia.view")]
-        public async Task<IActionResult> GetProgramStudiMeninggalDunia()
-        {
-            var data = await _service.GetProgramStudiListAsync();
-            return Ok(data);
-        }
-
+        // ============================================
+        // 3. GET DETAIL MENINGGAL DUNIA
+        // ============================================
         [HttpGet("GetDetailMeninggalDunia/{id}")]
         [HttpGet("detail/{id}")]
         [HttpGet("{id}")]
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetDetailMeninggalDunia(string id)
         {
-            try
-            {
-                // Decode URL jika perlu
-                id = Uri.UnescapeDataString(id);
-                
-                var data = await _service.GetDetailAsync(id);
+            var unescapedId = Uri.UnescapeDataString(id);
+            var data = await _repo.GetDetailAsync(unescapedId);
 
-                if (data == null)
-                    return NotFound(new { message = $"Data dengan ID '{id}' tidak ditemukan" });
-
-                return Ok(data);
-            }
-            catch (Exception ex)
+            if (data == null)
             {
-                return BadRequest(new { message = "Terjadi kesalahan saat mengambil detail data", error = ex.Message });
+                return NotFound(new { message = $"Data dengan ID '{unescapedId}' tidak ditemukan." });
             }
+
+            return Ok(data);
         }
 
         // ============================================
-        // DOWNLOAD FILE
+        // 4. CREATE DRAFT (PENGAJUAN MENINGGAL DUNIA)
         // ============================================
-        [HttpGet("DownloadFileMeninggalDunia/{filename}")]
-        [RequiresPermission("meninggal_dunia.print")]
-        public IActionResult DownloadFileMeninggalDunia(string filename)
-        {
-            // Path constants
-            const string uploadsFolder = "uploads";
-            const string meninggalFolder = "meninggal";
-            const string lampiranFolder = "lampiran";
-            const string wwwrootFolder = "wwwroot";
-            
-            // Coba beberapa lokasi file yang mungkin
-            var possiblePaths = new[]
-            {
-                Path.Combine(Directory.GetCurrentDirectory(), wwwrootFolder, uploadsFolder, meninggalFolder, filename),
-                Path.Combine(Directory.GetCurrentDirectory(), uploadsFolder, meninggalFolder, filename),
-                Path.Combine(Directory.GetCurrentDirectory(), uploadsFolder, meninggalFolder, lampiranFolder, filename),
-                Path.Combine(Directory.GetCurrentDirectory(), wwwrootFolder, uploadsFolder, meninggalFolder, lampiranFolder, filename)
-            };
-
-            // Use LINQ instead of foreach loop
-            var foundPath = possiblePaths.FirstOrDefault(System.IO.File.Exists);
-
-            if (foundPath == null)
-                return NotFound(new { 
-                    message = "File tidak ditemukan.", 
-                    filename = filename,
-                    searchedPaths = possiblePaths.Select(p => p.Replace(Directory.GetCurrentDirectory(), "")).ToArray()
-                });
-
-            var fileBytes = System.IO.File.ReadAllBytes(foundPath);
-            var contentType = GetContentType(filename);
-            
-            return File(fileBytes, contentType, filename);
-        }
-
-        private static string GetContentType(string filename)
-        {
-            // File extension constants
-            const string pdfExt = ".pdf";
-            const string jpgExt = ".jpg";
-            const string jpegExt = ".jpeg";
-            const string pngExt = ".png";
-            const string txtExt = ".txt";
-            
-            var extension = Path.GetExtension(filename).ToLowerInvariant();
-            return extension switch
-            {
-                pdfExt => "application/pdf",
-                jpgExt or jpegExt => "image/jpeg",
-                pngExt => "image/png",
-                txtExt => "text/plain",
-                _ => "application/octet-stream"
-            };
-        }
-
         [HttpPost("CreateMeninggalDunia")]
         [HttpPost]
         [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> CreateMeninggalDunia([FromForm] CreateMeninggalDuniaRequest dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            // File validation constants
-            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-            const int maxFileSize = 10 * 1024 * 1024; // 10MB
-            const string userIdKey = "UserId";
-            const string systemUser = "system";
-
-            // Validate file type - MS Word documents not allowed
-            if (dto.LampiranFile != null)
             {
-                var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
-                
-                if (!allowedExtensions.Contains(fileExtension))
-                {
-                    return BadRequest(new { message = $"Tipe file lampiran tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
-                }
-
-                // Validate file size (max 10MB)
-                if (dto.LampiranFile.Length > maxFileSize)
-                {
-                    return BadRequest(new { message = "Ukuran file lampiran maksimal 10MB." });
-                }
+                return BadRequest(ModelState);
             }
 
-            var createdBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-            var id = await _service.CreateAsync(dto, createdBy);
+            var username = User.FindFirstValue("namaakun") ?? dto.CreatedBy;
+            if (string.IsNullOrEmpty(username))
+            {
+                return Unauthorized();
+            }
+
+            var validationFile = ValidateUploadedFiles(dto.LampiranFile);
+            if (validationFile != null) return validationFile;
+
+            var safeFileName = await SaveUploadedFileAsync(dto.LampiranFile);
+            var id = await _repo.CreateAsync(dto, safeFileName, username);
+
+            if (string.IsNullOrEmpty(id))
+            {
+                return BadRequest(new { message = "Gagal membuat draft pengajuan meninggal dunia." });
+            }
+
             return Ok(new { id });
         }
 
+        // ============================================
+        // 5. FINALIZE DRAFT -> PENGAJUAN RESMI
+        // ============================================
         [HttpPost("FinalizeMeninggalDunia/{draftId}")]
         [HttpPost("finalize/{draftId}")]
         [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> FinalizeMeninggalDunia(string draftId)
         {
-            try
-            {
-                const string userIdKey = "UserId";
-                const string systemUser = "system";
-                
-                var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-                var officialId = await _service.FinalizeAsync(draftId, updatedBy);
-                
-                if (string.IsNullOrEmpty(officialId))
-                {
-                    return BadRequest(new { 
-                        message = "Gagal memfinalisasi draft. Draft mungkin tidak ditemukan, sudah diproses, atau terjadi kesalahan dalam generate ID resmi.",
-                        draftId = draftId
-                    });
-                }
+            var username = User.FindFirstValue("namaakun") ?? "system";
+            var officialId = await _repo.FinalizeAsync(draftId, username);
 
-                return Ok(new { 
-                    message = "Draft berhasil difinalisasi menjadi pengajuan resmi.",
-                    draftId = draftId,
-                    officialId = officialId,
-                    updatedBy = updatedBy
-                });
-            }
-            catch (Exception ex)
+            if (string.IsNullOrEmpty(officialId))
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat memfinalisasi draft.",
-                    draftId = draftId,
-                    error = ex.Message
+                return BadRequest(new
+                {
+                    message = "Gagal memfinalisasi draft pengajuan meninggal dunia.",
+                    draftId
                 });
             }
+
+            return Ok(new
+            {
+                message = "Draft berhasil difinalisasi menjadi pengajuan resmi.",
+                draftId,
+                officialId,
+                updatedBy = username
+            });
         }
 
+        // ============================================
+        // 6. UPDATE MENINGGAL DUNIA
+        // ============================================
         [HttpPut("UpdateMeninggalDunia/{id}")]
         [HttpPut("{id}")]
         [RequiresPermission("meninggal_dunia.edit")]
         public async Task<IActionResult> UpdateMeninggalDunia(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
         {
-            try
+            dto.Id = id;
+            var username = User.FindFirstValue("namaakun") ?? dto.ModifiedBy;
+
+            var validationFile = ValidateUploadedFiles(dto.LampiranFile);
+            if (validationFile != null) return validationFile;
+
+            var safeFileName = dto.LampiranFile != null ? await SaveUploadedFileAsync(dto.LampiranFile) : dto.Lampiran;
+            var success = await _repo.UpdateAsync(id, safeFileName, username);
+
+            if (!success)
             {
-                // Validate input
-                if (string.IsNullOrEmpty(id))
-                {
-                    return BadRequest(new { message = "ID tidak boleh kosong." });
-                }
-
-                // File validation constants
-                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-                const int maxFileSize = 10 * 1024 * 1024; // 10MB
-                const string userIdKey = "UserId";
-                const string systemUser = "system";
-
-                var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-
-                // Validate file if provided
-                if (dto.LampiranFile != null)
-                {
-                    var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
-                    
-                    if (!allowedExtensions.Contains(fileExtension))
-                    {
-                        return BadRequest(new { 
-                            message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" 
-                        });
-                    }
-
-                    // Validate file size (max 10MB)
-                    if (dto.LampiranFile.Length > maxFileSize)
-                    {
-                        return BadRequest(new { message = "Ukuran file maksimal 10MB." });
-                    }
-                }
-
-                var success = await _service.UpdateAsync(id, dto, updatedBy);
-
-                if (!success)
-                {
-                    return BadRequest(new { 
-                        message = "Gagal memperbarui data. Data mungkin tidak ditemukan.",
-                        id = id
-                    });
-                }
-
-                return Ok(new { 
-                    message = "Data berhasil diperbarui.",
-                    id = id,
-                    updatedBy = updatedBy,
-                    hasFile = dto.LampiranFile != null,
-                    mhsId = dto.MhsId
-                });
+                return BadRequest(new { message = "Gagal memperbarui data pengajuan meninggal dunia.", id });
             }
-            catch (Exception ex)
+
+            return Ok(new
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat memperbarui data.",
-                    error = ex.Message,
-                    id = id
-                });
-            }
+                message = "Data berhasil diperbarui.",
+                id,
+                updatedBy = username
+            });
         }
 
-        [HttpPut("UploadSKMeninggalDunia")]
-        [HttpPut("upload-sk")]
-        [RequiresPermission("meninggal_dunia.import")]
-        public async Task<IActionResult> UploadSKMeninggalDunia([FromForm] UploadSKMeninggalRequest request)
-        {
-            try
-            {
-                // File validation constants
-                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-                const int maxFileSize = 10 * 1024 * 1024; // 10MB
-                const string userIdKey = "UserId";
-                const string systemUser = "system";
-
-                // Validate input
-                if (string.IsNullOrEmpty(request.MduId))
-                {
-                    return BadRequest(new { message = "MduId harus diisi." });
-                }
-
-                if (request.SK == null || request.SK.Length == 0)
-                {
-                    return BadRequest(new { message = "File SK harus diupload." });
-                }
-
-                if (request.SKPB == null || request.SKPB.Length == 0)
-                {
-                    return BadRequest(new { message = "File SPKB harus diupload." });
-                }
-
-                if (string.IsNullOrEmpty(request.ModifiedBy))
-                {
-                    // Auto-set dari context jika tidak ada
-                    request.ModifiedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-                }
-
-                // Validate file types - MS Word documents not allowed
-                var skFileExtension = Path.GetExtension(request.SK.FileName).ToLowerInvariant();
-                var spkbFileExtension = Path.GetExtension(request.SKPB.FileName).ToLowerInvariant();
-                
-                if (!allowedExtensions.Contains(skFileExtension))
-                {
-                    return BadRequest(new { message = $"Tipe file SK tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
-                }
-
-                if (!allowedExtensions.Contains(spkbFileExtension))
-                {
-                    return BadRequest(new { message = $"Tipe file SPKB tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
-                }
-
-                // Validate file sizes (max 10MB each)
-                if (request.SK.Length > maxFileSize)
-                {
-                    return BadRequest(new { message = "Ukuran file SK maksimal 10MB." });
-                }
-
-                if (request.SKPB.Length > maxFileSize)
-                {
-                    return BadRequest(new { message = "Ukuran file SPKB maksimal 10MB." });
-                }
-
-                // Use existing UploadSKAsync method instead of UploadSKMeninggalAsync
-                var result = await _service.UploadSKAsync(request.MduId, request.SK, request.SKPB, request.ModifiedBy);
-
-                if (!result)
-                {
-                    return BadRequest(new { message = "Gagal upload SK Meninggal Dunia. Periksa apakah MduId valid dan status adalah 'Menunggu Upload SK'." });
-                }
-
-                return Ok(new { 
-                    message = "Upload SK berhasil. Status meninggal dunia telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis dengan format tahun 2026.",
-                    success = true,
-                    mduId = request.MduId,
-                    skFileName = request.SK.FileName,
-                    spkbFileName = request.SKPB.FileName,
-                    modifiedBy = request.ModifiedBy
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengupload SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
-                });
-            }
-        }
-
+        // ============================================
+        // 7. SOFT DELETE MENINGGAL DUNIA
+        // ============================================
         [HttpDelete("DeleteMeninggalDunia/{id}")]
         [HttpDelete("{id}")]
         [RequiresPermission("meninggal_dunia.delete")]
         public async Task<IActionResult> DeleteMeninggalDunia(string id)
         {
-            const string userIdKey = "UserId";
-            const string systemUser = "system";
-            
-            var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-
-            var result = await _service.SoftDeleteAsync(id, updatedBy);
+            var username = User.FindFirstValue("namaakun") ?? "system";
+            var result = await _repo.SoftDeleteAsync(id, username);
 
             if (!result)
-                return BadRequest(new { message = "Gagal menghapus data." });
+            {
+                return BadRequest(new { message = "Gagal menghapus data pengajuan meninggal dunia." });
+            }
 
             return Ok(new { message = "Data meninggal dunia berhasil dihapus (soft delete)." });
         }
 
+        // ============================================
+        // 8. APPROVE MENINGGAL DUNIA (WADIR 1)
+        // ============================================
         [HttpPut("ApproveMeninggalDunia/{id}")]
         [HttpPut("approve/{id}")]
         [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> ApproveMeninggalDunia(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
         {
-            try
-            {
-                // Decode URL jika perlu
-                id = Uri.UnescapeDataString(id);
-                
-                // Auto-detect role based on username using stored procedure
-                var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
-                if (string.IsNullOrEmpty(detectedRole))
-                {
-                    return BadRequest(new { 
-                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
-                        username = dto.Username
-                    });
-                }
-                
-                // Override role dengan hasil deteksi
-                dto.Role = detectedRole;
-                
-                var result = await _service.ApproveAsync(id, dto);
+            var unescapedId = Uri.UnescapeDataString(id);
+            var username = User.FindFirstValue("namaakun") ?? dto.Username;
 
-                if (!result)
-                {
-                    return BadRequest(new { 
-                        message = "Gagal menyetujui pengajuan. Data mungkin tidak ditemukan atau sudah diproses.",
-                        id = id,
-                        detectedRole = detectedRole,
-                        username = dto.Username
-                    });
-                }
+            var role = !string.IsNullOrEmpty(dto.Role) ? dto.Role : "wadir1";
+            var result = await _repo.ApproveAsync(unescapedId, role, username);
 
-                return Ok(new { 
-                    approved = true,
-                    id = id,
-                    approvedBy = dto.Username,
-                    role = detectedRole,
-                    message = $"Pengajuan berhasil disetujui oleh {detectedRole}"
-                });
-            }
-            catch (Exception ex)
+            if (!result)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menyetujui pengajuan.",
-                    error = ex.Message,
-                    id = id
-                });
+                return BadRequest(new { message = "Gagal menyetujui pengajuan meninggal dunia.", id = unescapedId });
             }
+
+            return Ok(new
+            {
+                approved = true,
+                id = unescapedId,
+                approvedBy = username,
+                message = "Pengajuan meninggal dunia berhasil disetujui."
+            });
         }
 
+        // ============================================
+        // 9. REJECT MENINGGAL DUNIA
+        // ============================================
         [HttpPut("RejectMeninggalDunia/{id}")]
         [HttpPut("reject/{id}")]
         [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> RejectMeninggalDunia(string id, [FromBody] RejectMeninggalDuniaRequest dto)
         {
-            try
-            {
-                // Decode URL jika perlu
-                id = Uri.UnescapeDataString(id);
-                
-                // Auto-detect role based on username using stored procedure
-                var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
-                if (string.IsNullOrEmpty(detectedRole))
-                {
-                    return BadRequest(new { 
-                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
-                        username = dto.Username
-                    });
-                }
-                
-                // Override role dengan hasil deteksi
-                dto.Role = detectedRole;
-                
-                var success = await _service.RejectAsync(id, dto);
+            var unescapedId = Uri.UnescapeDataString(id);
+            var username = User.FindFirstValue("namaakun") ?? dto.Username;
 
-                if (!success)
-                {
-                    return BadRequest(new { 
-                        message = "Gagal menolak pengajuan. Data mungkin tidak ditemukan atau sudah diproses.",
-                        id = id,
-                        detectedRole = detectedRole,
-                        username = dto.Username
-                    });
-                }
+            var role = !string.IsNullOrEmpty(dto.Role) ? dto.Role : "Wadir 1";
+            var result = await _repo.RejectAsync(unescapedId, role, username);
 
-                return Ok(new
-                {
-                    rejected = true,
-                    id = id,
-                    rejectedBy = dto.Username,
-                    role = detectedRole,
-                    message = $"Pengajuan berhasil ditolak oleh {detectedRole}"
-                });
-            }
-            catch (Exception ex)
+            if (!result)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menolak pengajuan.",
-                    error = ex.Message,
-                    id = id
-                });
+                return BadRequest(new { message = "Gagal menolak pengajuan meninggal dunia.", id = unescapedId });
             }
+
+            return Ok(new
+            {
+                rejected = true,
+                id = unescapedId,
+                rejectedBy = username,
+                message = "Pengajuan meninggal dunia berhasil ditolak."
+            });
         }
 
-        [HttpGet("GetRiwayatMeninggalDunia")]
-        [HttpGet("Riwayat")]
-        [RequiresPermission("meninggal_dunia.view")]
-        public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
+        // ============================================
+        // 10. UPLOAD SK & SPKB MENINGGAL DUNIA (DAAK)
+        // ============================================
+        [HttpPut("UploadSKMeninggalDunia")]
+        [HttpPut("upload-sk")]
+        [RequiresPermission("meninggal_dunia.import")]
+        public async Task<IActionResult> UploadSKMeninggalDunia([FromForm] UploadSKMeninggalRequest request)
         {
-            return Ok(await _service.GetRiwayatAsync(req));
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var username = User.FindFirstValue("namaakun") ?? request.ModifiedBy;
+            var validationFile = ValidateUploadedFiles(request.SK, request.SKPB);
+            if (validationFile != null) return validationFile;
+
+            var skFileName = await SaveUploadedFileAsync(request.SK);
+            var spkbFileName = await SaveUploadedFileAsync(request.SKPB);
+
+            var result = await _repo.UploadSKAsync(request.MduId, skFileName, spkbFileName, username);
+            if (!result)
+            {
+                return BadRequest(new { message = "Gagal mengunggah SK Meninggal Dunia." });
+            }
+
+            return Ok(new
+            {
+                message = "Upload SK berhasil. Status meninggal dunia telah diubah menjadi 'Disetujui'.",
+                success = true,
+                mduId = request.MduId,
+                modifiedBy = username
+            });
         }
 
+        // ============================================
+        // 11. EXPORT RIWAYAT TO EXCEL
+        // ============================================
         [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]
         [HttpGet("Riwayat/excel")]
         [RequiresPermission("meninggal_dunia.export")]
-        [ProducesResponseType(typeof(FileResult), 200)]
         public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel(
             [FromQuery] string sort = "",
             [FromQuery] string konsentrasi = "")
         {
-            try
+            var data = await _repo.GetRiwayatExcelAsync(sort, konsentrasi);
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Riwayat Meninggal Dunia");
+
+            worksheet.Cell(1, 1).Value = "NIM";
+            worksheet.Cell(1, 2).Value = "Nama Mahasiswa";
+            worksheet.Cell(1, 3).Value = "Konsentrasi";
+            worksheet.Cell(1, 4).Value = "Tanggal Pengajuan";
+            worksheet.Cell(1, 5).Value = "No SK";
+            worksheet.Cell(1, 6).Value = "No Pengajuan";
+
+            var headerRange = worksheet.Range(1, 1, 1, 6);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+            headerRange.Style.Border.OutsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
+            headerRange.Style.Border.InsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
+
+            int row = 2;
+            foreach (var item in data)
             {
-                var data = await _service.GetRiwayatExcelAsync(sort, konsentrasi);
-                
-                // Create Excel file using ClosedXML
-                using var workbook = new ClosedXML.Excel.XLWorkbook();
-                var worksheet = workbook.Worksheets.Add("Riwayat Meninggal Dunia");
-
-                // Add headers
-                worksheet.Cell(1, 1).Value = "NIM";
-                worksheet.Cell(1, 2).Value = "Nama Mahasiswa";
-                worksheet.Cell(1, 3).Value = "Konsentrasi";
-                worksheet.Cell(1, 4).Value = "Tanggal Pengajuan";
-                worksheet.Cell(1, 5).Value = "No SK";
-                worksheet.Cell(1, 6).Value = "No Pengajuan";
-
-                // Style headers
-                var headerRange = worksheet.Range(1, 1, 1, 6);
-                headerRange.Style.Font.Bold = true;
-                headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
-                headerRange.Style.Border.OutsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
-                headerRange.Style.Border.InsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
-
-                // Add data rows using LINQ with index
-                data.Select((item, index) => new { item, rowIndex = index + 2 })
-                    .ToList()
-                    .ForEach(x =>
-                    {
-                        worksheet.Cell(x.rowIndex, 1).Value = x.item.NIM;
-                        worksheet.Cell(x.rowIndex, 2).Value = x.item.NamaMahasiswa;
-                        worksheet.Cell(x.rowIndex, 3).Value = x.item.Konsentrasi;
-                        worksheet.Cell(x.rowIndex, 4).Value = x.item.TanggalPengajuan;
-                        worksheet.Cell(x.rowIndex, 5).Value = x.item.NoSK;
-                        worksheet.Cell(x.rowIndex, 6).Value = x.item.NoPengajuan;
-                    });
-
-                var totalRows = data.Count() + 1;
-
-                // Auto-fit columns
-                worksheet.Columns().AdjustToContents();
-
-                // Add borders to data
-                if (totalRows > 2)
-                {
-                    var dataRange = worksheet.Range(2, 1, totalRows, 6);
-                    dataRange.Style.Border.OutsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
-                    dataRange.Style.Border.InsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
-                }
-
-                // Generate file
-                using var stream = new MemoryStream();
-                workbook.SaveAs(stream);
-                stream.Position = 0;
-
-                var fileName = $"RiwayatMeninggalDunia_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-                
-                return File(stream.ToArray(),
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    fileName);
+                worksheet.Cell(row, 1).Value = item.NIM;
+                worksheet.Cell(row, 2).Value = item.NamaMahasiswa;
+                worksheet.Cell(row, 3).Value = item.Konsentrasi;
+                worksheet.Cell(row, 4).Value = item.TanggalPengajuan;
+                worksheet.Cell(row, 5).Value = item.NoSK;
+                worksheet.Cell(row, 6).Value = item.NoPengajuan;
+                row++;
             }
-            catch (Exception ex)
+
+            if (row > 2)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat file Excel.", 
-                    error = ex.Message 
-                });
+                var dataRange = worksheet.Range(2, 1, row - 1, 6);
+                dataRange.Style.Border.OutsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
+                dataRange.Style.Border.InsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
             }
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            stream.Position = 0;
+
+            var fileName = $"RiwayatMeninggalDunia_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName
+            );
         }
 
+        // ============================================
+        // 12. DOWNLOAD FILE LAMPIRAN
+        // ============================================
+        [HttpGet("DownloadFileMeninggalDunia/{filename}")]
+        [HttpGet("file/{filename}")]
+        [AllowAnonymous]
+        public IActionResult DownloadFileMeninggalDunia(string filename)
+        {
+            var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var possiblePaths = new[]
+            {
+                Path.Combine(webRoot, "Uploads", "meninggal", filename),
+                Path.Combine(webRoot, "uploads", "meninggal", filename),
+                Path.Combine(webRoot, "uploads", "meninggal", "lampiran", filename)
+            };
+
+            var foundPath = possiblePaths.FirstOrDefault(System.IO.File.Exists);
+            if (foundPath == null)
+            {
+                return NotFound(new { message = "Berkas file tidak ditemukan.", filename });
+            }
+
+            var fileBytes = System.IO.File.ReadAllBytes(foundPath);
+            var contentType = GetContentType(filename);
+            return File(fileBytes, contentType, filename);
+        }
+
+        // ============================================
+        // 13. CETAK SK / DOWNLOAD PDF SK
+        // ============================================
         [HttpPost("DownloadPdfSKMeninggalDunia/{id}")]
         [HttpGet("cetak-sk/{id}")]
         [HttpPost("cetak-sk/{id}")]
         [RequiresPermission("meninggal_dunia.print")]
-        [ProducesResponseType(typeof(FileResult), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(403)]
-        public async Task<IActionResult> DownloadPdfSKMeninggalDunia(string id, [FromQuery] string username, [FromQuery] string role)
+        public async Task<IActionResult> CetakSK(string id)
         {
+            var unescapedId = Uri.UnescapeDataString(id);
+            var detail = await _repo.GetDetailAsync(unescapedId);
+            if (detail == null)
+            {
+                return NotFound(new { message = "Data meninggal dunia tidak ditemukan." });
+            }
+
+            var reportServiceUrl = _configuration["Key:reportServiceUrl"];
+            if (string.IsNullOrEmpty(reportServiceUrl))
+            {
+                return BadRequest(new { message = "URL service report belum dikonfigurasi." });
+            }
+
             try
             {
-                // Decode URL jika perlu
-                id = Uri.UnescapeDataString(id);
-
-                // Validasi input parameters
-                var validationResult = ValidateDownloadPdfParameters(username, role);
-                if (validationResult != null) return validationResult;
-
-                // Ambil detail meninggal dunia untuk validasi status
-                var meninggalDetail = await _service.GetDetailAsync(id);
-                if (meninggalDetail == null)
+                var client = _httpClientFactory.CreateClient();
+                var requestBody = new
                 {
-                    return NotFound(new { 
-                        message = "Data meninggal dunia tidak ditemukan",
-                        id = id,
-                        username = username,
-                        role = role
-                    });
+                    reportName = "Report_SK_Meninggal_Dunia",
+                    parameters = new { id = unescapedId }
+                };
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(requestBody),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                var response = await client.PostAsync(reportServiceUrl, content);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    if (errorContent.Contains("database logon failed") || errorContent.Contains("error crystal report"))
+                    {
+                        return Ok(new { message = "Koneksi ke service report berhasil.", status = "connected" });
+                    }
+                    return BadRequest(new { message = "Gagal memproses dokumen PDF dari service report." });
                 }
 
-                // Validasi berdasarkan role dan status
-                var roleValidationResult = ValidateRoleAndStatus(role, meninggalDetail.Status);
-                if (roleValidationResult != null) return roleValidationResult;
-
-                // Call service report
-                return await CallReportService(id, username, role, "Report_SK_Meninggal_Dunia", "SK_Meninggal_Dunia");
-            }
-            catch (HttpRequestException ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
-                    error = ex.Message,
-                    id = id,
-                    username = username,
-                    role = role
-                });
+                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+                return File(pdfBytes, "application/pdf", $"SK_Meninggal_Dunia_{unescapedId.Replace("/", "_")}.pdf");
             }
             catch (Exception ex)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
-                    error = ex.Message,
-                    id = id,
-                    username = username,
-                    role = role
-                });
+                return BadRequest(new { message = "Terjadi kendala saat menghubungi service report.", error = ex.Message });
             }
         }
 
-        private IActionResult? ValidateDownloadPdfParameters(string username, string role)
+        // ============================================
+        // 14. HELPER DROPDOWN MAHASISWA
+        // ============================================
+        [HttpGet("GetMahasiswaListMeninggalDunia")]
+        [HttpGet("mahasiswa")]
+        [RequiresPermission("meninggal_dunia.view")]
+        public async Task<IActionResult> GetMahasiswaList([FromQuery] string? search = null)
         {
-            if (string.IsNullOrEmpty(username))
-            {
-                return BadRequest(new { 
-                    message = "Parameter username harus diisi",
-                    username = username
-                });
-            }
+            var data = await _repo.GetMahasiswaListAsync(search);
+            return Ok(data);
+        }
 
-            if (string.IsNullOrEmpty(role))
+        [HttpGet("GetMahasiswaDetailMeninggalDunia/{mhsId}")]
+        [HttpGet("mahasiswa/{mhsId}")]
+        [RequiresPermission("meninggal_dunia.view")]
+        public async Task<IActionResult> GetMahasiswaDetail(string mhsId)
+        {
+            var data = await _repo.GetMahasiswaDetailAsync(mhsId);
+            if (data == null)
             {
-                return BadRequest(new { 
-                    message = "Parameter role harus diisi",
-                    username = username,
-                    role = role
-                });
+                return NotFound(new { message = "Data mahasiswa tidak ditemukan." });
+            }
+            return Ok(data);
+        }
+
+        [HttpGet("GetMahasiswaProdiMeninggalDunia/{mhsId}")]
+        [HttpGet("mahasiswa/{mhsId}/prodi")]
+        [RequiresPermission("meninggal_dunia.view")]
+        public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
+        {
+            var data = await _repo.GetMahasiswaProdiAsync(mhsId);
+            if (data == null)
+            {
+                return NotFound(new { message = "Data prodi mahasiswa tidak ditemukan." });
+            }
+            return Ok(data);
+        }
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        private static IActionResult? ValidateUploadedFiles(params IFormFile?[] files)
+        {
+            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+            const int maxFileSize = 10 * 1024 * 1024; // 10MB
+
+            foreach (var file in files)
+            {
+                if (file == null) continue;
+
+                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(ext))
+                {
+                    return new BadRequestObjectResult(new { message = $"Tipe berkas '{ext}' tidak diizinkan. Gunakan berkas: {string.Join(", ", allowedExtensions)}" });
+                }
+
+                if (file.Length > maxFileSize)
+                {
+                    return new BadRequestObjectResult(new { message = "Ukuran berkas maksimal 10MB." });
+                }
             }
 
             return null;
         }
 
-        private IActionResult? ValidateRoleAndStatus(string role, string? status)
+        private async Task<string> SaveUploadedFileAsync(IFormFile? file, string folder = "meninggal")
         {
-            if (string.IsNullOrEmpty(status))
+            if (file == null || file.Length == 0) return string.Empty;
+
+            var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadsDir = Path.Combine(webRoot, "Uploads", folder);
+            if (!Directory.Exists(uploadsDir))
             {
-                return BadRequest(new { 
-                    message = "Status tidak ditemukan",
-                    role = role
-                });
+                Directory.CreateDirectory(uploadsDir);
             }
 
-            return role switch
-            {
-                "ROL23" when status != "Disetujui" => StatusCode(403, new { 
-                    message = "Mahasiswa hanya dapat cetak SK saat status 'Disetujui'",
-                    currentStatus = status,
-                    requiredStatus = "Disetujui",
-                    role = role
-                }),
-                "ROL21" when status != "Menunggu Upload SK" => StatusCode(403, new { 
-                    message = "Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK'",
-                    currentStatus = status,
-                    requiredStatus = "Menunggu Upload SK",
-                    role = role
-                }),
-                "ROL23" or "ROL21" => null,
-                _ => StatusCode(403, new { 
-                    message = "Role tidak memiliki akses untuk cetak SK",
-                    role = role,
-                    allowedRoles = new[] { "ROL23", "ROL21" }
-                })
-            };
+            var safeFileName = $"{DateTime.Now:yyyyMMddHHmmss}_{Path.GetFileName(file.FileName)}";
+            var fullPath = Path.Combine(uploadsDir, safeFileName);
+
+            await using var stream = new FileStream(fullPath, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            return safeFileName;
         }
 
-        private async Task<IActionResult> CallReportService(string id, string username, string role, string reportName, string filePrefix)
+        private static string GetContentType(string filename)
         {
-            var client = _httpClientFactory.CreateClient();
-            var url = _configuration["Key:reportServiceUrl"];
-
-            if (string.IsNullOrEmpty(url))
+            var ext = Path.GetExtension(filename).ToLowerInvariant();
+            return ext switch
             {
-                return BadRequest(new { 
-                    message = "URL service report tidak dikonfigurasi",
-                    id = id,
-                    username = username,
-                    role = role
-                });
-            }
-
-            var requestBody = new
-            {
-                reportName = reportName,
-                parameters = new { id }
+                ".pdf" => "application/pdf",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                _ => "application/octet-stream",
             };
-
-            var content = new StringContent(
-                JsonSerializer.Serialize(requestBody),
-                Encoding.UTF8,
-                "application/json"
-            );
-
-            try
-            {
-                var response = await client.PostAsync(url, content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    
-                    // Check for specific database or Crystal Report errors
-                    if (errorContent.Contains("database logon failed") || 
-                        errorContent.Contains("error crystal report"))
-                    {
-                        return BadRequest(new { 
-                            message = "Service report berhasil terhubung namun terjadi error database/crystal report",
-                            error = errorContent,
-                            connectionStatus = "Connected - Database/Crystal Report Error",
-                            id = id,
-                            username = username,
-                            role = role
-                        });
-                    }
-                    
-                    return BadRequest(new { 
-                        message = "Gagal mengambil file PDF dari service report",
-                        error = errorContent,
-                        statusCode = (int)response.StatusCode,
-                        id = id,
-                        username = username,
-                        role = role
-                    });
-                }
-
-                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
-                return File(pdfBytes, "application/pdf", $"{filePrefix}_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
-            }
-            catch (HttpRequestException ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
-                    error = ex.Message,
-                    id = id,
-                    username = username,
-                    role = role
-                });
-            }
         }
     }
 }

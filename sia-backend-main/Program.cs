@@ -85,7 +85,6 @@ namespace astratech_apps_backend
             builder.Services.AddScoped<ICutiAkademikRepository, CutiAkademikRepository>();
 
             builder.Services.AddScoped<IMeninggalDuniaRepository, MeninggalDuniaRepository>();
-            builder.Services.AddScoped<IMeninggalDuniaService, MeninggalDuniaService>();
 
             builder.Services.AddScoped<IDropOutRepository, DropOutRepository>();
             builder.Services.AddScoped<IPengunduranDiriRepository, PengunduranDiriRepository>();

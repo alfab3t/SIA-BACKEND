@@ -1,15 +1,26 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace astratech_apps_backend.DTOs.MeninggalDunia
 {
     public class GetAllMeninggalDuniaRequest
     {
-        public string? UserId { get; set; }
-        public string? SearchKeyword { get; set; }
-        public string? Status { get; set; }
-        public string? Sort { get; set; }
-        public string? RoleId { get; set; }
         public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 50;
+
+        public int PageSize { get; set; } = 10;
+
+        [StringLength(100)]
+        public string SearchKeyword { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        public string Status { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        public string Sort { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        public string RoleId { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        public string UserId { get; set; } = string.Empty;
     }
 }

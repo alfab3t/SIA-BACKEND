@@ -1,8 +1,13 @@
-﻿namespace astratech_apps_backend.DTOs.MeninggalDunia
+using System.ComponentModel.DataAnnotations;
+
+namespace astratech_apps_backend.DTOs.MeninggalDunia
 {
     public class ApproveMeninggalDuniaRequest
     {
-        public string Role { get; set; } = "";   // p2 → 'wadir1'
-        public string Username { get; set; } = ""; // p3 → user yang approve
+        [StringLength(50, ErrorMessage = "Role maksimal 50 karakter.")]
+        public string Role { get; set; } = "wadir1";
+
+        [StringLength(50, ErrorMessage = "Username maksimal 50 karakter.")]
+        public string Username { get; set; } = string.Empty;
     }
 }
