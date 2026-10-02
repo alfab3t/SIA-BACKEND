@@ -1,32 +1,36 @@
-﻿namespace astratech_apps_backend.DTOs.PengunduranDiri
+namespace astratech_apps_backend.DTOs.PengunduranDiri
 {
     public class PengunduranDiriDetailResponse
     {
-        public string Id { get; set; } = "";
-        public string MhsId { get; set; } = "";
-        public string NamaMahasiswa { get; set; } = "";
-        public string KonsentrasiNama { get; set; } = "";
-        public string Angkatan { get; set; } = "";
-        public string KonsentrasiSingkatan { get; set; } = "";
-        public string LampiranSuratPengajuan { get; set; } = "";
-        public string Lampiran { get; set; } = "";
-        public string Status { get; set; } = "";
-        public string CreatedBy { get; set; } = "";
-        public string TanggalSekarang { get; set; } = "";
-        public string SK { get; set; } = "";
-        public string SuratNo { get; set; } = "";
-        public string ProdiNama { get; set; } = "";
-        public string Kaprodi { get; set; } = "";
-        public string AppProdiDate { get; set; } = "";
-        public string ApprovalProdiBy { get; set; } = "";
-        public string AppDir1Date { get; set; } = "";
-        public string ApprovalDir1By { get; set; } = "";
-        public string Direktur { get; set; } = "";
-        public string Wadir1 { get; set; } = "";
-        public string Wadir2 { get; set; } = "";
-        public string Wadir3 { get; set; } = "";
-        public string NoSK { get; set; } = "";
-        public string NoSkpb { get; set; } = "";
-        public string Skpb { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string PdiId { get; set; } = string.Empty;
+        public string MhsId { get; set; } = string.Empty;
+        public string NamaMahasiswa { get; set; } = string.Empty;
+        public string KonsentrasiNama { get; set; } = string.Empty;
+        public string Konsentrasi { get; set; } = string.Empty;
+        public string Angkatan { get; set; } = string.Empty;
+        public string KonsentrasiSingkatan { get; set; } = string.Empty;
+        public string LampiranSuratPengajuan { get; set; } = string.Empty;
+        public string Lampiran { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
+        public string TanggalSekarang { get; set; } = string.Empty;
+        public string SK { get; set; } = string.Empty;
+        public string SuratNo { get; set; } = string.Empty;
+        public string ProdiNama { get; set; } = string.Empty;
+        public string Prodi { get; set; } = string.Empty;
+        public string Kaprodi { get; set; } = string.Empty;
+        public string AppProdiDate { get; set; } = string.Empty;
+        public string ApprovalProdiBy { get; set; } = string.Empty;
+        public string AppDir1Date { get; set; } = string.Empty;
+        public string ApprovalDir1By { get; set; } = string.Empty;
+        public string AlasanTolak { get; set; } = string.Empty;
+        public string Direktur { get; set; } = string.Empty;
+        public string Wadir1 { get; set; } = string.Empty;
+        public string Wadir2 { get; set; } = string.Empty;
+        public string Wadir3 { get; set; } = string.Empty;
+        public string NoSK { get; set; } = string.Empty;
+        public string NoSkpb { get; set; } = string.Empty;
+        public string Skpb { get; set; } = string.Empty;
     }
 }

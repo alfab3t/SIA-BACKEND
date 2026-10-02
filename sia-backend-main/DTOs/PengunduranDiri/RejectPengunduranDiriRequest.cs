@@ -1,8 +1,14 @@
-﻿namespace astratech_apps_backend.DTOs.PengunduranDiri
+using System.ComponentModel.DataAnnotations;
+
+namespace astratech_apps_backend.DTOs.PengunduranDiri
 {
     public class RejectPengunduranDiriRequest
     {
-        public string Role { get; set; } = "";   // prodi / wadir1
-        public string Reason { get; set; } = ""; // pdi_keterangan
+        [StringLength(50)]
+        public string Role { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Alasan penolakan harus diisi.")]
+        [StringLength(1000)]
+        public string Reason { get; set; } = string.Empty;
     }
 }

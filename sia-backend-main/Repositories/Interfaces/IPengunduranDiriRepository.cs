@@ -1,48 +1,39 @@
-﻿using astratech_apps_backend.DTOs.PengunduranDiri;
 using astratech_apps_backend.DTOs.Common;
+using astratech_apps_backend.DTOs.PengunduranDiri;
 using astratech_apps_backend.Models;
 
 namespace astratech_apps_backend.Repositories.Interfaces
 {
     public interface IPengunduranDiriRepository
     {
-        
-        Task<string> CreateStep1Async(string mhsId, string createdBy, string? lampiranSuratPengajuan = "", string? lampiran = "");
-        Task<CreatePengunduranDiriResponse?> CreateStep2Async(string draftId, string createdBy);
-        Task<IEnumerable<PengunduranDiriListResponse>> GetAllAsync(string p1, string keyword, string sortBy, string konId, string status, string userId);
-        Task<PaginatedResponse<PengunduranDiriListResponse>> GetAllPaginatedAsync(string p1, string keyword, string sortBy, string konId, string status, string userId, int page, int pageSize);
-        Task<PengunduranDiri?> GetByIdAsync(string id);
-        Task<bool> UpdateAsync(string id, UpdatePengunduranDiriRequest dto, string updatedBy);
-        Task<bool> SoftDeleteAsync(string id, string updatedBy);
-        Task<string?> CheckReportAsync(string pdiId);
-        Task<string> CreateByProdiStep1Async(string mhsId, string createdBy, string? lampiranSuratPengajuan = "", string? lampiran = "");
-        Task<CreatePengunduranDiriByProdiResponse?> CreateByProdiStep2Async(string draftId, string modifiedBy);
-        Task<CreatePengunduranDiriByProdiResponse> CreateByProdiAsync(CreatePengunduranDiriByProdiRequest dto);
-        Task<bool> CreateSKAsync(string id, UploadSKPengunduranDiriRequest dto, string updatedBy);
-        Task<PengunduranDiriDetailResponse?> GetDetailAsync(string id);
-        Task<PengunduranDiriNotifResponse?> GetNotifAsync(string id);
+        Task<(IEnumerable<PengunduranDiriListResponse> Data, int TotalData)> GetPendingPaginatedAsync(
+            string username, string keyword, string sortBy, string konsentrasi, string status, string role, int page, int pageSize);
+
+        Task<IEnumerable<PengunduranDiriListResponse>> GetPendingAsync(
+            string username, string keyword, string sortBy, string konsentrasi, string status, string role);
+
+        Task<(IEnumerable<PengunduranDiriRiwayatResponse> Data, int TotalData)> GetRiwayatPaginatedAsync(
+            string username, string status, string keyword, string sortBy, string konsentrasi, string role, int page, int pageSize);
+
         Task<IEnumerable<PengunduranDiriRiwayatResponse>> GetRiwayatAsync(
-        string username,
-        string status,
-        string keyword,
-        string orderBy,
-        string konsentrasi
-        );
-        Task<PaginatedResponse<PengunduranDiriRiwayatResponse>> GetRiwayatPaginatedAsync(
-        string username,
-        string status,
-        string keyword,
-        string orderBy,
-        string konsentrasi,
-        int page,
-        int pageSize
-        );
+            string username, string status, string keyword, string sortBy, string konsentrasi, string role);
+
         Task<IEnumerable<PengunduranDiriRiwayatExcelResponse>> GetRiwayatExcelAsync(
-        string orderBy,
-        string konsentrasi
-        );
-        Task<bool> ApproveAsync(string id, ApprovePengunduranDiriRequest dto);
-        Task<bool> RejectAsync(string id, RejectPengunduranDiriRequest dto);
+            string konsentrasi, string sortBy);
+
+        Task<PengunduranDiriDetailResponse?> GetDetailAsync(string id);
+        Task<PengunduranDiri?> GetByIdAsync(string id);
+
+        Task<(bool Success, string Message, string? PdiId)> CreatePengajuanAsync(CreatePengunduranDiriRequest dto, string createdBy);
+        Task<(bool Success, string Message, string? PdiId)> CreateByProdiAsync(CreatePengunduranDiriByProdiRequest dto);
+        Task<(bool Success, string Message, string? NoPengajuan)> SubmitDraftAsync(string id, string submittedBy);
+        Task<(bool Success, string Message)> UpdateAsync(string id, UpdatePengunduranDiriRequest dto, string updatedBy);
+        Task<(bool Success, string Message)> ApproveAsync(string id, string role, string approvedBy);
+        Task<(bool Success, string Message)> RejectAsync(string id, string role, string reason, string rejectedBy);
+        Task<(bool Success, string Message)> UploadSKAsync(string id, UploadSKPengunduranDiriRequest dto, string updatedBy);
+        Task<(bool Success, string Message)> DeleteAsync(string id, string deletedBy);
+
+        // Helper Dropdowns & Master Data
         Task<IEnumerable<MahasiswaListResponse>> GetMahasiswaListAsync();
         Task<IEnumerable<MahasiswaByProdiResponse>> GetMahasiswaByProdiAsync(string userId);
         Task<MahasiswaProdiResponse?> GetMahasiswaProdiAsync(string mhsId);

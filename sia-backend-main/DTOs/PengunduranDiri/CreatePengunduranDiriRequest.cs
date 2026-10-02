@@ -1,12 +1,26 @@
-﻿namespace astratech_apps_backend.DTOs.PengunduranDiri
+using System.ComponentModel.DataAnnotations;
+
+namespace astratech_apps_backend.DTOs.PengunduranDiri
 {
     public class CreatePengunduranDiriRequest
     {
-        public string Step { get; set; } = ""; // STEP1 / STEP2
-        public string DraftId { get; set; } = ""; // untuk submit
-        public string MhsId { get; set; } = ""; // mhs_id
-        public string? LampiranSuratPengajuan { get; set; } // berkas pernyataan
-        public string? Lampiran { get; set; } // berkas lampiran
-        public string? CreatedBy { get; set; } // untuk endpoint /create
+        [StringLength(50)]
+        public string Step { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        public string DraftId { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Mahasiswa harus dipilih.")]
+        [StringLength(50)]
+        public string MhsId { get; set; } = string.Empty;
+
+        [StringLength(500)]
+        public string LampiranSuratPengajuan { get; set; } = string.Empty;
+
+        [StringLength(500)]
+        public string Lampiran { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? CreatedBy { get; set; }
     }
 }
